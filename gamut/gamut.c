@@ -1142,10 +1142,10 @@ static void intersect_imp(gamut *s, gamut *sa, gamut *sb) {
 
 /* Initialise this gamut with the intersection of the */
 /* the two given gamuts. Return NZ on error. */
-/* Return 1 if gamuts are not compatible */
+/* Return 1 if gamuts are not compatible. */
 /* (We assume that the this gamut is currently empty) */
 static int intersect(gamut *s, gamut *sa, gamut *sb) {
-	gamut *ss;
+	gamut *ss = NULL;
 	int j;
 
 	if (sa->compatible(sa, sb) == 0)
@@ -1186,7 +1186,7 @@ static int intersect(gamut *s, gamut *sa, gamut *sb) {
 	else if (sb->cswbset)
 		ss = sa;
 
-	if (ss->cswbset) {
+	if (ss != NULL && ss->cswbset) {
 		for (j = 0; j < 3; j++) {
 			s->cs_wp[j] = ss->cs_wp[j];
 			s->cs_bp[j] = ss->cs_bp[j];

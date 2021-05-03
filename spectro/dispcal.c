@@ -1,6 +1,6 @@
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  * Display callibrator.
  *
  * Author: Graeme W. Gill

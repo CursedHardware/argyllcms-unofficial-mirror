@@ -1,6 +1,6 @@
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  * CxF to CIE/TI1/TI2/TI3 conversion utility.
  *
  * Author: Graeme W. Gill

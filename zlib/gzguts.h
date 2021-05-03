@@ -29,6 +29,8 @@
 
 #ifdef _WIN32
 #  include <stddef.h>
+#else
+# include <unistd.h>			// Argyll
 #endif
 
 #if defined(__TURBOC__) || defined(_MSC_VER) || defined(_WIN32)

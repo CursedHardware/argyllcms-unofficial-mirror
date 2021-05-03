@@ -104,8 +104,8 @@ int do_plot10pwz(double *x, double *y1, double *y2, double *y3, double *y4, doub
                int n, double *xp, double *yp, int m, int dowait, int zero);
 
 /* Public routines */
-/* Plot up to MXGPHS (12) graphs + optional crosses */
-/* yy must be yy[MXGPHS]  */
+/* Plot up to MXGPHS (16) graphs + optional crosses */
+/* yy must be yy[MXGPHS] with unused yy[] == NULL */
 int do_plotNpwz(double *x, double **yy, int n, double *xp, double *yp, int m, int dowait, int zero);
 
 /* Plot a bunch of vectors + points + optional colored points & notation */

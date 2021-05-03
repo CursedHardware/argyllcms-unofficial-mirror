@@ -72,7 +72,12 @@ int plot_colors[MXGPHS][3] = {
 	{ 160, 160, 160},	/* Grey */
 	{ 220,  30, 220},	/* Magenta */
 	{ 112, 255, 161},	/* Lime */
-	{ 255, 191,  80}	/* Pink */
+	{ 255, 191,  80},	/* Pink */
+
+	{   0, 100, 100},	/* ???? */
+	{ 100,   0, 100},	/* ???? */
+	{ 100, 100,   0},	/* ???? */
+	{ 100,   0,   0}	/* ???? */
 };
 
 struct _plot_info {
@@ -1083,8 +1088,7 @@ DWORD WINAPI plot_message_thread(LPVOID lpParameter) {
 	HWND _hwnd;
 
 	// Fill in window class structure with parameters that describe the
-	// main window.
-
+	// main window. (This is accessed by lpszClassName match to window)
 	wc.style         = CS_HREDRAW | CS_VREDRAW;	// Class style(s).
 	wc.lpfnWndProc   = MainWndProc;	// Function to retrieve messages for windows of this class.
 	wc.cbClsExtra    = 0;			// No per-class extra data.
@@ -1846,10 +1850,17 @@ static void create_my_win(void *cntx) {
 	wRect.size.height = DEFWHEIGHT;
 
 	cx->window = [[PLWin alloc] initWithContentRect: wRect
-                                        styleMask: (NSTitledWindowMask |
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
+	                                    styleMask: (NSWindowStyleMaskTitled |
+	                                                NSWindowStyleMaskClosable |
+	                                                NSWindowStyleMaskMiniaturizable |
+	                                                NSWindowStyleMaskResizable)
+#else
+	                                    styleMask: (NSTitledWindowMask |
 	                                                NSClosableWindowMask |
-                                                    NSMiniaturizableWindowMask |
-                                                    NSResizableWindowMask)
+	                                                NSMiniaturizableWindowMask |
+	                                                NSResizableWindowMask)
+#endif
                                           backing: NSBackingStoreBuffered
                                             defer: YES
 	                                       screen: nil];		/* Main screen */

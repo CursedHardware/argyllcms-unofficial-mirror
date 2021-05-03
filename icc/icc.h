@@ -2077,6 +2077,9 @@ int icmLineIntersect2(double res[2], double p1[2], double p2[2], double p3[2], d
 /* Return 1 lines do not cross within their length */
 int icmParmLineIntersect2(double ares[2], double aprm[2], double p1[2], double p2[2], double p3[2], double p4[2]);
 
+/* Set a 2x2 matrix to unity */
+void icmSetUnity2x2(double mat[2][2]);
+
 /* Invert a 2x2 transform matrix. Return 1 if error. */
 int icmInverse2x2(double out[2][2], double in[2][2]);
 

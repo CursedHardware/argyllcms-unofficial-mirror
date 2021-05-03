@@ -2,7 +2,7 @@
 /* Abstract instrument class implemenation */
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  *
  * Author: Graeme W. Gill
  * Date:   10/3/2001
@@ -16,7 +16,7 @@
 
 /* 
    If you make use of the instrument driver code here, please note
-   that it is the author(s) of the code who take responsibility
+   that it is the author(s) of the code who are responsibility
    for its operation. Any problems or queries regarding driving
    instruments with the Argyll drivers, should be directed to
    the Argyll's author(s), and not to any other party.
@@ -679,6 +679,8 @@ void *cntx			/* Context for callback */
 	else if ((itype == instI1Pro) ||
 	         (itype == instI1Pro2))
 		p = (inst *)new_i1pro(icom, itype);
+	else if (itype == instI1Pro3)
+		p = (inst *)new_i1pro3(icom, itype);
 	else if (itype == instColorMunki)
 		p = (inst *)new_munki(icom, itype);
 	else if (itype == instSpyder1)
@@ -2133,7 +2135,7 @@ int sym_to_inst_mode(inst_mode *mode, const char *sym) {
 /* Custom filter support */
 
 /* Apply a custom filer to an array of ipatch's */
-/* Spetral values are divided by filter spectrum and XYZ recomputed */
+/* Spectral values are divided by filter spectrum and XYZ recomputed */
 void ipatch_convert_custom_filter(ipatch *vals, int nvals, xspect *filt, int clamp) {
 	xspect tmp;
 	xsp2cie *conv = NULL;	/* Spectral to XYZ conversion object */

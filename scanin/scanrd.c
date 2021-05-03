@@ -2101,7 +2101,7 @@ scanrd_ *s
 			strcpy(xf,xfix1);
 			for(;;) {	/* Do X increment */
 				if (i >= s->nsbox) {
-					em = "More BOXes that declared";
+					em = "More BOXes than declared";
 					goto read_error;
 				}
 				/* '_' is used as a null string marker for single character single cells */

@@ -1,5 +1,5 @@
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  * DTP92/Spectrolino display target reader
  *
  * Author: Graeme W. Gill

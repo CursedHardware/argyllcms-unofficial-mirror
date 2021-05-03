@@ -3204,16 +3204,16 @@ int                quality			/* Quality metric, 0..3 */
 
 					/* Look for both */
 					for (i = 0; i < nodpbw; i++) {
-						if (ipoints[i].p[0] < 0.001)
+						if (ipoints[i].p[0] < 0.001) {
 							minwp[0] += ipoints[i].v[0];
 							minwp[1] += ipoints[i].v[1];
-							minwp[2] += ipoints[i].v[2]; {
+							minwp[2] += ipoints[i].v[2];
 							nminwp++;
 						}
-						if (ipoints[i].p[0] > 0.999)
+						if (ipoints[i].p[0] > 0.999) {
 							maxwp[0] += ipoints[i].v[0];
 							maxwp[1] += ipoints[i].v[1];
-							maxwp[2] += ipoints[i].v[2]; {
+							maxwp[2] += ipoints[i].v[2];
 							nmaxwp++;
 						}
 					}

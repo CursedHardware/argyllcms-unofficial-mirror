@@ -1,6 +1,6 @@
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  *
  * GretagMacbeth Huey related functions
  *
@@ -18,7 +18,7 @@
 
 /* 
    If you make use of the instrument driver code here, please note
-   that it is the author(s) of the code who take responsibility
+   that it is the author(s) of the code who are responsibility
    for its operation. Any problems or queries regarding driving
    instruments with the Argyll drivers, should be directed to
    the Argyll's author(s), and not to any other party.
@@ -75,7 +75,7 @@
 #define I1D3_MEAS_TIMEOUT 40.0      /* Longest reading timeout in seconds */ 
 									/* Typically 20.0 is the maximum needed. */
 
-#define I1D3_SAT_FREQ 100000.0		/* L2F sensor frequency limit */
+#define I1D3_SAT_FREQ 100000.0		/* L2F sensor frequency limit ? Should this be increased ?? */
 
 static inst_code i1d3_interp_code(inst *pp, int ec);
 static inst_code i1d3_check_unlock(i1d3 *p);
@@ -815,9 +815,10 @@ i1d3_freq_measure(
 
 	/* The HW holds the L2F *OE high (disabled) until the start of the measurement period, */
 	/* and this has the effect of holding the internal integrator in a reset state. */
-	/* This then synchronizes the frequency output to the start of */
-	/* the measurement, which has the effect of rounding down the count output. */
-	/* To compensate, we have to add 0.5 to the count. */
+	/* This then synchronizes the frequency output to the start of the measurement,*/
+	/* which has the effect of rounding down the count output (0 to -1 bit error). */
+	/* To compensate, we have to add 0.5 to the count to make the quantization error */
+	/* symetric and minimal (-.5 to .5 bit error) */
 	rgb[0] += 0.5;
 	rgb[1] += 0.5;
 	rgb[2] += 0.5;
@@ -825,7 +826,7 @@ i1d3_freq_measure(
 	return inst_ok;
 }
 
-/* Take a raw measurement that returns the number of clocks */
+/* Take a raw measurement that returns the number of clocks (i.e. period) */
 /* between and initial edge at the start of the period (triggered by */
 /* the *OE going low and the integrator being started) and edgec[] */
 /* subsequent edges of the L2F. The edge count must be between */
@@ -2810,6 +2811,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		val->mtype = inst_mrt_ambient;
 	else
 		val->mtype = inst_mrt_emission;
+	val->mcond = inst_mrc_none;
 	val->XYZ_v = 1;
 	val->sp.spec_n = 0;
 	val->duration = 0.0;
@@ -3485,6 +3487,7 @@ i1d3_del(inst *pp) {
 				msec_sleep(50);	/* Wait for thread to terminate */
 			if (i >= 5) {
 				a1logd(p->log,3,"i1d3 diffuser thread termination failed\n");
+				p->th->terminate(p->th);		/* Try and force thread to terminate */
 			}
 			p->th->del(p->th);
 		}
@@ -4124,7 +4127,7 @@ static void create_unlock_response(unsigned int *k, unsigned char *c, unsigned c
 	for (i = 0; i < 8; i++)
 		sc[i] = c[3] ^ c[35 + i];
 	
-	/* Combine key with 16 byte challenge to create core 16 byte response */
+	/* Combine 8 byte key with 16 byte challenge to create core 16 byte response */
 	{
 		unsigned int ci[2];		/* challenge as 4 ints */
 		unsigned int co[4];		/* product, difference of 4 ints */
@@ -4162,7 +4165,7 @@ static void create_unlock_response(unsigned int *k, unsigned char *c, unsigned c
 		s0 =  sum       & 0xff;
 		s1 = (sum >> 8) & 0xff;
 	
-		/* Final computation of bytes from 4 ints + sum bytes */
+		/* Final computation of 16 bytes from 4 ints + sum bytes */
 		sr[0] =  ((co[0] >> 16) & 0xff) + s0;
 		sr[1] =  ((co[2] >>  8) & 0xff) - s1;
 		sr[2] =  ( co[3]        & 0xff) + s1;

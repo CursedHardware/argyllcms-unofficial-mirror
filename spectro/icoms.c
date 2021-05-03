@@ -2,7 +2,7 @@
 /* General instrument + serial I/O support */
 
 /*
- * Argyll Color Correction System
+ * Argyll Color Management System
  *
  * Author: Graeme W. Gill
  * Date:   28/9/97
@@ -49,6 +49,7 @@ int serial_get_paths(icompaths *p, icom_type mask);
 
 /* Fake display & instrument device */
 icompath icomFakeDevice = { instFakeDisp, "Fake Display Device" };
+
 
 
 
@@ -131,7 +132,7 @@ static icompath *icompaths_get_path_sel(
 	 && dtix != dtix_3dlut
 	 && dtix != dtix_vtpg
 	 && dtix != dtix_printer
-	 && dtix != dtix_cmfm) {
+	) {
 //printf("~1 unrec index\n");
 		return NULL;
 	}
@@ -184,7 +185,6 @@ static void icompaths_clear_all(icompaths *p) {
 	icompaths_clear(p, dtix_3dlut);
 	icompaths_clear(p, dtix_vtpg);
 	icompaths_clear(p, dtix_printer);
-	icompaths_clear(p, dtix_cmfm);
 	icompaths_clear(p, dtix_combined);
 }
 
@@ -252,10 +252,7 @@ int icompaths_make_dslists(icompaths *p) {
 			if ((rv = icompaths_add_path(p, dtix_printer, xp)) != ICOM_OK)
 				return rv;
 		}
-		if (xp->dctype & icomt_cmfm) {
-			if ((rv = icompaths_add_path(p, dtix_cmfm, xp)) != ICOM_OK)
-				return rv;
-		}
+
 	}
 
 	/* Maintain backwards compatible instrument list alias */

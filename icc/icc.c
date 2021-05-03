@@ -13771,7 +13771,6 @@ void icmSetUnity3x3(double mat[3][3]) {
 				mat[j][i] = 0.0;
 		}
 	}
-	
 }
 
 /* Copy a 3x3 transform matrix */
@@ -14003,6 +14002,19 @@ double in[3][3]
         for(j = 0; j < 3; j++)
 		    out[i][j] /= det;
 	return 0;
+}
+
+/* Set a 2x2 matrix to unity */
+void icmSetUnity2x2(double mat[2][2]) {
+	int i, j;
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < 2; i++) {
+			if (i == j)
+				mat[j][i] = 1.0;
+			else
+				mat[j][i] = 0.0;
+		}
+	}
 }
 
 /* Invert a 2x2 transform matrix. Return 1 if error. */
@@ -14980,7 +14992,7 @@ icmLab2XYZ(icmXYZNumber *w, double *out, double *in) {
  * This is a modern update to L*a*b*, based on IPT space.
  *
  * Differences to L*a*b* and IPT:
- *	Using inverse CIE 2012 2degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez.
+ *	Using inverse CIE 2012 2 degree LMS to XYZ matrix instead of Hunt-Pointer-Estevez.
  *  Von Kries chromatic adapation in LMS cone space.
  *  Using L* compression rather than IPT pure 0.43 power.
  *  Tweaked LMS' to IPT matrix to account for change in XYZ to LMS matrix.

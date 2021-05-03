@@ -158,6 +158,13 @@ double norm_rand_th(rand_state *p) {
 	}
 }
 
+/* Set random dvector */
+void vect_rand(double *d, double min, double max, int len) {
+	int i;
+	for (i = 0; i < len; i++)
+		d[i] = d_rand(min, max);
+}
+
 /* =================================================================== */
 
 /* Scale normal value by this to give it a mean absolute deviation of 1.0 */

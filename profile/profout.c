@@ -1,6 +1,6 @@
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  * Output device profile creator.
  *
  * Author: Graeme W. Gill

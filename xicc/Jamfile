@@ -16,6 +16,12 @@ InstallFile $(DESTDIR)$(PREFIX)/bin : $(Samples) ;
 #InstallFile $(DESTDIR)$(PREFIX)/h : $(Headers) ;
 #InstallLib  $(DESTDIR)$(PREFIX)/lib : $(Libraries) ;
 
+if $(USE_PLOT) = true {
+	DEFINES += EN_PLOT ; 
+} else {
+	UNDEFS += $(UNDEFFLAG)EN_PLOT ; 
+}
+
 HDRS = ../h ../icc ../rspl ../cgats ../numlib ../gamut ../spectro ../profile
        ../plot ../render $(TIFFINC) $(JPEGINC) $(LibWinH) ;
 

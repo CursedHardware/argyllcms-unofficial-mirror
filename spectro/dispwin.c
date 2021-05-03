@@ -1,12 +1,12 @@
 
 /* 
- * Argyll Color Correction System
+ * Argyll Color Management System
  * Display target patch window
  *
  * Author: Graeme W. Gill
  * Date:   4/10/96
  *
- * Copyright 1998 - 2013, Graeme W. Gill
+ * Copyright 1998 - 2021, Graeme W. Gill
  * All rights reserved.
  *
  * This material is licenced under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 :-
@@ -329,6 +329,7 @@ static unsigned short *char2wchar(char *s) {
 
 #endif /* NT */
 
+
 #if defined(UNIX_X11)
 /* Hack to notice if the error handler has been triggered */
 /* when a function doesn't return a value. */
@@ -341,6 +342,16 @@ int null_error_handler(Display *disp, XErrorEvent *ev) {
 	return 0;
 }
 #endif	/* X11 */
+
+
+/* Quieten the compiler down if we're compilin on < 10.15 */
+#if defined(UNIX_APPLE) &&  __MAC_OS_X_VERSION_MAX_ALLOWED < 101500 \
+                        &&  __MAC_OS_X_VERSION_MAX_ALLOWED > 1040
+@interface NSScreen ()
+@property(readonly, copy) NSString *localizedName;
+@end
+#endif
+
 
 /* Return pointer to list of disppath. Last will be NULL. */
 /* Return NULL on failure. Call free_disppaths() to free up allocation */
@@ -431,7 +442,7 @@ disppath **get_displays() {
 
 #ifdef UNIX_APPLE
 	/* Note :- some recent releases of OS X have a feature which */
-	/* automatically adjusts the screen brigtness with ambient level. */
+	/* automatically adjusts the screen brightness with ambient level. */
 	/* We may have to find a way of disabling this during calibration and profiling. */
 	/* See the "pset -g" command. */
 
@@ -485,7 +496,7 @@ disppath **get_displays() {
 		io_service_t dport;
 		CFDictionaryRef ddr, pndr;
 		CFIndex dcount;
-		char *dp = NULL, desc[50];
+		char *dname = NULL;
 		char buf[200];
 
 		dbound = CGDisplayBounds(dids[i]);
@@ -494,95 +505,119 @@ disppath **get_displays() {
 		disps[i]->sw = dbound.size.width;
 		disps[i]->sh = dbound.size.height;
 			
-		/* Try and get some information about the display */
-		if ((dport = CGDisplayIOServicePort(dids[i])) == MACH_PORT_NULL) {
-			debugrr("CGDisplayIOServicePort returned error\n");
-			free_disppaths(disps);
-			free(dids);
-			return NULL;
-		}
+#if __MAC_OS_X_VERSION_MAX_ALLOWED > 1040
+		/* On macOS 10.15 and later we have a new API: localizedName. */
+		/* This gives us the display name, and it works on Apple Arm. */
+		if ([NSScreen instancesRespondToSelector: @selector (localizedName)]) {
+			NSArray *screens = [NSScreen screens];
+
+			for (NSScreen *screen in screens) {
+				NSDictionary *descript;
+				NSNumber *displayID;
+
+				descript = [screen deviceDescription];
+				displayID = [ descript objectForKey: @"NSScreenNumber"];
+				if ([displayID intValue] == dids[i]) {
+					dname = osx_strndup([[screen localizedName] UTF8String], 49);
+				}
+				[descript release];
+				[displayID release];
+			}
+			[screens release];
+
+		/* code for macOS 10.14 and older */
+		} else
+#endif
+		{
+			/* Try and get some information about the display */
+			/* CGDisplayIOServicePort is deprecated on recent systems, */
+			/* so the NSScreen code above should be used. */
+			if ((dport = CGDisplayIOServicePort(dids[i])) == MACH_PORT_NULL) {
+				debugrr("CGDisplayIOServicePort returned error\n");
+				warning("IODisplayCreateInfoDictionary returned NULL!");
+				goto dict_fail;
+			}
 
 #ifdef NEVER
-		{
-			io_name_t name;
-			if (IORegistryEntryGetName(dport, name) != KERN_SUCCESS) {
-				debugrr("IORegistryEntryGetName returned error\n");
-				free_disppaths(disps);
-				free(dids);
-				return NULL;
+			{
+				io_name_t name;
+				if (IORegistryEntryGetName(dport, name) != KERN_SUCCESS) {
+					debugrr("IORegistryEntryGetName returned error\n");
+					free_disppaths(disps);
+					free(dids);
+					return NULL;
+				}
+				printf("Driver %d name = '%s'\n",i,name);
 			}
-			printf("Driver %d name = '%s'\n",i,name);
-		}
 #endif
-		if ((ddr = IODisplayCreateInfoDictionary(dport, 0)) == NULL) {
-			debugrr("IODisplayCreateInfoDictionary returned NULL\n");
-			free_disppaths(disps);
-			free(dids);
-			return NULL;
-		}
-		if ((pndr = CFDictionaryGetValue(ddr, CFSTR(kDisplayProductName))) == NULL) {
-			debugrr("CFDictionaryGetValue returned NULL\n");
-			CFRelease(ddr);
-			free_disppaths(disps);
-			free(dids);
-			return NULL;
-		}
-		if ((dcount = CFDictionaryGetCount(pndr)) > 0) {
-			const void **keys;
-			const void **values;
-			int j;
-
-			keys = (const void **)calloc(sizeof(void *), dcount);
-			values = (const void **)calloc(sizeof(void *), dcount);
-			if (keys == NULL || values == NULL) {
-				if (keys != NULL)
-					free(keys);
-				if (values != NULL)
-					free(values);
-				debugrr("malloc failed\n");
-				CFRelease(ddr);
+			if ((ddr = IODisplayCreateInfoDictionary(dport, 0)) == NULL) {
+				debugrr("IODisplayCreateInfoDictionary returned NULL\n");
 				free_disppaths(disps);
 				free(dids);
 				return NULL;
 			}
-			CFDictionaryGetKeysAndValues(pndr, keys, values);
-			for (j = 0; j < dcount; j++) {
-				const char *k, *v;
-				char kbuf[50], vbuf[50];
-				k = CFStringGetCStringPtr(keys[j], kCFStringEncodingMacRoman);
-				if (k == NULL) {
-					if (CFStringGetCString(keys[j], kbuf, 50, kCFStringEncodingMacRoman))
-						k = kbuf;
-				}
-				v = CFStringGetCStringPtr(values[j], kCFStringEncodingMacRoman);
-				if (v == NULL) {
-					if (CFStringGetCString(values[j], vbuf, 50, kCFStringEncodingMacRoman))
-						v = vbuf;
-				}
-				/* We're only grabing the english description... */
-				if (k != NULL && v != NULL && strcmp(k, "en_US") == 0) {
-					strncpy(desc, v, 49);
-					desc[49] = '\000';
-					dp = desc;
-				}
+			/* If CGDisplayIOServicePort is deprectaed, NULL is returned here. */
+			if ((pndr = CFDictionaryGetValue(ddr, CFSTR(kDisplayProductName))) == NULL) {
+				debugrr("CFDictionaryGetValue of kDisplayProductName returned NULL\n");
+				warning("CFDictionaryGetValue(kDisplayProductName) returned NULL!");
+				goto dict_fail;
 			}
-			free(keys);
-			free(values);
-		}
-		CFRelease(ddr);
+			if ((dcount = CFDictionaryGetCount(pndr)) > 0) {
+				const void **keys;
+				const void **values;
+				int j;
 
-		if (dp == NULL) {
-			strcpy(desc, "(unknown)");
-			dp = desc;
+				keys = (const void **)calloc(sizeof(void *), dcount);
+				values = (const void **)calloc(sizeof(void *), dcount);
+				if (keys == NULL || values == NULL) {
+					if (keys != NULL)
+						free(keys);
+					if (values != NULL)
+						free(values);
+					debugrr("malloc failed\n");
+					CFRelease(ddr);
+					free_disppaths(disps);
+					free(dids);
+					return NULL;
+				}
+				CFDictionaryGetKeysAndValues(pndr, keys, values);
+				for (j = 0; j < dcount; j++) {
+					const char *k, *v;
+					char kbuf[50], vbuf[50];
+					k = CFStringGetCStringPtr(keys[j], kCFStringEncodingMacRoman);
+					if (k == NULL) {
+						if (CFStringGetCString(keys[j], kbuf, 50, kCFStringEncodingMacRoman))
+							k = kbuf;
+					}
+					v = CFStringGetCStringPtr(values[j], kCFStringEncodingMacRoman);
+					if (v == NULL) {
+						if (CFStringGetCString(values[j], vbuf, 50, kCFStringEncodingMacRoman))
+							v = vbuf;
+					}
+					/* We're only grabing the english description... */
+					if (k != NULL && v != NULL && strcmp(k, "en_US") == 0) {
+						dname = osx_strndup(v, 49);
+					}
+				}
+				free(keys);
+				free(values);
+			}
+			CFRelease(ddr);
 		}
-		sprintf(buf,"%s, at %d, %d, width %d, height %d%s",dp,
+   dict_fail:;
+		if (dname == NULL) {
+			dname = strdup("(unknown)");
+		}
+
+		sprintf(buf,"%s, at %d, %d, width %d, height %d%s",dname,
 	        disps[i]->sx, disps[i]->sy, disps[i]->sw, disps[i]->sh,
 	        CGDisplayIsMain(dids[i]) ? " (Primary Display)" : "");
 
-		if ((disps[i]->name = strdup(dp)) == NULL
-		 || (disps[i]->description = strdup(buf)) == NULL) {
+		disps[i]->name = dname;			/* (Transfer ownership of strdup malloc) */
+		if ((disps[i]->description = strdup(buf)) == NULL) {
 			debugrr("get_displays failed on malloc\n");
 			free_disppaths(disps);
+			free(dname);
 			free(dids);
 			return NULL;
 		}
@@ -4167,7 +4202,6 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 			debugr2((errout,"InvalidateRect failed, lasterr = %d\n",GetLastError()));
 			return 1;
 		}
-		UpdateWindow(p->hwnd);
 
 //printf("~1 waiting for paint\n");
 		/* Wait for WM_PAINT to be executed */
@@ -4732,7 +4766,7 @@ int win_message_thread(void *pp) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 
-			if (p->quit != 0) {
+			if (p->quit != 0) {		/* We've been instructed to quit */
 				/* Process any pending messages */
 				while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 					TranslateMessage(&msg);
@@ -5023,6 +5057,11 @@ int ddebug						/* >0 to print debug statements to stderr */
 		CGDisplayModeRef dispmode;
 		CFStringRef pixenc;
 		int fbdepth = 0;
+
+		/* CGDisplayModeCopyPixelEncoding() depercation madness... */
+		/* <https://stackoverflow.com/a/36904508/3073383> */
+		/* <https://forum.lazarus.freepascal.org/index.php/topic,44455.msg314267.html?PHPSESSID=dm4e7hlj32k8f5lp0t7copn2n1#msg314267> */
+		/* Also see the bottom of this file */
 
 		/* Get frame buffer depth  */
 		dispmode = CGDisplayCopyDisplayMode(p->ddid);
@@ -7954,5 +7993,69 @@ static void pcurpath(dispwin *p) {
 
 //	return dpath;
 	return NULL;
+#endif
+
+#ifdef NEVER
+
+/* Possible replacement for CGDisplayModeCopyPixelEncoding() */
+
+const
+  // https://opensource.apple.com/source/IOGraphics/IOGraphics-406/IOGraphicsFamily/IOKit/graphics/IOGraphicsTypes.h.auto.html
+  IO1BitIndexedPixels = 'P';
+  IO2BitIndexedPixels = 'PP';
+  IO4BitIndexedPixels = 'PPPP';
+  IO8BitIndexedPixels = 'PPPPPPPP';
+  IO16BitDirectPixels = '-RRRRRGGGGGBBBBB';
+  IO32BitDirectPixels = '--------RRRRRRRRGGGGGGGGBBBBBBBB';
+  kIO30BitDirectPixels = '--RRRRRRRRRRGGGGGGGGGGBBBBBBBBBB';
+  kIO64BitDirectPixels = '-16R16G16B16';
+  kIO16BitFloatPixels = '-16FR16FG16FB16';
+  kIO32BitFloatPixels = '-32FR32FG32FB32';
+  IOYUV422Pixels = 'Y4U2V2';
+  IO8BitOverlayPixels = 'O8';
+
+function MacOSGetDisplayBitsPerPixel(ADefault: integer): integer;
+var
+  mode: CGDisplayModeRef;
+  r: CFStringRef;
+  rString: shortstring;
+begin
+  Result := ADefault;
+  // CGDisplayModeCopyPixelEncoding is the alternative recommended by the
+  // CGDisplayBitsPerPixel Apple Developer website page.
+  // https://developer.apple.com/documentation/coregraphics/1455067-cgdisplaymodecopypixelencoding?language=objc
+  // It is listed as deprecated on this overview page:
+  // https://developer.apple.com/documentation/coregraphics/quartz_display_services?language=objc#1656418
+  mode := CGDisplayCopyDisplayMode(CGMainDisplayID);
+  try
+    r := CGDisplayModeCopyPixelEncoding(mode);
+    try
+      CFStringGetPascalString(r, @rString, 255, CFStringGetSystemEncoding());
+      case rString of
+        IO1BitIndexedPixels: Result := 1;
+        IO2BitIndexedPixels: Result := 2;
+        IO4BitIndexedPixels: Result := 4;
+        IO8BitIndexedPixels: Result := 8;
+        IO16BitDirectPixels: Result := 16;
+        IO32BitDirectPixels: Result := 32;
+        kIO30BitDirectPixels: Result := 30;
+        kIO64BitDirectPixels: Result := 64;
+        kIO16BitFloatPixels: Result := 16;
+        kIO32BitFloatPixels: Result := 32;
+        IOYUV422Pixels: Result := 6;
+        IO8BitOverlayPixels: Result := 8;
+      end;
+    finally
+      // FreeCFString(r);
+    end;
+  finally
+    CFRelease(mode);
+  end;
+end;
+
+// ????
+// CGDisplayModeRelease(mode);
+// CFRelease(r);
+
 #endif
 

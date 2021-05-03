@@ -1,7 +1,7 @@
 
 
 /*
- * Argyll Color Correction System
+ * Argyll Color Management System
  *
  * Hughski ColorHug related functions
  *
@@ -726,6 +726,7 @@ instClamping clamp) {		/* NZ if clamp XYZ/Lab to be +ve */
 		icmClamp3(val->XYZ, val->XYZ);
 
 	val->mtype = inst_mrt_emission;
+	val->mcond = inst_mrc_none;
 	val->XYZ_v = 1;		/* These are absolute XYZ readings ? */
 	val->sp.spec_n = 0;
 	val->duration = 0.0;

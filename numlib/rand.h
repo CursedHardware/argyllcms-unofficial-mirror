@@ -104,6 +104,9 @@ double d2_rand_th(rand_state *p, double min, double max);
 /* and an average deviation of 0.564 */
 double norm_rand_th(rand_state *p);
 
+/* Set random dvector */
+void vect_rand(double *d, double min, double max, int len);
+
 #ifdef __cplusplus
 	}
 #endif

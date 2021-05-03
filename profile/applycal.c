@@ -373,6 +373,8 @@ main(int argc, char *argv[]) {
 						wo->allocate((icmBase *)wo);	/* Allocate space */
 						strcpy(wo->desc, ro->desc);		/* Copy the string in */
 						/* Hmm. what should we do with Unicode and script ? */
+					} else {
+						DBG(("Found backup\n"));
 					}
 
 					if (cal->xpi.profDesc != NULL)
@@ -380,14 +382,14 @@ main(int argc, char *argv[]) {
 					else
 						extra = cal_name;
 
-					ro->size = strlen(ro->desc) + 3 + strlen(extra) + 3;
+					ro->size = strlen(wo->desc) + 3 + strlen(extra) + 3;
 					ro->allocate((icmBase *)ro);	/* Allocate space */
 					strcpy(ro->desc, wo->desc);
 					strcat(ro->desc, " [ ");
 					strcat(ro->desc, extra);
 					strcat(ro->desc, " ]");
 
-					DBG(("Set tag contents to '%s'\n",ro->desc));
+					DBG(("Set tag contents to '%s' len %ld size %d\n",ro->desc,strlen(ro->desc)+1,ro->size));
 
 				/* icSigAToBXTag or icSigBToAXTag */
 				} else if (primt->ttype == icSigLut8Type
@@ -432,6 +434,8 @@ main(int argc, char *argv[]) {
 								wo->allocate((icmBase *)wo);	/* Allocate space */
 								for (i = 0; i < wo->size; i++)	/* Copy the curve */
 									wo->data[i] = ro->inputTable[j * ro->inputEnt + i];
+							} else {
+								DBG(("Found backup\n"));
 							}
 
 							/* Create new input curve from inv cal + orginal curve */
@@ -470,6 +474,8 @@ main(int argc, char *argv[]) {
 								wo->allocate((icmBase *)wo);	/* Allocate space */
 								for (i = 0; i < wo->size; i++)	/* Copy the curve */
 									wo->data[i] = ro->outputTable[j * ro->outputEnt + i];
+							} else {
+								DBG(("Found backup\n"));
 							}
 
 							/* Create new output curve from original + cal */
@@ -516,6 +522,8 @@ main(int argc, char *argv[]) {
 							ro->size = 256;
 							ro->allocate((icmBase *)wo);	/* Allocate space */
 						} 
+					} else {
+						DBG(("Found backup\n"));
 					}
 
 					/* Create new forward direction curve from cal + orginal curve */
