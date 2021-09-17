@@ -720,6 +720,18 @@ typedef enum {
 	inst_conf_ambient
 } inst_config;
 
+/* - - - - - - - - - - - - - - - - - - - */
+
+/* Structure used to return measurement conditions type selection information. */
+typedef struct _inst_meascondsel {
+
+	char desc[INST_DTYPE_DESC_LEN];	/* Textural description */
+	inst_opt_filter fsel;			/* Corrsponding filter to set */ 
+
+} inst_meascondsel;
+
+/* - - - - - - - - - - - - - - - - - - - */
+
 # define EXTRA_INST_OBJ
 
 /* Off-line pending readings available (status) */
@@ -815,6 +827,7 @@ typedef enum {
         struct _inst *p,														\
 		int *no_selectors,		/* Return number of display types */			\
 		inst_disptypesel **sels,/* Return the array of display types */			\
+								/* Either re-use the list or call inst_del_disptype_list() */	\
 		int allconfig,			/* nz to return list for all configs, not just current. */	\
 		int recreate);			/* nz to re-check for new ccmx & ccss files */	\
 																				\
@@ -837,6 +850,13 @@ typedef enum {
 		int *refrmode,															\
 		int *cbid);																\
 	                                                                            \
+	/* Return array of reflective measurement conditions selectors in current mode */			\
+	inst_code (*get_meascond)(													\
+        struct _inst *p,														\
+		int *no_selectors,		/* Return number of display types */			\
+		inst_meascondsel **sels);/* Return the array of measurement conditions types */			\
+								 /* Free it after use */						\
+																				\
     /* Get a status or get or set an option */                                  \
 	/* option state. */															\
 	/* Some options can be set before init */									\

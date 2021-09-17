@@ -4265,7 +4265,7 @@ typedef struct {
 static void update_chsum(i1pnonv *x, unsigned char *p, int nn) {
 	int i;
 	for (i = 0; i < nn; i++, p++)
-		x->chsum = ((x->chsum << 13) | (x->chsum >> (32-13))) + *p;
+		x->chsum = ((x->chsum << 5) | (((1 << 5)-1) & (x->chsum >> (32-5)))) + *p;
 	x->nbytes += nn;
 }
 
@@ -4549,6 +4549,18 @@ i1pro_code i1pro_restore_calibration(i1pro *p) {
 		read_ints(&x, fp, &flash, 1);
 		read_ints(&x, fp, &ambient, 1);
 		read_ints(&x, fp, &adaptive, 1);
+
+		/* Check the mode identification */
+		if (emiss != s->emiss
+		 || trans != s->trans
+		 || reflective != s->reflective
+		 || scan != s->scan
+		 || flash != s->flash
+		 || ambient != s->ambient
+		 || adaptive != s->adaptive) {
+			a1logd(p->log,2,"Mode config. didn't verify\n");
+			goto reserr;
+		}
 
 		/* Configuration calibration is valid for */
 		read_ints(&x, fp, &di, 1);

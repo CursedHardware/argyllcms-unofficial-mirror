@@ -500,6 +500,11 @@ void serial_close_port(icoms *p);
 
 /* Close the port */
 static void icoms_close_port(icoms *p) {
+	
+	/* We could get called by a couple of different contexts on close/kill, */
+	/* so prevent a race */
+	amutex_lock(p->lock);
+
 	if (p->is_open) {
 #ifdef ENABLE_USB
 		if (p->usbd) {
@@ -515,6 +520,8 @@ static void icoms_close_port(icoms *p) {
 #endif /* ENABLE_SERIAL */
 		p->is_open = 0;
 	}
+
+	amutex_unlock(p->lock);
 }
 
 int icompaths_refresh_paths(icompaths *p) {
@@ -847,6 +854,7 @@ icoms_del(icoms *p) {
 	if (p->name != NULL)
 		free(p->name);
 	p->log = del_a1log(p->log);		/* unref */
+	amutex_del(p->lock);
 	free (p);
 }
 
@@ -865,6 +873,8 @@ icoms *new_icoms(
 		return NULL;
 	}
 
+	amutex_init(p->lock);
+	
 	if ((p->name = strdup(ipath->name)) == NULL) {
 		a1loge(log, ICOM_SYS, "new_icoms: strdup failed!\n");
 		return NULL;

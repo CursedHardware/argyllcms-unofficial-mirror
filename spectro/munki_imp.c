@@ -3064,14 +3064,14 @@ munki_code munki_imp_meas_refrate(
 
 /* non-volatile save/restor state to/from a file */
 typedef struct {
-	int ef;					/* Error flag, 1 = write failed, 2 = close failed */
-	unsigned int chsum;		/* Checksum */
+	int ef;				/* Error flag, 1 = write failed, 2 = close failed */
+	ORD32 chsum;		/* Checksum */
 } mknonv;
 
 static void update_chsum(mknonv *x, unsigned char *p, int nn) {
 	int i;
 	for (i = 0; i < nn; i++, p++)
-		x->chsum = ((x->chsum << 13) | (x->chsum >> (32-13))) + *p;
+		x->chsum = ((x->chsum << 5) | (((1 << 5)-1) & (x->chsum >> (32-5)))) + *p;
 }
 
 /* Write an array of chars to the file. Set the error flag to nz on error */
@@ -3365,6 +3365,19 @@ munki_code munki_restore_calibration(munki *p) {
 		read_ints(&x, fp, &ambient, 1);
 		read_ints(&x, fp, &projector, 1);
 		read_ints(&x, fp, &adaptive, 1);
+
+		/* Check the mode identification */
+		if (emiss != s->emiss
+		 || trans != s->trans
+		 || reflective != s->reflective
+		 || scan != s->scan
+		 || flash != s->flash
+		 || ambient != s->ambient
+		 || projector != s->projector
+		 || adaptive != s->adaptive) {
+			a1logd(p->log,3,"Mode config. didn't verify\n");
+			goto reserr;
+		}
 
 		/* Configuration calibration is valid for */
 		read_ints(&x, fp, &di, 1);					/* gainmode */
@@ -4314,7 +4327,7 @@ munki_code munki_read_patches_2(
 	if (s->reflective) {
 
 #ifdef PLOT_TEMPCOMP
-	/* Plot the raw spectra, 6 at a time */
+		/* Plot the raw spectra, 6 at a time */
 		{
 			int i, j, k;
 			double *indx;
@@ -4335,6 +4348,7 @@ munki_code munki_read_patches_2(
 				printf("Before temp comp, bands %d - %d\n",j, j+5);
 				do_plot6(indx, mod[0], mod[1], mod[2], mod[3], mod[4], mod[5], nummeas);
 			}
+//		}
 			free_dvector(indx, 0, nummeas-1);  
 		  	free_dmatrix(mod, 0, 5, 0, nummeas-1);
 		}
@@ -4370,6 +4384,7 @@ munki_code munki_read_patches_2(
 				printf("After temp comp, bands %d - %d\n",j, j+5);
 				do_plot6(indx, mod[0], mod[1], mod[2], mod[3], mod[4], mod[5], nummeas);
 			}
+//			}
 			free_dvector(indx, 0, nummeas-1);  
 		  	free_dmatrix(mod, 0, 5, 0, nummeas-1);
 		}
@@ -4827,7 +4842,7 @@ munki_code munki_sens_to_raw(
 	int ninvalid,			/* Number of initial invalid readings to skip */
 	int nummeas,			/* Number of readings measured */
 	double satthresh,		/* Saturation threshold to trigger error in raw units (if > 0.0) */
-	double *pdarkthresh		/* Return a dark threshold value = sheilded cell values */
+	double *pdarkthresh		/* Return a dark threshold value = shielded cell values */
 ) {
 	munkiimp *m = (munkiimp *)p->m;
 	int i, j, k;

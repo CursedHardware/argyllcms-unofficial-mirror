@@ -2,7 +2,7 @@
 # This holds the common definitions for Argyll that all the
 # subdirectory jam's will include (even if run in the sub directory) 
 
-Echo "Argyll Jamrules has been read" ;
+Echo "Argyll Jamtop has been read" ;
 
 # Default install base directory is same directory as Jamtop,
 # but can be overriden in the command line.

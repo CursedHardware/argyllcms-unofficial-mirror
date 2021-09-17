@@ -8,6 +8,34 @@ Not included yet:
 * Started adding comms for Lumagen Radiance detection.
 
 
+Version 2.2.1 17th September 2021
+-------------
+
+* Added support for Christophe Mtairie's Mini Digital Target with CMP_DT_mini.cht
+
+* Added Toshiba TPA-1 i1d3 support.
+
+* Added extra file corruption checks to Munki & i1Pro current calibration restore.
+ 
+* Fix inconsistency between .ti3 documentation of NORMALIZED_TO_Y_100 tag
+  behavior and profile/profin.c code.
+
+* Improved cxf2ti3 so that it truncates trailing spaces on the names
+  of patch id's. This caused scanin to ignore patches with such
+  trailing spaces, omitting them from the resulting .ti3 file.
+
+* Added iccvcgt utility for extracting or inserting a
+  'vcgt' tag from or into an ICC profile.
+
+* Fix bug in applycal.c introduced in 2.2.0 - crashes when existing
+  ICC curves are not 256 step LUTs.
+
+* Removed OS X hidio device Release - returned error on recent
+  OS X versions.
+
+* Fix bug in dispwin on OS X that randomly causes crash on exit
+  by removing releases. 
+
 Version 2.2.0 3rd May 2021
 -------------
 

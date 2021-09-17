@@ -4833,7 +4833,7 @@ int main(int argc, char *argv[]) {
 
 						/* Clear pjadj */
 						for (j = 0; j < 3; j++)
-							pjadj[3][0] = pjadj[3][1] = pjadj[3][2] = 0.0;
+							pjadj[j][0] = pjadj[j][1] = pjadj[j][2] = 0.0;
 
 						if (icmInverse3x3(asgrey.s[i].ij, asgrey.s[i].j)) {
 							/* Should repeat with bigger dd ? */

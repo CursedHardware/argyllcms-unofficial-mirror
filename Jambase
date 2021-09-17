@@ -425,7 +425,8 @@ if $(NT)
 		if $(MINGW64) {
 			ECHO "Compiler is MingW for 64 bit target" ;
 			TARGET64     = true ;
-			TPFX         = x86_64-w64-mingw32- ;
+			TPFX1        = x86_64-w64-mingw32- ;	# Some tools
+			TPFX2        = x86_64-w64-mingw32- ;	# Rest of tools
 			MINGW64_LIB32 = $(MINGW)/mingw/lib32 ;
 		} else {
 			ECHO "Compiler is MingW for 32 bit target" ;
@@ -433,9 +434,9 @@ if $(NT)
 
 
 		# Basic C/C++ tools
-		AR				?= $(TPFX)ar rusc ;
-		AS				?= $(TPFX)as ;
-		CC				?= $(TPFX)gcc ;
+		AR				?= $(TPFX2)ar rusc ;
+		AS				?= $(TPFX2)as ;
+		CC				?= $(TPFX1)gcc ;
 		CCFLAGS			?= -DNT -mwin32 -pipe ;
 		C++				?= $(CC) ;
 		C++FLAGS		?= $(CCFLAGS) ;
@@ -448,7 +449,7 @@ if $(NT)
 		WINLIBS			?= -lshlwapi -lsetupapi -lole32 -lws2_32 -lpsapi -lversion ;
 		GUILIBS			?= -lgdi32 -lmscms ;
 
-		LINK			?= $(TPFX)g++ ;		# In case we link to C++ files
+		LINK			?= $(TPFX1)g++ ;		# In case we link to C++ files
 		LINKFLAGS		?= -static ;
 		SHLINKFLAGS		?= ;
 		STDLIBS			?= -lm $(OLELIBS) $(WINLIBS) $(GUILIBS) ;

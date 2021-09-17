@@ -37,10 +37,6 @@
 /*
 	TTBD
 
-	There may be a bug in HiRes emissive calibration - if you do an initial
-	cal. in normal, then switch to HiRes, no white plate cal is performed.
-	Is it using a previous cal result for this ?
-
 	Should add extra filter compensation support.
 
 	Should alias projector mode to display mode ??
@@ -710,6 +706,59 @@ static inst_code i1pro3_set_mode(inst *pp, inst_mode im) {
 	return inst_ok;
 }
 
+/* Return array of reflective measurement conditions selectors in current mode */
+static inst_code i1pro3_get_meascond(
+struct _inst *pp,
+int *no_selectors,			/* Return number of display types */
+inst_meascondsel **psels	/* Return the array of measurement conditions types */
+							/* Free it after use */
+) {
+	i1pro3 *p = (i1pro3 *)pp;
+	i1pro3imp *m = p->m;
+	i1pro3_state *s = m != NULL ? &m->ms[m->mmode] : NULL;
+	inst_meascondsel *sels = NULL;
+	int no = 0;
+
+	if (psels != NULL)
+		*psels = NULL;
+	if (no_selectors != NULL)
+		*no_selectors = 0;
+
+	if (s != NULL && s->reflective) {
+
+		if ((sels = (inst_meascondsel *)calloc(sizeof(inst_meascondsel), 4)) == NULL) {
+			a1loge(p->log, 1, "i1pro3_get_meascond: malloc failed!\n");
+			return inst_system_error;
+		}
+
+		strcpy(sels[no].desc, "M0");
+		sels[no].fsel = inst_opt_filter_none;		/* M0 */
+		no++;
+
+		strcpy(sels[no].desc, "M1 (D50)");
+		sels[no].fsel = inst_opt_filter_D50;			/* M1 */
+		no++;
+
+		strcpy(sels[no].desc, "M2 (UV cut)");
+		sels[no].fsel = inst_opt_filter_UVCut;		/* M0 */
+		no++;
+
+		if (m->capabilities & I1PRO3_CAP_POL) {
+
+			strcpy(sels[no].desc, "M3 (Polarized)");
+			sels[no].fsel = inst_opt_filter_pol;		/* M0 */
+			no++;
+		}
+	}
+
+	if (no_selectors != NULL)
+		*no_selectors = no;
+	if (psels != NULL)
+		*psels = sels;
+
+	return inst_ok;
+}
+
 /* 
  * set or reset an optional mode
  *
@@ -964,6 +1013,7 @@ extern i1pro3 *new_i1pro3(icoms *icom, instType dtype) {
 	p->capabilities      = i1pro3_capabilities;
 	p->get_serial_no     = i1pro3_get_serial_no;
 	p->check_mode        = i1pro3_check_mode;
+	p->get_meascond      = i1pro3_get_meascond;
 	p->set_mode          = i1pro3_set_mode;
 	p->get_set_opt       = i1pro3_get_set_opt;
 	p->read_strip        = i1pro3_read_strip;

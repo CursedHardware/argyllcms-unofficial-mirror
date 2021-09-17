@@ -1949,12 +1949,12 @@ int ref			/* 1 if generating reference lists */
 /********************************************************************************/
 /* Write the elists out to a file */
 
-/* Increment a string counter */
+/* Increment a string counter/label */
 static void
 strinc(
 char *s
 ) {
-	int i,n,c;	/* Length of string and carry flag */
+	int i,n,c;	/* Index, length of string and carry flag */
 	n = strlen(s);
 	for (c = 1, i = n-1; i >= 0 && c != 0; i--) {
 		char sval = ' ';
@@ -1974,10 +1974,10 @@ char *s
 			s[i]++;
 			c = 0;
 		}
-		if (i == 0 && c != 0) {
-			/* Assume there is some more space */
+		if (i == 0 && c != 0) {	/* If we've run out of space to the left */
+			/* Assume there is some more space to the right */
 			for (i = n; i >= 0; i--)
-				s[i+1] = s[i];
+				s[i+1] = s[i];			/* Shuffle right */
 			s[0] = sval;
 			break;
 		}

@@ -13,7 +13,7 @@ if $(OS) = MACOSX {
 }
 
 if $(USE_CMFM) = true {
-	echo "CMF Measurement device and accessoriesis enabled" ;
+	echo "CMF Measurement device and accessories is enabled" ;
 	DEFINES += ENABLE_CMFM ;
 }
 
@@ -306,6 +306,7 @@ MainVariant xdg_bds : xdg_bds.c : : STANDALONE_TEST : : : libconv ;
 #Main t8 : t8.c ;
 #Main t9 : t9.c ;
 #Main i1d3eval : i1d3eval.c ;
+#Main i1d3_msrand.c : i1d3_msrand.c ;
 
 # Simple test code of aglob
 if [ GLOB [ NormPaths . ] : globtest.c ]  {

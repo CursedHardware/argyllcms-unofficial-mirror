@@ -89,6 +89,7 @@ typedef enum {
 	i1d3_hp_dreamc      = 5, 	/* HP DreameColor */
 	i1d3_sc_c6          = 6, 	/* SpectraCal C6 */
 	i1d3_wacom_dc       = 7, 	/* Wacom DC */
+	i1d3_tpa_1          = 8 	/* Toshiba TPA-1 */
 } i1d3_dtype;
 
 /* Generic OEM aliases:

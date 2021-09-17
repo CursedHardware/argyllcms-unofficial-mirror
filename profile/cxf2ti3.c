@@ -580,7 +580,21 @@ main(int argc, char *argv[]) {
 					nsetel++;
 					has_loc = 1;	
 				} else {
-					setel[six++].c = strdup(attr);  
+					char *mattr = strdup(attr);
+
+					if (mattr == NULL)
+						error("strdup failed in %s at %d",__FILE__,__LINE__);
+
+					/* Hmm. Some .cxf files appear to have bodgy patch id's with a trailing */
+					/* space. This wrecks matching to an expected patch name for a given type */
+					/* of chart. Patch it up by truncating trailing spaces. */
+					for (j = strlen(mattr)-1; j >= 0; j--) {
+						if (mattr[j] == ' ')
+							mattr[j] = '\000';
+						else
+							break;
+					} 
+					setel[six++].c = mattr;  
 				}
 			}
 

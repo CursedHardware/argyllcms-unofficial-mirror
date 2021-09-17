@@ -161,6 +161,8 @@ inst_disptypesel **psels,	/* Return the array of display types */
 int allconfig,				/* nz to return list for all configs, not just current. */
 int recreate				/* nz to re-check for new ccmx & ccss files */
 ) {
+	if (pnsels != NULL)
+		*pnsels = 0;
 	return inst_unsupported;
 }
 
@@ -188,6 +190,17 @@ int *cbid) {
 	if (cbid != NULL)
 		*cbid = 0;
 	return inst_ok;
+}
+
+/* Return array of reflective measurement conditions selectors in current mode */
+static inst_code get_meascond(
+struct _inst *p,
+int *no_selectors,		/* Return number of display types */
+inst_meascondsel **sels	/* Return the array of measurement conditions types */
+) {
+	if (no_selectors != NULL)
+		*no_selectors = 0;
+	return inst_unsupported;
 }
 
 /* Get a status or set or get an option (default implementation) */

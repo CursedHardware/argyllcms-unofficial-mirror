@@ -335,6 +335,9 @@ void usb_reinit_cancel(usb_cancelt *p);
 struct _icoms {
   /* Private: */
 
+	amutex lock;				/* Protect against thread races for some operations */
+								/* (i.e. close) */
+
 	/* Copy of some of icompath contents: */
 	icom_type dctype;			/* Device cat. and com. type */
 	devType dtype;				/* Type of device if known */

@@ -14676,17 +14676,6 @@ double icmNorm22sq(double in1[2], double in0[2]) {
 	return rv;
 }
 
-/* Multiply 2 array by 2x2 transform matrix */
-void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
-	double tt[2];
-
-	tt[0] = mat[0][0] * in[0] + mat[0][1] * in[1];
-	tt[1] = mat[1][0] * in[0] + mat[1][1] * in[1];
-
-	out[0] = tt[0];
-	out[1] = tt[1];
-}
-
 /* Compute the dot product of two 2 vectors */
 double icmDot2(double in1[2], double in2[2]) {
 	return in1[0] * in2[0] + in1[1] * in2[1];
@@ -14902,6 +14891,67 @@ void icmScaleAdd2(double out[3], double in2[2], double in1[2], double rat) {
 	out[0] = in2[0] + in1[0] * rat;
 	out[1] = in2[1] + in1[1] * rat;
 }
+
+
+/* Convert orientation 0 = right, 1 = down, 2 = left, 3 = right */
+/* into rotation matrix */
+static void icmOr2mat(double mat[2][2], int or) {
+	if (or == 0) {
+		mat[0][0] = 1.0; 
+		mat[0][1] = 0.0; 
+		mat[1][0] = 0.0; 
+		mat[1][1] = 1.0; 
+	} else if (or == 1) {
+		mat[0][0] = 0.0; 
+		mat[0][1] = 1.0; 
+		mat[1][0] = -1.0; 
+		mat[1][1] = 0.0; 
+	} else if (or == 2) {
+		mat[0][0] = -1.0; 
+		mat[0][1] = 0.0; 
+		mat[1][0] = 0.0; 
+		mat[1][1] = -1.0; 
+	} else {
+		mat[0][0] = 0.0; 
+		mat[0][1] = -1.0; 
+		mat[1][0] = 1.0; 
+		mat[1][1] = 0.0; 
+	}
+}
+
+/* Convert an angle in radians into rotation matrix (0 = right) */
+void icmRad2mat(double mat[2][2], double rad) {
+	double sinv = sin(rad);
+	double cosv = cos(rad);
+	mat[0][0] = cosv;
+	mat[0][1] = -sinv;
+	mat[1][0] = sinv;
+	mat[1][1] = cosv;
+}
+
+/* Convert an angle in degrees (0 = right) into rotation matrix */
+void icmDeg2mat(double mat[2][2], double a) {
+	double rad = a * 3.1415926535897932384626433832795/180.0;
+	icmRad2mat(mat, rad);
+}
+
+/* Convert a vector into a rotation matrix */
+void icmVec2mat(double mat[2][2], double dx, double dy) {
+	double rad = atan2(dy, dx);
+	icmRad2mat(mat, rad);
+}
+
+/* Multiply 2 array by 2x2 transform matrix */
+void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
+	double tt[2];
+
+	tt[0] = mat[0][0] * in[0] + mat[0][1] * in[1];
+	tt[1] = mat[1][0] * in[0] + mat[1][1] * in[1];
+
+	out[0] = tt[0];
+	out[1] = tt[1];
+}
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
 /* CIE Y (range 0 .. 1) to perceptual CIE 1976 L* (range 0 .. 100) */

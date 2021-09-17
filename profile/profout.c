@@ -779,19 +779,22 @@ make_output_icc(
 	if (isdisp) {
 		int ti;
 
+		/* If present, this indicates the absolute Y value */
 		if ((ti = icg->find_kword(icg, 0, "LUMINANCE_XYZ_CDM2")) >= 0) {
 			if (sscanf(icg->t[0].kdata[ti], " %*f %lf %*f ",&dispLuminance) != 1)
 				dispLuminance = 0.0;
 		}
 
-		/* See if the CIE data has been normalised to Y = 100 */
-		/* If so, it's assumed to be by LUMINANCE_XYZ_CDM2 */
-		/* By default assume not. */
-		if ((ti = icg->find_kword(icg, 0, "NORMALIZED_TO_Y_100")) < 0
-		 || strcmp(icg->t[0].kdata[ti],"NO") == 0) {
-			isdnormed = 0;
-		} else {
-			isdnormed = 1;
+		/* By default asume display devices have data normalized to Y = 100 */
+		isdnormed = 1;
+
+		/* See if there is an explicit tag indicating data has been normalised to Y = 100 */
+		if ((ti = icg->find_kword(icg, 0, "NORMALIZED_TO_Y_100")) >= 0) {
+			if (strcmp(icg->t[0].kdata[ti],"NO") == 0) {
+				isdnormed = 0;
+			} else {
+				isdnormed = 1;
+			}
 		}
 	}
 
@@ -1713,6 +1716,7 @@ make_output_icc(
 				tpat[i].v[0] = *((double *)icg->t[0].fdata[i][Xi]);
 				tpat[i].v[1] = *((double *)icg->t[0].fdata[i][Yi]);
 				tpat[i].v[2] = *((double *)icg->t[0].fdata[i][Zi]);
+
 				/* For display, convert to measurement XYZ and re-normalise later */
 				if (isdisp) {
 					if (isLab) {

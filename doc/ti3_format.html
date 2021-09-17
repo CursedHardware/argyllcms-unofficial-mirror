@@ -64,6 +64,7 @@
 
 
 
+
     "<span style="font-weight: bold;">DISPLAY</span>",&nbsp; <span
       style="font-weight: bold;">"INPUT"</span> or <span
       style="font-weight: bold;">"EMISINPUT"</span>.<br>
@@ -102,6 +103,7 @@
 
 
 
+
       119.657745 121.474236".<br>
       <br>
     </span>A display device may also have a <span style="font-weight:
@@ -115,7 +117,8 @@
       bold;">are</span> normalized to Y = 100. If the values are
     normalized to Y = 100, then the absolute values can be restored by
     multiplying the XYZ values by the <span style="font-weight: bold;">LUMINANCE_XYZ_CDM2</span>
-    Y value and dividing by 100.<br>
+    Y value and dividing by 100. If values are <b>not </b>normalized
+    to Y = 100, then they are assumed to be in absolute cd/m^2 units. <br>
     <br>
     There may be a keyword <span style="font-weight: bold;">TARGET_INSTRUMENT</span>
     which will identify the instrument used to read the test values.
@@ -207,8 +210,10 @@ Cyan
 
 
 
+
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -234,9 +239,11 @@ Cyan
 
 
 
+
     Y<br>
     &nbsp;&nbsp;&nbsp; Black &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -260,9 +267,11 @@ Cyan
 
 
 
+
     O<br>
     &nbsp;&nbsp;&nbsp; Red
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -286,9 +295,11 @@ Cyan
 
 
 
+
     G<br>
     &nbsp;&nbsp;&nbsp; Blue &nbsp;&nbsp; &nbsp;&nbsp;
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -315,9 +326,11 @@ Cyan
 
 
 
+
     c<br>
     &nbsp;&nbsp;&nbsp; Light
     Magenta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -341,9 +354,11 @@ Cyan
 
 
 
+
     y<br>
     &nbsp;&nbsp;&nbsp; Light
     Black&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 

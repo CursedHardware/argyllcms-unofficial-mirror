@@ -599,6 +599,7 @@ i1d3_unlock(
 		{ "i1Display3 ",         { 0x291e41d7, 0x51937bdd }, i1d3_disppro,  i1d3_hp_dreamc },
 		{ "i1Display3 ",         { 0xc9bfafe0, 0x02871166 }, i1d3_disppro,  i1d3_sc_c6 },
 		{ "i1Display3 ",         { 0x1abfae03, 0xf25ac8e8 }, i1d3_disppro,  i1d3_wacom_dc },
+		{ "i1Display3 ",         { 0x828c43e9, 0xcbb8a8ed }, i1d3_disppro,  i1d3_tpa_1 },
 		{ NULL } 
 	}; 
 	inst_code ev;

@@ -34,7 +34,7 @@
 #include "rspl.h"
 #include "xicc.h"
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #undef DBG
@@ -329,6 +329,7 @@ main(int argc, char *argv[]) {
 					}
 				}
 			}
+
 			/* Second pass we create backups and calibrated curves */
 			for (sigp = ssigp; sigp->prim != 0; sigp++) { /* Process each tag */
 				icmBase *primt;
@@ -520,7 +521,7 @@ main(int argc, char *argv[]) {
 						if (ro->flag != icmCurveSpec || wo->size < 256) {
 							ro->flag = icmCurveSpec;
 							ro->size = 256;
-							ro->allocate((icmBase *)wo);	/* Allocate space */
+							ro->allocate((icmBase *)ro);	/* Allocate space */
 						} 
 					} else {
 						DBG(("Found backup\n"));
@@ -531,11 +532,8 @@ main(int argc, char *argv[]) {
 					for (i = 0; i < ro->size; i++) {
 						double val;
 						val = i/(ro->size-1.0);
-//printf("~1 Input val %f", val);
 						val = cal->inv_interp_ch(cal, j, val);	/* Inverse output calibration */
-//printf(", after inv curve %f", val);
 						wo->lookup_fwd(wo, &val, &val);			/* Original curve */
-//printf(", after orig %f\n", val);
 						ro->data[i] = val;
 					}
 					DBG(("Created calibrated %s curve for chan %d\n",inp ? "input" : "output",j));

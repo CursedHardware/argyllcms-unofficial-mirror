@@ -34,14 +34,6 @@
    and agreed to support.
  */
 
-/* TTBD:
-
-	Would be nice to have option to save raw scan data to .ti3 file,
-	and then have a utility/option to replay it through scan
-	recognition, to be able to help remote diagnose scan problems.
-
-*/
-
 
 /*
 	Notes:
@@ -159,7 +151,7 @@
 /* High res mode settings */
 #define HIGHRES_SHORT 380.0		/* [380] Same as std. res., since grating efficiency is poor */ 
 #define HIGHRES_LONG  730.0		/* [730] outside this range. */
-#define HIGHRES_WIDTH  (10.0/3.0) /* 3.3333 spacing and gaussian seems a good combination */
+#define HIGHRES_WIDTH  (10.0/3.0) /* 3.3333 spacing seems a good choice */
 #define HIGHRES_REF_MIN 380.0	  /* [380] Same as std. res. */
 
 
@@ -2656,7 +2648,7 @@ typedef struct {
 static void update_chsum(i1pnonv *x, unsigned char *p, int nn) {
 	int i;
 	for (i = 0; i < nn; i++, p++)
-		x->chsum = ((x->chsum << 13) | (x->chsum >> (32-13))) + *p;
+		x->chsum = ((x->chsum << 5) | (((1 << 5)-1) & (x->chsum >> (32-5)))) + *p;
 	x->nbytes += nn;
 }
 

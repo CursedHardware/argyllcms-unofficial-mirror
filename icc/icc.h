@@ -2083,9 +2083,6 @@ void icmSetUnity2x2(double mat[2][2]);
 /* Invert a 2x2 transform matrix. Return 1 if error. */
 int icmInverse2x2(double out[2][2], double in[2][2]);
 
-/* Multiply 2 array by 2x2 transform matrix */
-void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
-
 /* Compute a blend between in0 and in1 for bl 0..1 */
 void icmBlend2(double out[2], double in0[2], double in1[2], double bf);
 
@@ -2094,6 +2091,23 @@ void icmScale2(double out[2], double in[2], double rat);
 
 /* Scale a 2 vector by the given ratio and add it */
 void icmScaleAdd2(double out[2], double in2[3], double in1[2], double rat);
+
+
+/* Convert orientation 0 = right, 1 = down, 2 = left, 3 = right */
+/* into rotation matrix */
+static void icmOr2mat(double mat[2][2], int or);
+
+/* Convert an angle in radians into rotation matrix (0 = right) */
+void icmRad2mat(double mat[2][2], double rad);
+
+/* Convert an angle in degrees (0 = right) into rotation matrix */
+void icmDeg2mat(double mat[2][2], double a);
+
+/* Convert a vector into a rotation matrix */
+void icmVec2mat(double mat[2][2], double dx, double dy);
+
+/* Multiply 2 array by 2x2 transform matrix */
+void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
 
 /* - - - - - - - - - - - - - - */
 
