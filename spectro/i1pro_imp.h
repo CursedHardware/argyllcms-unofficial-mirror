@@ -404,7 +404,7 @@ void del_i1proimp(i1pro *p);
 #define I1PRO_RD_DARKNOTVALID   	    0x32		/* Dark reading is not valid (too light) */
 #define I1PRO_RD_NEEDS_CAL 		        0x33		/* Mode needs calibration */
 #define I1PRO_RD_WHITEREADINCONS        0x34		/* White reference readings are inconsistent */
-#define I1PRO_RD_WHITEREFERROR 	        0x35		/* White reference reading error */
+#define I1PRO_RD_WHITEREFERROR 	        0x35		/* White reference tollerance error */
 #define I1PRO_RD_LIGHTTOOLOW 	        0x36		/* Light level is too low */
 #define I1PRO_RD_LIGHTTOOHIGH 	        0x37		/* Light level is too high */
 #define I1PRO_RD_SHORTMEAS              0x38		/* Measurment was too short */

@@ -173,9 +173,9 @@ typedef struct {
 void init_g(plot_g *g);
 void add_vec_g(plot_g *g, double x1, double y1, double x2, double y2, float *rgb);
 void add_sym_g(plot_g *g, double x3, double y3, plot_sym st, float *rgb, char *ptext);
-int get_xy_g(plot_g *g, double xy[2], int ix);
-int set_xy_g(plot_g *g, double xy[2], int ix);
-int get_vxyix_g(plot_g *g);
+int get_xy_g(plot_g *g, double xy[2], int ix);		/* Fetch point at index */
+int set_xy_g(plot_g *g, double xy[2], int ix);		/* Change point at index */
+int get_vxyix_g(plot_g *g);							/* Get the current index number */
 void do_plot_g(plot_g *g,
  double xmin, double xmax, double ymin, double ymax,
          double ratio, int zero, int dowait);

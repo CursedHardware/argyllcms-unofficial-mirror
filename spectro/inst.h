@@ -756,6 +756,7 @@ typedef struct _inst_meascondsel {
 	void *event_cntx;	/* Asynchronous event callback function */				\
 	athread *scan_ready_thread;	/* msec_scan_ready() support */					\
 	int scan_ready_delay;		/* msec_scan_ready() support */					\
+	inst_code last_cal_ec;		/* set by inst_handle_calibrate() when there is an error */ \
 																				\
 	/* Virtual delete. Cleans up things done by new_inst(). */					\
 	inst_code (*vdel)(															\

@@ -509,7 +509,7 @@ ss_init_inst(inst *pp) {
 	if ((rv = so_do_ExecWhiteRefToOrigDat(p)) != inst_ok)
 		return rv;
 
-	if (p->log->verb) {
+	{
 		char dn[19];		/* device name */
 		ss_dnot dno;		/* device number */
 		char pn[9];			/* part number */
@@ -530,12 +530,16 @@ ss_init_inst(inst *pp) {
 	                           &tt, &fswl, &nosw, &dsw)) != inst_ok)
 			return rv;
 
-		a1logv(p->log, 1,
+		sprintf(p->serno, "%u",sn);
+
+		if (p->log->verb) {
+			a1logv(p->log, 1,
 		       "Device:     %s\n"
 		       "Serial No:  %u\n"
 		       "Part No:    %s\n"
 		       "Prod Date:  %d/%d/%d\n"
 		       "SW Version: %s\n", dn, sn, pn, dp, mp, yp, sv);
+		}
 	}
 
 	/* Set the default colorimetric parameters */
@@ -554,6 +558,17 @@ ss_init_inst(inst *pp) {
 	a1logd(p->log, 2, "ss_init_inst: instrument inited OK\n");
 
 	return inst_ok;
+}
+
+static char *ss_get_serial_no(inst *pp) {
+	ss *p = (ss *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
 }
 
 /* For an xy instrument, release the paper */
@@ -2124,6 +2139,7 @@ extern ss *new_ss(icoms *icom, instType dtype) {
 	p->init_coms    	= ss_init_coms;
 	p->init_inst    	= ss_init_inst;
 	p->capabilities 	= ss_capabilities;
+	p->get_serial_no 	= ss_get_serial_no;
 	p->check_mode       = ss_check_mode;
 	p->set_mode     	= ss_set_mode;
 	p->get_set_opt     	= ss_get_set_opt;

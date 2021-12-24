@@ -67,6 +67,8 @@
 #if !defined(NOT_ALLINSTS) || defined(EN_SPYD2)
 # include "spyd2.h"
 #endif
+#include "i1pro.h"
+#include "i1pro_imp.h"
 
 #if defined (NT)
 #include <conio.h>
@@ -433,6 +435,8 @@ static inst_code uicallback(void *cntx, inst_ui_purp purp) {
 
 */
 
+int g_showallcals = 0;			/* Show display calibrations even for serial instruments */
+
 void
 usage(char *diag, ...) {
 	int i;
@@ -483,7 +487,7 @@ usage(char *diag, ...) {
 	fprintf(stderr," -a                   Use ambient measurement mode (absolute results)\n");
 	fprintf(stderr," -f                   Use ambient flash measurement mode (absolute results)\n");
 	fprintf(stderr," -rw                  Use reflection white point relative chromatically adjusted mode\n");
-	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
+	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0, g_showallcals);
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -I illum             Set simulated instrument illumination using FWA (def -i illum):\n");
 	fprintf(stderr,"                       M0, M1, M2, A, C, D50, D50M2, D65, F5, F8, F10 or file.sp]\n");
@@ -545,6 +549,7 @@ usage(char *diag, ...) {
 	fprintf(stderr," -Y A                 Use non-adaptive integration time mode (if available).\n");
 	fprintf(stderr," -Y l|L               Test for i1Pro Lamp Drift (l), and remediate it (L)\n");
 	fprintf(stderr," -Y a                 Use Averaging mode (if available) aa, aaa for more.\n");
+	fprintf(stderr," -Y y                 Show even serial instrument display calibration types in usage (slow!)\n");                 
 //	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -Y W:fname.sp        Save white tile ref. spectrum to file\n");
@@ -1086,6 +1091,10 @@ int main(int argc, char *argv[]) {
 				} else if (na[0] == 'L') {
 					lampdrift = 2;
 
+				/* Show even serial instrument display calibration types */
+				} else if (na[0] == 'y') {
+					g_showallcals = 1;
+
 				/* ~~~ i1pro2 test code ~~~ */
 				} else if (na[0] == 'U') {
 					uvmode = 1;
@@ -1232,6 +1241,7 @@ int main(int argc, char *argv[]) {
 			error("Setting trigger mode failed with error :'%s' (%s)",
 	       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 
+		/* Initial lamp dritf check, final lamp drift check */
 		for (pass = 0; pass < 2; pass++) {
 			ipatch val;
 			double dl, maxdl = -100.0, de, maxde = -100.0;
@@ -1247,6 +1257,20 @@ int main(int argc, char *argv[]) {
 
 				ev = inst_handle_calibrate(it, inst_calt_needed, inst_calc_none, NULL, NULL, doone);
 				if (ev != inst_ok) {	/* Abort or fatal error */
+					if (pass == 0 && lampdrift == 2 && (it->last_cal_ec & inst_imask) == I1PRO_RD_WHITEREFERROR) {
+						int c;
+
+						printf("White reference is out of tollerance - press 'c' to do remediation anyway\n");
+						empty_con_chars();
+						c = next_con_char();
+						printf("'%c'\n",c);
+						if (c == 'c') {
+							remtime = 120.0;		/* Maximum */
+							goto remediate;
+						} else {
+							error("Lamp drift remediation aborted");
+						}
+					}
 					error("Got abort or error from calibration");
 				}
 			}
@@ -1315,7 +1339,8 @@ int main(int argc, char *argv[]) {
 				remtime = 90.0;
 			else if (maxde > 0.20)
 				remtime = 120.0;
-	
+
+remediate:;
 			if (remtime > 0.0) {
 				printf("\nDoing %.0f seconds of remediation\n",remtime);
 				// Do remediation */
@@ -2383,6 +2408,8 @@ int main(int argc, char *argv[]) {
 
 				if (sp.spec_n <= 0)
 					error("Save: Instrument didn't return spectral data");
+
+				empty_con_chars();
 
 				printf("\nEnter filename (ie. xxxx.sp): "); fflush(stdout);
 				if (getns(buf, 500) != NULL && strlen(buf) > 0) {

@@ -299,7 +299,7 @@ static void icoms_sighandler(int arg) {
 		in_usb_rw = -1;
 	icoms_cleanup();
 
-	/* Call the existing handlers */
+	/* Call through to previous handlers */
 #ifdef UNIX
 	if (arg == SIGHUP && usbio_hup != SIG_DFL && usbio_hup != SIG_IGN)
 		usbio_hup(arg);
@@ -317,15 +317,34 @@ static void icoms_sighandler(int arg) {
 
 /* - - - - - - - - - - - - - - - - - - - */
 
+/* Use sigaction() if we can, to get SA_RESTART behavior */
+#if defined(UNIX)
+//sighandler_t signal_x(int signum, sighandler_t handler) {
+static void (*signal_x(int signum, void (*handler)(int)))(int) {
+	struct sigaction new, old;
+	int rv = 0;
+
+	new.sa_handler = handler;
+	sigemptyset(&new.sa_mask);
+	new.sa_flags = SA_RESTART;
+
+	rv =  sigaction(signum, &new, &old);
+
+	return old.sa_handler;
+}
+#else
+# define signal_x signal
+#endif
+
 /* Install the cleanup signal handlers */
 void usb_install_signal_handlers(icoms *p) {
 	if (icoms_list == NULL) {
 		a1logd(g_log, 6, "usb_install_signal_handlers: called\n");
 #if defined(UNIX)
-		usbio_hup = signal(SIGHUP, icoms_sighandler);
+		usbio_hup = signal_x(SIGHUP, icoms_sighandler);
 #endif /* UNIX */
-		usbio_int = signal(SIGINT, icoms_sighandler);
-		usbio_term = signal(SIGTERM, icoms_sighandler);
+		usbio_int = signal_x(SIGINT, icoms_sighandler);
+		usbio_term = signal_x(SIGTERM, icoms_sighandler);
 	}
 
 	/* Add it to our static list, to allow automatic cleanup on signal */
@@ -343,10 +362,10 @@ void usb_delete_from_cleanup_list(icoms *p) {
 			icoms_list = p->next;
 			if (icoms_list == NULL) {
 #if defined(UNIX)
-				signal(SIGHUP, usbio_hup);
+				signal_x(SIGHUP, usbio_hup);
 #endif /* UNIX */
-				signal(SIGINT, usbio_int);
-				signal(SIGTERM, usbio_term);
+				signal_x(SIGINT, usbio_int);
+				signal_x(SIGTERM, usbio_term);
 			}
 		} else {
 			icoms *pp;

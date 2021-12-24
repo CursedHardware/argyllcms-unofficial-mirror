@@ -177,7 +177,7 @@ void usage(int flag, char *diag, ...) {
 	}
 	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector, if available)\n");
 	fprintf(stderr," -a                   Use ambient measurement mode (ie. for a projector, if available)\n");
-	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
+	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0, 0);
 	fprintf(stderr," -k file.cal          Load calibration file into display while reading\n");
 	fprintf(stderr," -K file.cal          Apply calibration file to test values while reading\n");
 #ifdef NT

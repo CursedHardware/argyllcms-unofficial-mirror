@@ -425,11 +425,12 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	if (sscanf(buf, "spectrometer number: %d ",&val) == 1
 	 || sscanf(buf, "%d ",&val) == 1) {
 		a1logv(p->log, 1, " Spectrometer serial number: %d\n",val);
-		p->serno = val;
+		p->ser_no = val;
 	} else {
 		a1logv(p->log, 1, " Failed to parse serial number\n");
-		p->serno = -1;
+		p->ser_no = -1;
 	}
+	sprintf(p->serno, "%u",p->ser_no);
 
 	p->gotcoms = 1;
 
@@ -879,8 +880,8 @@ specbos_init_inst(inst *pp) {
 			*sp = '\000';
 		a1logv(p->log, 1, " Firmware:            %s\n",buf);
 		
-		if (p->serno != -1) {
-			a1logv(p->log, 1, " Spectrometer serial number: %d\n",p->serno);
+		if (p->ser_no != -1) {
+			a1logv(p->log, 1, " Spectrometer serial number: %d\n",p->ser_no);
 		} else {
 			a1logv(p->log, 1, " Failed to parse serial number\n");
 		}
@@ -898,6 +899,17 @@ specbos_init_inst(inst *pp) {
 	amutex_unlock(p->lock);
 
 	return inst_ok;
+}
+
+static char *specbos_get_serial_no(inst *pp) {
+	specbos *p = (specbos *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
 }
 
 static inst_code specbos_imp_measure_set_refresh(specbos *p);
@@ -2627,6 +2639,7 @@ extern specbos *new_specbos(icoms *icom, instType dtype) {
 	p->init_coms         = specbos_init_coms;
 	p->init_inst         = specbos_init_inst;
 	p->capabilities      = specbos_capabilities;
+	p->get_serial_no     = specbos_get_serial_no;
 	p->meas_config       = specbos_meas_config;
 	p->check_mode        = specbos_check_mode;
 	p->set_mode          = specbos_set_mode;

@@ -169,7 +169,7 @@ usage(int flag, char *diag, ...) {
 //	fprintf(stderr," -d fake           Use a fake (ICC profile) display device for testing, fake%s if present\n",ICC_FILE_EXT);
 	fprintf(stderr," -p                Use telephoto mode (ie. for a projector, if available)\n");
 	fprintf(stderr," -a                Use ambient measurement mode (ie. for a projector, if available)\n");
-	cap = inst_show_disptype_options(stderr, " -y c|l                 ", icmps, 1);
+	cap = inst_show_disptype_options(stderr, " -y c|l                 ", icmps, 1, 0);
 	fprintf(stderr," -z disptype       Different display type for spectrometer (see -y)\n");
 	fprintf(stderr," -P ho,vo,ss[,vs]  Position test window and scale it\n");
 	fprintf(stderr,"                   ho,vi: 0.0 = left/top, 0.5 = center, 1.0 = right/bottom etc.\n");

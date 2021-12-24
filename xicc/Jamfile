@@ -127,7 +127,8 @@ Main specsubsamp : specsubsamp.c ;
 Main specplot : specplot.c ;
 
 # CAM test routines
-Main cam97test : cam97test.c ;
+Main bluelin : bluelin.c ;
+Main cam02test : cam02test.c ;
 Main cam02test : cam02test.c ;
 
 # Test utility for moncurve

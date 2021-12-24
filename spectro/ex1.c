@@ -411,6 +411,17 @@ ex1_init_inst(inst *pp) {
 	return inst_ok;
 }
 
+static char *ex1_get_serial_no(inst *pp) {
+	ex1 *p = (ex1 *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
+}
+
 /* Do a raw measurement. */
 /* Will delete existing *praw */
 /* return EX1 error */
@@ -1232,6 +1243,7 @@ extern ex1 *new_ex1(icoms *icom, instType dtype) {
 
 	p->init_coms         = ex1_init_coms;
 	p->init_inst         = ex1_init_inst;
+	p->get_serial_no     = ex1_get_serial_no;
 	p->capabilities      = ex1_capabilities;
 	p->meas_config       = ex1_meas_config;
 	p->check_mode        = ex1_check_mode;

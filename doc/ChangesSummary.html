@@ -17,24 +17,51 @@
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the <a
         href="../log.txt">log.txt</a> file.</h3>
+    <h1>[V2.2.1 -&gt; V2.3.0] 24th December 2021</h1>
+    <ul>
+      <li>Fixed spotread -YL (i1Pro1/2 lamp remediation) to function
+        even if calibration is impossible due to the white reference
+        being out of tolerance.<br>
+      </li>
+      <li>Fix SpyderX faulty initial black calibration (it was asking
+        for&nbsp; calibration every measurement).</li>
+      <li>Added icomuf_reset_before_close flag for SpyderX, as some
+        versions of the instrument have been reported to lock up after
+        use.</li>
+      <li>Modified the ArgyllCMS CIECAM02 implementation to include a
+        blue hue linearization tweak, to improve the "blue goes purple"
+        effect when gamut mapping or clipping highly saturated blues to
+        smaller gamuts.</li>
+      <li>Added spotread -Y y option that forces the listing of
+        instrument specific display calibrations in the usage, even for
+        serial instruments.</li>
+      <li>Removed native i1d3 C6 instrument support as a favor to
+        X-Rite. Anybody adversely affected should contact me (Graeme
+        Gill).</li>
+      <li>Improved cxf2ti3 so that it should cope with XML that uses
+        "Colour" spelling rather than "Color".</li>
+      <li>Added I1D3_ESCAPE environment variable to allow a user to
+        potentialy use any current or future OEM coded i1d3 instrument.<br>
+      </li>
+    </ul>
     <h1>[V2.2.0 -&gt; V2.2.1] 17th September 2021</h1>
     <ul>
-      <li>* Added support for Christophe Mtairie's Mini Digital Target
+      <li>Added support for Christophe Mtairie's Mini Digital Target
         with CMP_DT_mini.cht</li>
-      <li>* Fix inconsistency between .ti3 documentation of
+      <li>Fix inconsistency between .ti3 documentation of
         NORMALIZED_TO_Y_100 tag behavior and profile/profin.c code.</li>
-      <li>* Improved cxf2ti3 so that it truncates trailing spaces on the
+      <li>Improved cxf2ti3 so that it truncates trailing spaces on the
         names of patch id's. This caused scanin to ignore patches with
         such trailing spaces, omitting them from the resulting .ti3
         file.</li>
-      <li>* Added iccvcgt utility for extracting or inserting a 'vcgt'
-        tag from or into an ICC profile.</li>
-      <li>* Fix bug in applycal.c introduced in 2.2.0 - crashes when
+      <li>Added iccvcgt utility for extracting or inserting a 'vcgt' tag
+        from or into an ICC profile.</li>
+      <li>Fix bug in applycal.c introduced in 2.2.0 - crashes when
         existing ICC curves are not 256 step LUTs.</li>
-      <li>* Removed OS X hidio device Release - returned error on recent
+      <li>Removed OS X hidio device Release - returned error on recent
         OS X versions.</li>
-      <li>* Fix bug in dispwin on OS X that randomly causes crash on
-        exit by removing release calls.</li>
+      <li>Fix bug in dispwin on OS X that randomly causes crash on exit
+        by removing release calls.</li>
     </ul>
     <h1>[V2.1.2 -&gt; V2.2.0] 3rd May 2021</h1>
     <ul>
@@ -1371,6 +1398,7 @@
 
 
 
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1385,6 +1413,7 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
 
 
 

@@ -86,7 +86,7 @@ char *dpath		/* path to device */
 	struct usb_idevice *usbd = NULL;
 	int fd;			/* device file descriptor */
 
-	a1logd(log, 6, "usb_check_and_add: givem '%s'\n",dpath);
+	a1logd(log, 6, "usb_check_and_add: given '%s'\n",dpath);
 
 	/* Open the device so that we can read it */
 	if ((fd = open(dpath, O_RDONLY)) < 0) {
@@ -603,7 +603,7 @@ typedef struct _usbio_req {
 
 /* - - - - - - - - - - - - - - - - - - - - - */
 
-/* Cancel a req's urbs from the last down to but not including thisurb. */
+/* Cancel a req's urbs from the last down to but not including this urb. */
 /* return icom error */
 static int cancel_req(icoms *p, usbio_req *req, int thisurb) {
 	int i, rv = ICOM_OK;
@@ -615,7 +615,7 @@ static int cancel_req(icoms *p, usbio_req *req, int thisurb) {
 		ev = ioctl(p->usbd->fd, USBDEVFS_DISCARDURB, &req->urbs[i].urb);
 		if (ev != 0 && ev != EINVAL) {
 			/* Hmmm */
-			a1loge(p->log, ICOM_SYS, "cancel_req: failed with %d\n",rv);
+			a1logd(p->log, 2, "cancel_req: failed with %d\n",ev);
 			rv = ICOM_SYS;
 		}
 		req->urbs[i].urb.status = -ECONNRESET; 
@@ -714,7 +714,7 @@ static void *urb_reaper(void *context) {
 
 		/* If urb failed or is done (but not cancelled), cancel all the following urbs */
 		if (req->nourbs > 0 && !req->cancelled
-		 && ((out->actual_length < out->buffer_length)
+		 && ((out->actual_length < out->buffer_length)				/* Run out of data */
 		   || (out->status < 0 && out->status != -ECONNRESET))) {
 			a1logd(p->log, 8, "urb_reaper: reaper canceling failed or done urb's\n",rv);
 			if (cancel_req(p, req, iurb->urbno) != ICOM_OK) {

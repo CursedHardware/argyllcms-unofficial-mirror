@@ -3704,7 +3704,7 @@ static void dispwin_sighandler(int arg) {
 		restore_display(pp);
 	}
 
-	/* Call through to previous handler */
+	/* Call through to previous handlers */
 #ifdef UNIX
 	if (arg == SIGHUP && dispwin_hup != SIG_DFL && dispwin_hup != SIG_IGN) 
 		dispwin_hup(arg);
@@ -3718,15 +3718,34 @@ static void dispwin_sighandler(int arg) {
 	exit(0);
 }
 
+/* Use sigaction() if we can, to get SA_RESTART behavior */
+#if defined(UNIX)
+//sighandler_t signal_x(int signum, sighandler_t handler) {
+static void (*signal_x(int signum, void (*handler)(int)))(int) {
+	struct sigaction new, old;
+	int rv = 0;
+
+	new.sa_handler = handler;
+	sigemptyset(&new.sa_mask);
+	new.sa_flags = SA_RESTART;
+
+	rv =  sigaction(signum, &new, &old);
+
+	return old.sa_handler;
+}
+#else
+# define signal_x signal
+#endif
+
 static void dispwin_install_signal_handlers(dispwin *p) {
 
 	if (signal_dispwin == NULL) {
 		/* Install the signal handler to ensure cleanup */
 #ifdef UNIX
-		dispwin_hup = signal(SIGHUP, dispwin_sighandler);
+		dispwin_hup = signal_x(SIGHUP, dispwin_sighandler);
 #endif /* UNIX */
-		dispwin_int = signal(SIGINT, dispwin_sighandler);
-		dispwin_term = signal(SIGTERM, dispwin_sighandler);
+		dispwin_int = signal_x(SIGINT, dispwin_sighandler);
+		dispwin_term = signal_x(SIGTERM, dispwin_sighandler);
 	}
 
 	/* Add this one to the list */
@@ -3742,10 +3761,10 @@ static void dispwin_uninstall_signal_handlers(dispwin *p) {
 			signal_dispwin = p->next;
 			if (signal_dispwin == NULL) {
 #if defined(UNIX)
-				signal(SIGHUP, dispwin_hup);
+				signal_x(SIGHUP, dispwin_hup);
 #endif /* UNIX */
-				signal(SIGINT, dispwin_int);
-				signal(SIGTERM, dispwin_term);
+				signal_x(SIGINT, dispwin_int);
+				signal_x(SIGTERM, dispwin_term);
 			}
 		} else {
 			dispwin *pp;

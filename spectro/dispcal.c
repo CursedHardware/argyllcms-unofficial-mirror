@@ -1613,7 +1613,7 @@ void usage(int flag, char *diag, ...) {
 //	fprintf(stderr," -q [vfmsu]           Speed - Very Fast, Fast, Medium (def), Slow, Ultra Slow\n");
 	fprintf(stderr," -p                   Use telephoto mode (ie. for a projector, if available)\n");
 	fprintf(stderr," -a                   Use ambient mode (ie. for a projector, if available)\n");
-	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0);
+	cap2 = inst_show_disptype_options(stderr, " -y                   ", icmps, 0, 0);
 	fprintf(stderr," -t [temp]            White Daylight locus target, optional target temperaturee in deg. K (deflt.)\n");
 	fprintf(stderr," -T [temp]            White Black Body locus target, optional target temperaturee in deg. K\n");
 	fprintf(stderr," -w x,y        	      Set the target white point as chromaticity coordinates\n");

@@ -518,6 +518,7 @@ colorhug_get_serialnumber (colorhug *p)
 		return ev;
 
 	p->ser_no = buf2uint_le(obuf + 0);
+	sprintf(p->serno, "%u", p->ser_no);
 
 	a1logd(p->log,2,"colorhug: Serial number = %d\n",p->ser_no); 
 
@@ -667,6 +668,17 @@ colorhug_init_inst(inst *pp)
 		return ev;
 
 	return inst_ok;
+}
+
+static char *colorhug_get_serial_no(inst *pp) {
+	colorhug *p = (colorhug *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
 }
 
 /* Read a single sample */
@@ -1221,6 +1233,7 @@ extern colorhug *new_colorhug(icoms *icom, instType dtype) {
 	p->init_coms         = colorhug_init_coms;
 	p->init_inst         = colorhug_init_inst;
 	p->capabilities      = colorhug_capabilities;
+	p->get_serial_no     = colorhug_get_serial_no;
 	p->check_mode        = colorhug_check_mode;
 	p->set_mode          = colorhug_set_mode;
 	p->get_disptypesel   = colorhug_get_disptypesel;

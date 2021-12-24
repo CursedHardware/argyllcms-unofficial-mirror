@@ -1806,11 +1806,15 @@ i1pro3_code i1pro3_imp_measure(
 		for (;;) {
 			inst_code rc;
 			i1pro3_eve;
+			int nerrs = 0;
 			int cerr;
 
 			if ((ev = i1pro3_waitfor_event_th(p, &ecode, 0.1)) != I1PRO3_OK
-			 && ev != I1PRO3_INT_BUTTONTIMEOUT)
-				break;			/* Error */
+			 && ev != I1PRO3_INT_BUTTONTIMEOUT) {
+				if (++nerrs < 5)
+					continue;		/* Retry for more robustness */
+				break;
+			}
 
 			if (ev == I1PRO3_OK)
 				break;			/* event triggered */
@@ -5895,7 +5899,7 @@ i1pro3_code i1pro3_waitfor_event_th(i1pro3 *p, i1pro3_eve *ecode, double top) {
 		amutex_unlock(m->lock);
 
 		if ((rv = icoms2i1pro3_err(se)) != I1PRO3_OK) {
-			a1logd(p->log,1,"i1pro3_waitfor_event_th_th: failed with ICOM err 0x%x (%d msec)\n",se, msec_time()-stime);
+			a1logd(p->log,1,"i1pro3_waitfor_event_th_setup: failed with ICOM err 0x%x (%d msec)\n",se, msec_time()-stime);
 			return rv;
 		}
 
@@ -12407,7 +12411,7 @@ static i1pro3_code i1pro3_zebra_proc(
 	do_plot(t2p_t, t2p_p, NULL, NULL, ntrans);
 #endif // NEVER
 
-	/* Creae position to time mapping. We create a list in */
+	/* Create position to time mapping. We create a list in */
 	/* increments of 0.2 mm and then add measurement samples */
 	/* that fall into each slot. */
 
@@ -12441,8 +12445,12 @@ static i1pro3_code i1pro3_zebra_proc(
 		ps = vect_lerp2(t2p_t, t2p_p, tm, ntrans);
 		slot = (int)floor(ps/POSRES + 0.5);
 
-		if (slot < 0 || slot >= npos)
-			error("Assert in %s at line %d slot %d outside 0 .. %d\n",__FILE__,__LINE__,slot,npos-1);
+		/* In case time period covered by zebra is different to time period of measurement... */
+		if (slot < 0)
+			slot = 0;
+		else if (slot >= npos)
+			slot = npos-1;
+
 		//fprintf(stderr,"Sample %d time %f position %f slot %d\n",i,tm,ps,slot);
 		if (p2m[slot][-1] >= p2m[slot][-2]) {
 			int *ary;
@@ -12758,6 +12766,7 @@ i1pro3_code i1pro3_do_measure(
 		m->llamponoff = msec_time();
 	}
 
+	/* Set nummeas to the actual number of measurements */
 	if (refmode) {
 		if (tint > 1)	/* Round down to give number of whole measurements */
 			nummeas = (anummeas - nnskip)/(tint / 2);
@@ -12917,18 +12926,20 @@ i1pro3_code i1pro3_do_measure(
 		zskip = nnskip * (refmode ? 2 : 1) * m->minintclks;
 
 		/* Copy zebra ruler bits into bytes */
-		for (jj = ii = i = 0; i < m->zebra_bread; i++) {
+		for (jj = ii = i = 0; i < m->zebra_bread; i++) { 	/* For each byte */
 			unsigned int ival, oval;
 			int k;
 
 			ival = zbuf[i];
-			for (k = 0; k < 4; k++, ii++) {
+			for (k = 0; k < 4; k++, ii++) {					/* For each 2 bit */
 				oval = ival & 3;
 				ival >>= 2;
 
 				if (ii >= zskip) {
-					if (jj >= numzeb)
+					if (jj >= numzeb) {						/* More than we expect */
+						a1logd(p->log,6,"i1pro3_do_measure - more zebra bytes than measurements\n");
 						break;
+					}
 					zeb[jj] = oval;
 					jj++;
 				}
@@ -12940,9 +12951,17 @@ i1pro3_code i1pro3_do_measure(
 		}
 		free(zbuf);
 
-		if (jj != numzeb || i > m->zebra_bread || i < (m->zebra_bread - (2 * intclocks)/8)) {
-			error("Assert in %s at %d: zebra/meas mismatch: jj %d != numzeb %d or i %d != bread %d\n",__FILE__,__LINE__,jj,numzeb,i,m->zebra_bread);
-			}
+		/* It seems that sometimes we get fewer zebra bytes than expected for */
+		/* the number of measurements. Adjust acordingly */
+		if (jj < numzeb) {
+		a1logd(p->log,6,"i1pro3_do_measure - fewer zebra bytes than measurements\n");
+printf("~1 fewer zebra bytes than expected\n");
+			numzeb = jj;
+		}
+
+		if (i > m->zebra_bread || i < (m->zebra_bread - (2 * intclocks)/8)) {
+			error("Assert in %s at %d: zebra/meas mismatch: i %d != bread %d\n",__FILE__,__LINE__,jj,numzeb,i,m->zebra_bread);
+		}
 
 		if (p->log->debug >= 9) {
 			a1logd(p->log,9,"zebra raw data:\n");

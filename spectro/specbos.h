@@ -173,7 +173,8 @@ struct _specbos {
 
 	int maxtin_warn;			/* NZ if conf:maxtin failure warning has been given */
 
-	int serno;					/* Spectrometer serial number */
+	int ser_no;					/* Spectrometer serial number */
+	char serno[20];				/* Serial number as string */
 
 	}; typedef struct _specbos specbos;
 

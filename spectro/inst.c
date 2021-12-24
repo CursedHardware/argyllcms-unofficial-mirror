@@ -864,6 +864,7 @@ static inst_disptypesel *expand_dlist(inst_disptypesel *list, int nlist, int *na
 	list[nlist].sel[0] = '\000';
 	list[nlist].desc[0] = '\000';
 	list[nlist].refr = 0;
+	list[nlist].dtech = 0;
 	list[nlist].ix = 0;
 	list[nlist].cc_cbid = 0;
 	list[nlist].path = NULL;

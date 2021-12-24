@@ -135,9 +135,10 @@ ATTRS{idVendor}=="2457", ATTRS{idProduct}=="4000", ENV{COLORD_SENSOR_KIND}="ex1"
 #########################################################
 
 # Set ID_VENDOR and ID_MODEL acording to VID and PID
-#TEST=="/lib/udev/usb-db", IMPORT{program}="usb-db %p"
+# Try to remain backwards compatible with older systems...
 ENV{COLORD_SENSOR_KIND}=="*?", ENV{ID_MODEL}=="", IMPORT{program}="usb_id --export %p"
-ENV{COLORD_SENSOR_KIND}=="*?", ENV{ID_MODEL_FROM_DATABASE}=="", IMPORT{program}="usb-db %p"
+ENV{COLORD_SENSOR_KIND}=="*?", TEST=="/lib/udev/usb-db", ENV{ID_MODEL_FROM_DATABASE}=="", IMPORT{program}="usb-db %p"
+ENV{COLORD_SENSOR_KIND}=="*?", ENV{ID_MODEL_FROM_DATABASE}=="", IMPORT{builtin}="hwdb --subsystem=usb"
 
 # Is a color calibration device. 70-uaccess.rules may use this to set TAG+="uaccess",
 # but there is no way to know if this is the case from here.

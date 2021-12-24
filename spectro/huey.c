@@ -942,7 +942,7 @@ huey_read_all_regs(
 	if ((ev = huey_rdreg_word(p, &p->ser_no, 0) ) != inst_ok)
 		return ev;
 	a1logd(p->log,4,"serial number = %d\n",p->ser_no);
-
+	sprintf(p->serno, "%u",p->ser_no);
 
 	/* LCD/user calibration values */
 	for (i = 0; i < 9; i++) {
@@ -1168,6 +1168,17 @@ huey_init_inst(inst *pp) {
 		return ev;
 
 	return inst_ok;
+}
+
+static char *huey_get_serial_no(inst *pp) {
+	huey *p = (huey *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
 }
 
 /* Read a single sample */
@@ -1758,6 +1769,7 @@ extern huey *new_huey(icoms *icom, instType dtype) {
 
 	p->init_coms         = huey_init_coms;
 	p->init_inst         = huey_init_inst;
+	p->get_serial_no     = huey_get_serial_no;
 	p->capabilities      = huey_capabilities;
 	p->check_mode        = huey_check_mode;
 	p->set_mode          = huey_set_mode;

@@ -312,6 +312,11 @@ spydX_getCalibration(
 
 	a1logd(p->log, 3, "spydX_getCalibration %d: called\n",cix);
 
+	if (cix < 0 || cix >= SPYDX_NOCALIBS) {
+		rv = spydX_interp_code((inst *)p, SPYDX_CIX_MISMATCH);
+		a1logd(p->log, 6, "spydX_getCalibration cix is out of range 0 .. %d\n",SPYDX_NOCALIBS-1);
+	}
+
 	send[0] = cix;
 
 	se = spydX_command(p, 0xCB, send, 1, reply, 0x2A, 1, 5.0);  
@@ -683,8 +688,8 @@ spydX_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 	a1logd(p->log, 2, "spydX_init_coms: about to init USB\n");
 
-//	usbflags |= icomuf_no_open_clear;
-//	usbflags |= icomuf_resetep_before_read;
+	/* Some instruments on some systems to lockup after use... */
+	usbflags |= icomuf_reset_before_close;
 
 	/* Set config, interface, write end point, read end point */
 	/* ("serial" end points aren't used - the spydX uses USB control & write/read) */
@@ -902,15 +907,17 @@ static inst_code spydX_get_n_a_cals(inst *pp, inst_cal_type *pn_cals, inst_cal_t
 	inst_cal_type a_cals = inst_calt_none;
 	
 	if ((curtime - p->bdate) > DCALTOUT) {
-		a1logd(p->log,2,"Invalidating black cal as %d secs from last cal\n",curtime - p->bdate);
+		a1logd(p->log,2,"SpydX: Invalidating black cal as %d secs from last cal\n",curtime - p->bdate);
 		p->bcal_done = 0;
 	}
 		
-	if (!IMODETST(p->mode, inst_mode_emis_ambient)) {
+	if (!IMODETST(p->mode, inst_mode_emis_ambient)) {		/* If not ambient */
 		if (!p->bcal_done || !p->noinitcalib)
 			n_cals |= inst_calt_emis_offset;
 		a_cals |= inst_calt_emis_offset;
 	}
+
+	a1logd(p->log,4,"SpydX: returning n_cals 0x%x, a_cals 0x%x\n",n_cals,a_cals);
 
 	if (pn_cals != NULL)
 		*pn_cals = n_cals;
@@ -978,6 +985,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 			return ev;
 		p->bcal_done = 1;
 		p->bdate = cdate;
+		p->noinitcalib = 1;			/* Don't calibrate again */
 	}
 
 #ifdef ENABLE_NONVCAL
@@ -1250,7 +1258,7 @@ static inst_code set_disp_type(spydX *p, inst_disptypesel *dentry) {
 
 	if (dentry->flags & inst_dtflags_ccmx) {
 		if (dentry->cc_cbid != 1) {
-			a1loge(p->log, 1, "k10: matrix must use cbid 1!\n",dentry->cc_cbid);
+			a1loge(p->log, 1, "SpydX: matrix must use cbid 1 (is %d)!\n",dentry->cc_cbid);
 			return inst_wrong_setup;
 		}
 
@@ -1258,11 +1266,15 @@ static inst_code set_disp_type(spydX *p, inst_disptypesel *dentry) {
 		icmCpy3x3(p->ccmat, dentry->mat);
 		p->cbid = 0;	/* Can't be a base type now */
 
-	} else {
+	} else if ((dentry->flags & inst_dtflags_mtx) != 0) { 
 		p->dtech = dentry->dtech;
 		icmCpy3x3(p->ccmat, dentry->mat);
 		p->cbid = dentry->cbid;
 		p->ucbid = dentry->cbid;    /* This is underying base if dentry is base selection */
+
+	} else {			/* This shouldn't happen... */
+		a1loge(p->log, 1, "SpydX: calibration selected isn't builit in or CCMX!\n");
+		return inst_wrong_setup;
 	}
 
 	p->ix = dentry->ix;				/* Native index */

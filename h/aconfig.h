@@ -24,8 +24,8 @@
 /* major number = 8 bits */
 
 #ifndef USE_NG_VERSION 
-# define ARGYLL_VERSION 0x02021
-# define ARGYLL_VERSION_STR "2.2.1"
+# define ARGYLL_VERSION 0x02030
+# define ARGYLL_VERSION_STR "2.3.0"
 #else
 # define ARGYLL_VERSION NG_VERSION
 # define ARGYLL_VERSION_STR "NG_VERSION_STR"

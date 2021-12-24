@@ -3044,6 +3044,17 @@ spyd2_init_inst(inst *pp) {
 	return inst_ok;
 }
 
+static char *spyd2_get_serial_no(inst *pp) {
+	spyd2 *p = (spyd2 *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
+}
+
 /* Read a single sample */
 /* Return the dtp error code */
 static inst_code
@@ -4093,6 +4104,7 @@ extern spyd2 *new_spyd2(icoms *icom, instType dtype) {
 
 	p->init_coms         = spyd2_init_coms;
 	p->init_inst         = spyd2_init_inst;
+	p->get_serial_no     = spyd2_get_serial_no;
 	p->capabilities      = spyd2_capabilities;
 	p->check_mode        = spyd2_check_mode;
 	p->set_mode          = spyd2_set_mode;

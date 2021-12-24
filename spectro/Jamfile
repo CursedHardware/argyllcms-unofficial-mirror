@@ -248,6 +248,14 @@ if $(USE_CMFM) = true && [ GLOB [ NormPaths . ] : 1501_cal.c ] {
 	Main 1501_cal : 1501_cal.c ;
 }
 
+# Misc. test code
+if [ GLOB [ NormPaths . ] : i1d3test.c ]  {
+	Main i1d3test : i1d3test.c ;
+}
+if [ GLOB [ NormPaths . ] : i1d3test2.c ]  {
+	Main i1d3test2 : i1d3test2.c ;
+}
+
 #display test window test/Lut loader utility
 # [ Could avoid need for libinst libusb etc.
 #   by separating system dependent utils to a separate library .] 
@@ -306,7 +314,6 @@ MainVariant xdg_bds : xdg_bds.c : : STANDALONE_TEST : : : libconv ;
 #Main t8 : t8.c ;
 #Main t9 : t9.c ;
 #Main i1d3eval : i1d3eval.c ;
-#Main i1d3_msrand.c : i1d3_msrand.c ;
 
 # Simple test code of aglob
 if [ GLOB [ NormPaths . ] : globtest.c ]  {

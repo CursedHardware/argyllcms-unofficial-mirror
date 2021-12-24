@@ -2156,7 +2156,7 @@ usage() {
 	}
 	fprintf(stderr," -t              Use transmission measurement mode\n");
 	fprintf(stderr," -d              Use display measurement mode (white Y relative results)\n");
-	cap2 = inst_show_disptype_options(stderr, " -y              ", icmps, 0);
+	cap2 = inst_show_disptype_options(stderr, " -y              ", icmps, 0, 0);
 	fprintf(stderr," -e              Emissive for transparency on a light box\n");
 	fprintf(stderr," -p              Measure patch by patch rather than strip\n");
 	fprintf(stderr," -x [lx]         Take external values, either L*a*b* (-xl) or XYZ (-xx).\n");

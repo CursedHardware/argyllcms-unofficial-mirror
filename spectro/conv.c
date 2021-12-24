@@ -108,121 +108,66 @@
 #ifdef NT
 
 /* wait for and then return the next character from the keyboard */
-/* (If not_interactive, return getchar()) */
+/* (If not_interactive set, wait for next stdin character but discard cr or lf) */
 int next_con_char(void) {
 	int c;
 
 	if (not_interactive) {
 		HANDLE stdinh;
-  		char buf[1];
+  		char buf[10], rv = 0;
 		DWORD bread;
 
 		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
 			return 0;
 		}
 	
-		/* Ignore end of line characters */
+		/* Try and read any end of line characters */
 		for (;;) {
-			if (ReadFile(stdinh, buf, 1, &bread, NULL)
-			 && bread == 1
-			 && buf[0] != '\r' && buf[0] != '\n') { 
-				return buf[0];
+			buf[0] = 0;
+			if (ReadFile(stdinh, buf, 3, &bread, NULL)
+			 && bread >= 1) {
+				rv = buf[0];
+				break;
 			}
 		}
+
+		return rv;
 	}
 
 	c = _getch();
 	return c;
 }
 
-#ifdef NEVER	// Don't need this now.
-
-/* Horrible hack to poll stdin when we're not interactive. */
-/* This has the drawback that the char and returm must be */
-/* written in one operation for the character to be recognised - */
-/* trying to do this manually typically doesn't work unless you are */
-/* very fast and lucky. */
-static int th_read_char(void *pp) {
-	char *rp = (char *)pp;
-	HANDLE stdinh;
-  	char buf[1];
-	DWORD bread;
-
-	if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
-		*rp = 0;		/* We've started */
-		return 0;
-	}
-
-	*rp = 0;		/* We've started */
-
-	if (ReadFile(stdinh, buf, 1, &bread, NULL)
-	 && bread == 1
-	 && buf[0] != '\r' && buf[0] != '\n') { 
-		*rp = buf[0];
-	}
-
-	return 0;
-}
-#endif	/* NEVER */
-
 /* If there is one, return the next character from the keyboard, else return 0 */
-/* (If not_interactive, always returns 0) */
+/* (If not_interactive set, return next stdin character if available, but discard cr or lf) */
 int poll_con_char(void) {
 
 	if (not_interactive) {		/* Can't assume that it's the console */
 
-#ifdef NEVER	// Use better approach below.
-		athread *getch_thread = NULL;
-		volatile char c = 0xff;
-	
-		/* This is pretty horrible. The problem is that we can't use */
-		/* any of MSWin's async file read functions, because we */
-		/* have no way of ensuring that the STD_INPUT_HANDLE has been */
-		/* opened with FILE_FLAG_OVERLAPPED. Used a thread instead... */
-		/* ReOpenFile() would in theory fix this, but it's not available in WinXP, only Vista+, */
-		/* and aparently doesn't work on stdin anyway! :-( */
-		if ((getch_thread = new_athread(th_read_char, (char *)&c)) != NULL) {
-			HANDLE stdinh;
-
-			if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
-				return 0;
-			}
-
-			/* Wait for the thread to start */
-			while (c == 0xff) {
-				Sleep(10);			/* We just hope 1 msec is enough for the thread to start */
-			}
-			Sleep(10);			/* Give it time to read */
-			CancelIo(stdinh);	/* May not work since ReadFile() is on a different thread ? */
-			getch_thread->del(getch_thread);
-			return c;
-		}
-#else	/* ! NEVER */
 		/* This approach is very flakey from the console, but seems */
 		/* to work reliably when operated progromatically. */
 		HANDLE stdinh;
-		char buf[10] = { 0 }, c;
+		char buf[10] = { 0 };
 		DWORD bread;
+		int rv = 0;
 
 		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
-			return 0;
+			return 0;		
 		}
-//		printf("Waiting\n");
-		if (WaitForSingleObject(stdinh, 1) == WAIT_OBJECT_0) {
-//			printf("stdin signalled\n");
-			
-//			FlushFileBuffers(stdinh);
-//			FlushConsoleInputBuffer(stdinh);
-			if (ReadFile(stdinh, buf, 1, &bread, NULL)) {
-				int i;
-//				fprintf(stderr,"Read %d chars 0x%x 0x%x 0x%x\n",bread,buf[0],buf[1], buf[2]);
-				if (buf[0] != '\r' && buf[0] != '\n')
-					return buf[0];
-				return 0;
+		for (;;) {
+			if (WaitForSingleObject(stdinh, 0) == WAIT_OBJECT_0) {
+				buf[0] = buf[1] = buf[2] = 0;
+				if (ReadFile(stdinh, buf, 3, &bread, NULL)) {
+//					fprintf(stderr,"Read %d chars 0x%x 0x%x 0x%x\n",bread,buf[0],buf[1], buf[2]);
+					rv = buf[0];
+					break;
+				}
 			}
+			rv = 0;
+			break;
 		}
-#endif	/* !NEVER */
-		return 0;
+
+		return rv;
 	}
 
 	/* Assume it's the console */
@@ -234,7 +179,7 @@ int poll_con_char(void) {
 }
 
 /* Suck all characters from the keyboard */
-/* (If not_interactive, does nothing ?) */
+/* (If not_interactive set, discard all pending characters of stdin) */
 void empty_con_chars(void) {
 
 	if (not_interactive) {
@@ -619,14 +564,14 @@ int system_processors() {
 #if defined(UNIX)
 
 /* Wait for and return the next character from the keyboard */
-/* (If not_interactive, return getchar()) */
+/* (If not_interactive set, wait for next stdin character but discard cr or lf) */
 int next_con_char(void) {
 	struct pollfd pa[1];		/* Poll array to monitor stdin */
 	struct termios origs, news;
 	char rv = 0;
 
+	/* Configure stdin to be ready with just one character if interactive */
 	if (!not_interactive) {
-		/* Configure stdin to be ready with just one character */
 		if (tcgetattr(STDIN_FILENO, &origs) < 0)
 			a1logw(g_log, "next_con_char: tcgetattr failed with '%s' on stdin", strerror(errno));
 		news = origs;
@@ -637,25 +582,24 @@ int next_con_char(void) {
 			a1logw(g_log, "next_con_char: tcsetattr failed with '%s' on stdin", strerror(errno));
 	}
 
-	/* Wait for stdin to have a character */
+	/* Wait for stdin to have at least one character. */
+	/* If not_interactive set then it may be a character followed by cr and/or lf to flush it */
 	pa[0].fd = STDIN_FILENO;
 	pa[0].events = POLLIN | POLLPRI;
 	pa[0].revents = 0;
 
-	if (poll_x(pa, 1, -1) > 0
+	if (poll_x(pa, 1, -1) > 0					/* wait until there is something */
 	 && (pa[0].revents == POLLIN
-		 || pa[0].revents == POLLPRI)) {
-		char tb[3];
-		if (read(STDIN_FILENO, tb, 1) > 0) {	/* User hit a key */
-			rv = tb[0] ;
+		 || pa[0].revents == POLLPRI)) {		/* Something there */
+		char tb[10];
+		if (read(STDIN_FILENO, tb, 3) > 0) {	/* get it and any return */
+			rv = tb[0];
 		}
 	} else {
-		if (!not_interactive)
-			tcsetattr(STDIN_FILENO, TCSANOW, &origs);
 		a1logw(g_log, "next_con_char: poll on stdin returned unexpected value 0x%x",pa[0].revents);
 	}
 
-	/* Restore stdin */
+	/* Restore stdin if interactive */
 	if (!not_interactive && tcsetattr(STDIN_FILENO, TCSANOW, &origs) < 0) {
 		a1logw(g_log, "next_con_char: tcsetattr failed with '%s' on stdin", strerror(errno));
 	}
@@ -664,14 +608,14 @@ int next_con_char(void) {
 }
 
 /* If here is one, return the next character from the keyboard, else return 0 */
-/* (If not_interactive, always returns 0) */
+/* (If not_interactive set, return next stdin character if available, but discard cr or lf) */
 int poll_con_char(void) {
 	struct pollfd pa[1];		/* Poll array to monitor stdin */
 	struct termios origs, news;
 	char rv = 0;
 
+	/* Configure stdin to be ready with just one character if interactive */
 	if (!not_interactive) {
-		/* Configure stdin to be ready with just one character */
 		if (tcgetattr(STDIN_FILENO, &origs) < 0)
 			a1logw(g_log, "poll_con_char: tcgetattr failed with '%s' on stdin", strerror(errno));
 		news = origs;
@@ -682,33 +626,30 @@ int poll_con_char(void) {
 			a1logw(g_log, "poll_con_char: tcsetattr failed with '%s' on stdin", strerror(errno));
 	}
 
-	/* Wait for stdin to have a character */
+	/* See if stdin has a character */
+	/* If not_interactive set then it may be a character followed by cr and/or lf to flush it */
 	pa[0].fd = STDIN_FILENO;
 	pa[0].events = POLLIN | POLLPRI;
 	pa[0].revents = 0;
 
-	if (poll_x(pa, 1, 0) > 0
+	if (poll_x(pa, 1, 0) > 0					/* don't wait if there is nothing */
 	 && (pa[0].revents == POLLIN
-		 || pa[0].revents == POLLPRI)) {
-		char tb[3];
-		if (read(STDIN_FILENO, tb, 1) > 0) {	/* User hit a key */
-			rv = tb[0] ;
+		 || pa[0].revents == POLLPRI)) {		/* Something is there */
+		char tb[10];
+		if (read(STDIN_FILENO, tb, 3) > 0) {	/* Get it and any return */
+			rv = tb[0];
 		}
 	}
 
-	/* Restore stdin */
+	/* Restore stdin if interactive */
 	if (!not_interactive && tcsetattr(STDIN_FILENO, TCSANOW, &origs) < 0)
 		a1logw(g_log, "poll_con_char: tcsetattr failed with '%s' on stdin", strerror(errno));
 
 	return rv;
 }
 
-/* Suck all characters from the keyboard */
-/* (If not_interactive, does nothing) */
+/* Discard all pending characters from stdin */
 void empty_con_chars(void) {
-	if (not_interactive)
-		return;
-
 	tcflush(STDIN_FILENO, TCIFLUSH);
 }
 

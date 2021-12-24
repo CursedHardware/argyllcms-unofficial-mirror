@@ -848,7 +848,7 @@ gvert *v2		/* Existing vertex */
 /* Expand the gamut by adding a point. */
 /* If nofilter is set, return NULL if the point */
 /* is discarded, or the address of the point  representing */
-/* the point added. If nofiler is not set, return NULL */
+/* the point added. If nofilter is not set, return NULL */
 static gvert *expand_gamut(
 gamut *s,
 double pp[3]		/* rectangular coordinate of point */

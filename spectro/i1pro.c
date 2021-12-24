@@ -447,7 +447,7 @@ i1pro_interp_error(inst *pp, i1pro_code ec) {
 		case I1PRO_RD_WHITEREADINCONS:
 			return "White calibration reading is inconsistent";
 		case I1PRO_RD_WHITEREFERROR:
-			return "White reference reading error";
+			return "White reference reading is out of tollerance";
 		case I1PRO_RD_LIGHTTOOLOW:
 			return "Light level is too low";
 		case I1PRO_RD_LIGHTTOOHIGH:

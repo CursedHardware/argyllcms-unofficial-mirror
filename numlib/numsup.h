@@ -114,7 +114,7 @@
 #define PNTR UINT_PTR
 
 #define PF64PREC "I64"				/* printf format precision specifier */
-#define CF64PREC "LL"				/* Constant precision specifier */
+#define CF64PREC "i64"				/* Constant precision specifier */
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __declspec(noreturn)

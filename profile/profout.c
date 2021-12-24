@@ -61,7 +61,7 @@
 		for the device->PCS tables by calling xicc->set_luobj().
 
 		For a CLUT type profile, create a gamut mapping object and
-		setup all the other bits and peices needed to convert a color
+		setup all the other bits and pieces needed to convert a color
 		from PCS to device, then use (icc) icmSetMultiLutTables() which will
 		call back the out_b2a_input(), out_b2a_clut() and out_b2a_output()
 		functions.

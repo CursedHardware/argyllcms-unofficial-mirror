@@ -116,7 +116,7 @@ struct _spydX {
 	inst_disptypesel *dtlist;	/* Display Type list */
 	int ndtlist;				/* Number of valid dtlist entries */
 
-	calinfo cinfo[SPYDX_NOCALIBS];	/* cal  & meas setup info indexed by native ix */
+	calinfo cinfo[SPYDX_NOCALIBS];	/* cal & meas setup info indexed by native ix */
 	
 	int ix;						/* current native cal index */
 	int cbid;					/* current calibration base ID, 0 if not a base */
@@ -125,11 +125,11 @@ struct _spydX {
 
 	double ccmat[3][3];			/* Current colorimeter correction matrix, unity if none */
 
-	int bcal_done;
+	int bcal_done;				/* Black offset calibration is valid */
 	int bcal[3];				/* Black offset calibration values */
 	time_t bdate;				/* Date/time of last black calibration */
 
-	int noinitcalib;		 	/* Don't do initial calibrate */
+	int noinitcalib;		 	/* Don't do initial calibrate, or we've done initial calib.  */
 	int lo_secs;				/* Seconds since last opened (from calibration file mod time) */ 
 
 }; typedef struct _spydX spydX;

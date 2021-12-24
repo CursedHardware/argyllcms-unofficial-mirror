@@ -2,7 +2,7 @@
 /* 
  * Argyll Color Management System
  *
- * Gretag i1Display related functions
+ * Gretag i1Display 1/2/Smile related functions
  *
  * Author: Graeme W. Gill
  * Date:   18/10/2006
@@ -1547,6 +1547,7 @@ i1disp_read_all_regs(
 	if ((ev = i1disp_rdreg_word(p, &p->reg0_W, 0) ) != inst_ok)
 		return ev;
 	a1logd(p->log, 3, "serial number = %d\n",p->reg0_W);
+	sprintf(p->serno, "%u",p->reg0_W);
 
 	/* LCD/user calibration values */
 	for (i = 0; i < 9; i++) {
@@ -1862,6 +1863,17 @@ i1disp_init_inst(inst *pp) {
 	a1logd(p->log, 2, "i1disp_init_inst: inited OK\n");
 
 	return inst_ok;
+}
+
+static char *i1disp_get_serial_no(inst *pp) {
+	i1disp *p = (i1disp *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serno;
 }
 
 /* Read a single sample */
@@ -2647,6 +2659,7 @@ extern i1disp *new_i1disp(icoms *icom, instType dtype) {
 
 	p->init_coms         = i1disp_init_coms;
 	p->init_inst         = i1disp_init_inst;
+	p->get_serial_no     = i1disp_get_serial_no;
 	p->capabilities      = i1disp_capabilities;
 	p->check_mode        = i1disp_check_mode;
 	p->set_mode          = i1disp_set_mode;

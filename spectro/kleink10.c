@@ -557,6 +557,16 @@ k10_init_inst(inst *pp) {
 	return inst_ok;
 }
 
+static char *k10_get_serial_no(inst *pp) {
+	kleink10 *p = (kleink10 *)pp;
+	
+	if (!pp->gotcoms)
+		return "";
+	if (!pp->inited)
+		return "";
+
+	return p->serial_no;
+}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -2886,6 +2896,7 @@ extern kleink10 *new_kleink10(icoms *icom, instType dtype) {
 	p->init_coms         = k10_init_coms;
 	p->init_inst         = k10_init_inst;
 	p->capabilities      = k10_capabilities;
+	p->get_serial_no     = k10_get_serial_no;
 	p->check_mode        = k10_check_mode;
 	p->set_mode          = k10_set_mode;
 	p->get_disptypesel   = k10_get_disptypesel;
