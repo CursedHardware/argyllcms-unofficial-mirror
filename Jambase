@@ -591,7 +591,14 @@ echo "CC = " $(CC) ;
 			MSVCNT		?= $(MSVCDIR) ;		
 		}
 
-		if [ MATCH 16\\.(.*) : $(VisualStudioVersion) ] {
+		if [ MATCH 17\\.(.*) : $(VisualStudioVersion) ] {
+			if $(VSCMD_ARG_TGT_ARCH) = "x64" {
+				ECHO "Compiler is VC++17 64 bit" ;
+			} else {
+				ECHO "Compiler is VC++17 32 bit" ;
+			}
+			MSVCVER     = 17 ;
+		} else if [ MATCH 16\\.(.*) : $(VisualStudioVersion) ] {
 			ECHO "Compiler is VC++16 (AKA Community 2019)" ;
 			MSVCVER     = 16 ;
 		} else if [ MATCH 15\\.(.*) : $(VisualStudioVersion) ] {
@@ -611,7 +618,7 @@ echo "CC = " $(CC) ;
 			MSVCVER     = 11 ;
 		} else if $(VisualStudioVersion) {
 			ECHO "Compiler VC++, unknown version " ;
-			MSVCVER     = 15 ;
+			MSVCVER     = 17 ;
 		} else if [ MATCH (.*)VC\\+\\+10(.*) : $(MSVCNT) ] {
 			ECHO "Compiler is VC++10 32 bit" ;
 			MSVCVER     = 10 ;
@@ -690,6 +697,10 @@ echo "CC = " $(CC) ;
 			CCDEBUGFLAG		?= /Od /Zi ;		# /Zi creates debugging database
 			CCPROFFLAG		?= /Od /Zi ;
 			LINKDEBUGFLAG	?= /DEBUG ;
+			if $(MSVCVER) > 10 {			# ?? which versions need this ??
+				CCDEBUGFLAG	+= /FS ;		# Allow for parallel builds
+				CCPROFFLAG	+= /FS ;
+			}
 		}
 		LINKPROFFLAG	?= /PROFILE $(LINKDEBUGFLAG) ;		
 		LINKOPTFLAG		?= /OPT:REF ;	

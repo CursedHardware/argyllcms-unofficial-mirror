@@ -72,7 +72,7 @@ struct _ccss {
 	char *desc;			/* General Description (optional) */
 	char *disp;			/* Description of the display (Manfrr and Model No) (optional if tech) */
 	disptech dtech;		/* Display Technology enumeration (optional if disp) */
-	char *tech;			/* Technology string (Looked up from dtech enum) */
+	char *tech;			/* Technology string (Looked up from dtech enum or read from file) */
 	int refrmode;		/* Refresh mode, -1 if unknown, 0 of no, 1 if yes */
 	char *sel;			/* Optional UI selector characters. May be NULL */
 	char *ref;			/* Name of reference spectrometer instrument (optional) */

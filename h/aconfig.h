@@ -7,7 +7,7 @@
 /*
  * Author: Graeme W. Gill
  *
- * Copyright 2006 - 2021, Graeme W. Gill
+ * Copyright 2006 - 2022, Graeme W. Gill
  * All rights reserved.
  *
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
@@ -24,8 +24,8 @@
 /* major number = 8 bits */
 
 #ifndef USE_NG_VERSION 
-# define ARGYLL_VERSION 0x02030
-# define ARGYLL_VERSION_STR "2.3.0"
+# define ARGYLL_VERSION 0x02031
+# define ARGYLL_VERSION_STR "2.3.1"
 #else
 # define ARGYLL_VERSION NG_VERSION
 # define ARGYLL_VERSION_STR "NG_VERSION_STR"

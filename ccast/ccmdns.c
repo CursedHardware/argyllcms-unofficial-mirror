@@ -151,12 +151,12 @@ typedef int SOCKET;
 /* Various DNS defines */
 #define DNS_CLASS_IN 0x0001
 
-// Used by ChromeCast
-#define DNS_TYPE_PTR  12	/* Domain name pointer				*/
+// DNS query type */
+#define DNS_TYPE_A	   1	/* Host IP address record			*/
+#define DNS_TYPE_PTR  12	/* Canonical domain name 			*/
 #define DNS_TYPE_TXT  16	/* Text String						*/
+#define DNS_TYPE_AAAA 28	/* Host IPV6 address record         */
 #define DNS_TYPE_SRV  33	/* Server selection (SRV) record	*/
-#define DNS_TYPE_A	   1	/* Host address (A) record			*/
-#define DNS_TYPE_AAAA 28	/* IPv6 address ???					*/
 #define DNS_TYPE_NSEC 47	/* DNS Next Secure Name				*/
 
 
@@ -195,12 +195,13 @@ static char *print_IPV6_Address(ORD8 *buf) {
 }
 #endif
 
-/* Write a DNS string to a buffer. */
-/* return the offset of the next byte after the string */
+/* Write a DNS string to a buffer. String has max length of 63 */
+/* (because values higher than that are used for a compression scheme.) */
+/* Return the offset of the next byte after the string */
 static int write_string(ORD8 *buf, int off, char *s) {
 	int len = strlen(s);
-	if (len >= 0xc0)
-		len = 0xc0;	// Hmm.
+	if (len > 63)
+		len = 63;	// Hmm. Or what ?
 	buf[off] = len;
 	off++;
 	memcpy(buf + off, s, len);

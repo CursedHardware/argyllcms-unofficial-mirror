@@ -1771,23 +1771,14 @@ int main(int argc, char *argv[]) {
 		g_def_gamma = 1.8;
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1040
-		/* gestaltSystemVersionMajor etc. isn't supported on older systems, */
-		/* although "Gestalt(gestaltSystemVersion, &MacVers)" is, but this */
-		/* causes warning messages in 10.10. */
+		/* "Gestalt(gestaltSystemVersion, &MacVers)" is supported for early */
+		/* systems, but was deprecated in 10.8 and causes warnings in 10.10. */
+		/* gestaltSystemVersionMajor etc. isn't supported on older systems. */
+		/* kCFCoreFoundationVersionNumber has been available since 10.0 */
 
 		/* OS X 10.6+ uses a nominal gamma of 2.2 */
-		if (
-#ifdef NEVER
-		    Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
-		 && Gestalt(gestaltSystemVersionMinor,  &MacMinVers) == noErr
-		 && Gestalt(gestaltSystemVersionBugFix, &MacBFVers) == noErr
-		 && MacMajVers >= 10 && MacMinVers >= 6
-#else
-		   floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6
-#endif
-
-		) {
-				g_def_gamma = 2.4;
+		if (floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6) {
+			g_def_gamma = 2.4;
 		}
 #endif	/* >= 1040 */
 	}
@@ -1849,8 +1840,9 @@ int main(int argc, char *argv[]) {
 
 			/* Display number */
 			} else if (argv[fa][1] == 'd') {
-				if (strncmp(na,"web",3) == 0
-				 || strncmp(na,"WEB",3) == 0) {
+				if (na != NULL
+				 && (strncmp(na,"web",3) == 0
+				  || strncmp(na,"WEB",3) == 0)) {
 					webdisp = 8080;
 					if (na[3] == ':') {
 						webdisp = atoi(na+4);
@@ -1858,8 +1850,9 @@ int main(int argc, char *argv[]) {
 							usage(0,"Web port number must be in range 1..65535");
 					}
 					fa = nfa;
-				} else if (strncmp(na,"cc",2) == 0
-				 || strncmp(na,"CC",2) == 0) {
+				} else if (na != NULL && (
+				    strncmp(na,"cc",2) == 0
+				 || strncmp(na,"CC",2) == 0)) {
 					ccdisp = 1;
 					if (na[2] == ':') {
 						if (na[3] < '0' || na[3] > '9')
@@ -1871,12 +1864,12 @@ int main(int argc, char *argv[]) {
 					}
 					fa = nfa;
 #ifdef NT
-				} else if (strncmp(na,"madvr",5) == 0
+				} else if (na != NULL && strncmp(na,"madvr",5) == 0
 				 || strncmp(na,"MADVR",5) == 0) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
-				} else if (strncmp(na,"dummy",5) == 0
+				} else if (na != NULL && strncmp(na,"dummy",5) == 0
 				 || strncmp(na,"DUMMY",5) == 0) {
 					dummydisp = 1;
 					fa = nfa;

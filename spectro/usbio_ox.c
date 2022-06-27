@@ -273,11 +273,13 @@ void usb_close_port(icoms *p) {
 		/* Workaround for some bugs - reset device on close */
 		if (p->uflags & icomuf_reset_before_close) {
 			IOReturn rv;
-			// ~~~~ may have to switch to ->USBDeviceReEnumerate(p->usbd->device, 0) ???
-			// because new OS X 10.11 ignore ResetDevice ?
-			if ((rv = (*(p->usbd->device))->ResetDevice(p->usbd->device)) != kIOReturnSuccess) {
-				a1logd(p->log, 1, "usb_close_port: ResetDevice failed with 0x%x\n",rv);
-			}
+
+			a1logd(p->log, 6, "usb_close_port: icomuf_reset_before_close\n");
+
+			// OS X >= 10.11 ignores ResetDevice, so use alternative... */
+			if ((rv = (*(p->usbd->device))->USBDeviceReEnumerate(p->usbd->device, 0))
+				                                                 != kIOReturnSuccess)
+				a1logd(p->log, 1, "usb_close_port: USBDeviceReEnumerate failed with 0x%x\n",rv);
 		}
 
 		/* Close down and free everything in p->usbd */

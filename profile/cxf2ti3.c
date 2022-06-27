@@ -490,19 +490,29 @@ main(int argc, char *argv[]) {
 	}
 
 	/* Look through the color specifications and see if there are spectral details */
+	a1logd(g_log, 4, "cxf2ti3: Looking through color specifications for spectral details\n");
 	pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColorSpecificationCollection/ColorSpecification/WavelengthRange"));
 	if (pnode == NULL)
 		pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColorSpecificationCollection/ColorSpecification/MeasurementSpec/WavelengthRange"));
+
+	if (pnode == NULL)
+		pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColourSpecificationCollection/ColourSpecification/WavelengthRange"));
+	if (pnode == NULL)
+		pnode = mxmlFindPathNode(cxf, pfxp(&ctx,"Resources/ColourSpecificationCollection/ColourSpecification/MeasurementSpec/WavelengthRange"));
+
+	if (pnode == NULL)
+		a1logd(g_log, 4, "cxf2ti3: No color specifications found\n");
+
 	while (pnode != NULL) {
 		name = mxmlElementGetAttr(pnode, "StartWL");
 		if (name != NULL) {
 			specmin = atoi(name);
-			a1logd(g_log, 2, "cxf2ti3: got StartWL %d\n",specmin);
+			a1logd(g_log, 2, "cxf2ti3:  got StartWL %d\n",specmin);
 		}
 		name = mxmlElementGetAttr(pnode, "Increment");
 		if (name != NULL) {
 			specinc = atoi(name);
-			a1logd(g_log, 2, "cxf2ti3: got Increment %d\n",specinc);
+			a1logd(g_log, 2, "cxf2ti3:  got Increment %d\n",specinc);
 		}
 		pnode = mxmlGetNextSibling(pnode);
 	}
@@ -517,6 +527,8 @@ main(int argc, char *argv[]) {
 		const char *RGBSpecification = NULL;
 		const char *CMYKSpecification = NULL;
 		cgats_set_elem *setel = NULL;			/* Array of set value elements */
+
+		a1logd(g_log, 4, "cxf2ti3: phase %d\n",phase);
 
 		if (phase == 1) {
 			if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL)

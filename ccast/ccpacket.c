@@ -2,7 +2,7 @@
 
 /*
  * Class to deal with TLS connection to ChromCast,
- * and send and recieve packat format data.
+ * and send and recieve packet format data.
  *
  * Author: Graeme W. Gill
  * Date:   3/9/2014

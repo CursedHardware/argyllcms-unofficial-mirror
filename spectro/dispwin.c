@@ -270,18 +270,32 @@ static BOOL CALLBACK MonitorEnumProc(
 
 /* Dynamically linked function support */
 
-BOOL (WINAPI* pEnumDisplayDevices)(PVOID,DWORD,PVOID,DWORD) = NULL;
+#if !defined(WINAPI_FAMILY_PARTITION) && (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
+# define DECLARE_WCS_SCOPE
+#endif
 
-#if !defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN
+#if defined(WINAPI_FAMILY_PARTITION)
+# if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+#  define DECLARE_WCS_SCOPE
+# endif
+#endif
+
+
+#ifdef DECLARE_WCS_SCOPE
 
 typedef enum {
 	WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE,
 	WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER
 } WCS_PROFILE_MANAGEMENT_SCOPE;
 
+#endif  /* DECLARE_WCS_SCOPE */
+
+BOOL (WINAPI* pEnumDisplayDevices)(PVOID,DWORD,PVOID,DWORD) = NULL;
+
+#if (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
+
 BOOL (WINAPI* pWcsAssociateColorProfileWithDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
 BOOL (WINAPI* pWcsDisassociateColorProfileFromDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
-
 #endif  /* NTDDI_VERSION < NTDDI_LONGHORN */
 
 /* See if we can get the wanted function calls */
@@ -298,10 +312,13 @@ static int setup_dyn_calls() {
 			dyn_inited = 0;
 
 		/* Vista calls */
-#if !defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN
+#if (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
 		pWcsAssociateColorProfileWithDevice = (BOOL (WINAPI*)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsAssociateColorProfileWithDevice");
 		pWcsDisassociateColorProfileFromDevice = (BOOL (WINAPI*)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsDisassociateColorProfileFromDevice");
 		/* These are checked individually */
+#else
+		pWcsAssociateColorProfileWithDevice = WcsAssociateColorProfileWithDevice;
+		pWcsDisassociateColorProfileFromDevice = WcsDisassociateColorProfileFromDevice;
 #endif  /* NTDDI_VERSION < NTDDI_LONGHORN */
 	}
 
@@ -359,7 +376,6 @@ disppath **get_displays() {
 	disppath **disps = NULL;
 
 #ifdef NT
-	DISPLAY_DEVICE dd;
 	char buf[200];
 	int i, j;
 
@@ -380,17 +396,20 @@ disppath **get_displays() {
 
 	/* Now locate detailed information about displays */
 	for (i = 0; ; i++) {
+
 		if (disps == NULL || disps[i] == NULL)
 			break;
 
-		dd.cb = sizeof(dd);
-
 		debugrr2((errout, "get_displays about to get monitor information for %d\n",i));
+
 		/* Get monitor information */
 		for (j = 0; ;j++) {
+			DISPLAY_DEVICE dd;
+
+			dd.cb = sizeof(dd);
 			if ((*pEnumDisplayDevices)(disps[i]->name, j, &dd, 0) == 0) {
-				debugrr2((errout,"EnumDisplayDevices failed on '%s' Mon = %d\n",disps[i]->name,j));
-				if (j == 0) {
+				if (j == 0) {		/* Expected when past last display */
+					debugrr2((errout,"EnumDisplayDevices failed on '%s' Mon = %d\n",disps[i]->name,j));
 					strcpy(disps[i]->monid, "");		/* We won't be able to set a profile */
 				}
 				break;
@@ -4024,16 +4043,7 @@ static void create_my_win(void *cntx) {
 	/* >= 10.6+ device colors don't work on secondary displays and need a null transform. */
 	/*  < 10.6 null transform doesn't work, but isn't needed. */
 
-	if (
-#ifdef NEVER
-	    Gestalt(gestaltSystemVersionMajor,  &MacMajVers) == noErr
-	 && Gestalt(gestaltSystemVersionMinor,  &MacMinVers) == noErr
-	 && Gestalt(gestaltSystemVersionBugFix, &MacBFVers) == noErr
-	 && MacMajVers >= 10 && MacMinVers >= 6
-#else
-	   floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6
-#endif
-
+	if (floor(kCFCoreFoundationVersionNumber) >= kCFCoreFoundationVersionNumber10_6
 	 && cx->nscs == NULL) {
 		warning("Unable to create null color transform - test colors may be wrong!");
 	}
@@ -4703,7 +4713,7 @@ static LRESULT CALLBACK MainWndProc(
 /* ----------------------------------------------- */
 #ifdef NT
 
-/* Thread to create the window if it doesn'r exist, */
+/* Thread to create the window if it doesn't exist, */
 /* and handle message processing, so that there is no delay */
 /* when the main thread is doing other things. */
 int win_message_thread(void *pp) {

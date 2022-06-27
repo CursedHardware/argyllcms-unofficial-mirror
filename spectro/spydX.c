@@ -689,7 +689,8 @@ spydX_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 	a1logd(p->log, 2, "spydX_init_coms: about to init USB\n");
 
 	/* Some instruments on some systems to lockup after use... */
-	usbflags |= icomuf_reset_before_close;
+# pragma message("####### icomuf_reset_before_close disabled ########")
+//	usbflags |= icomuf_reset_before_close;
 
 	/* Set config, interface, write end point, read end point */
 	/* ("serial" end points aren't used - the spydX uses USB control & write/read) */

@@ -502,7 +502,7 @@ struct _i1pro3imp {
 	int ee1_pol_led_suv_cur;	/* Polarized illuminating Short UV LED current */
 
 	double ee1_wltempcoef;	/* wl/delta_temperature adjustment factor */
-							/* adjust by - (current_board_temp - cal_board_temp) * ee1_2f88 */
+							/* adjust by - (current_board_temp - cal_board_temp) * ee1_wltempcoef */
 
 	/* Block 4 */
 	int ee_unk27[4];

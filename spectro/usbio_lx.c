@@ -389,6 +389,7 @@ void usb_close_port(icoms *p) {
 		   On Linux the path stays the same, so could do open/reset/open
 		 */
 		if (p->uflags & icomuf_reset_before_close) {
+			a1logd(p->log, 6, "usb_close_port: icomuf_reset_before_close\n");
 			if ((rv = ioctl(p->usbd->fd, USBDEVFS_RESET, NULL)) != 0) {
 				a1logd(p->log, 1, "usb_close_port: reset returned %d\n",rv);
 			}

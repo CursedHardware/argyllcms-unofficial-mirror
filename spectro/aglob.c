@@ -66,7 +66,7 @@
 	_wfindnext()
 	_wfopen()
 	WideCharToMultiByte
-	MultiByteToWideCharTo
+	MultiByteToWideChar
 	GetShortPathNameW to convert for libraries, but not 100% reliable
 
 	See <http://utf8everywhere.org/>

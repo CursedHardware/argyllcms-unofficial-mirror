@@ -95,7 +95,12 @@ cgats **pocg		/* return CGATS structure */
 	if (p->disp)
 		ocg->add_kword(ocg, 0, "DISPLAY",p->disp, NULL);
 
-	p->tech = disptech_get_id(p->dtech)->strid;
+	if ((p->tech = strdup(disptech_get_id(p->dtech)->strid)) == NULL) {
+		sprintf(p->err, "strdup of tech string faile!");
+		ocg->del(ocg);		/* Clean up */
+		return 2;
+	}
+
 	ocg->add_kword(ocg, 0, "TECHNOLOGY", p->tech, NULL);
 
 	if (p->disp == NULL && p->tech == NULL) {

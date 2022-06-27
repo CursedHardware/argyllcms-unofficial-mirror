@@ -289,7 +289,7 @@ a1log *log				/* Verb, debug & error log */
 		return -1;
 	}
 
-// ~~~~9999 should we call config_inst_displ(p) instead of badly duplicating
+// ~~~~9999 we should call config_inst_displ(p) instead of badly duplicating
 //  the instrument setup here ???
 
 	itype = p->get_itype(p);			/* Actual type */
@@ -337,9 +337,6 @@ a1log *log				/* Verb, debug & error log */
 	if (nadaptive)
 		mode |= inst_mode_emis_nonadaptive;
 	
-//	if (p->highres)
-//		mode |= inst_mode_highres;
-
 	/* (We're assuming spectral doesn't affect calibration ?) */
 
 	if ((rv = p->set_mode(p, mode)) != inst_ok) {
@@ -2305,19 +2302,30 @@ static int config_inst_displ(disprd *p) {
 		}
 	}
 	
-	if (p->highres) {
-		if (IMODETST(cap, inst_mode_highres)) {
-			mode |= inst_mode_highres;
-		} else {
-			a1logv(p->log, 1, "high resolution ignored - instrument doesn't support high res. mode\n");
-		}
-	}
 	if ((rv = p->it->set_mode(p->it, mode)) != inst_ok) {
 		a1logd(p->log,1,"set_mode returned '%s' (%s)\n",
 		       p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
 		return 2;
 	}
 	p->it->capabilities(p->it, &cap, &cap2, &cap3);
+
+	/* Check and update mode for any mode dependent capabilities. */
+	/* (Could set this without check, or use get_set_opt() afterwards) */
+	if (p->highres) {
+		if (IMODETST(cap, inst_mode_highres)) {
+			mode  |= inst_mode_highres;
+
+			if ((rv = p->it->set_mode(p->it, mode)) != inst_ok) {
+				a1logd(p->log,1,"set_mode returned '%s' (%s)\n",
+				       p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
+				return 2;
+			}
+		
+		} else {
+			printf("high resolution ignored - instrument doesn't support high res. mode\n");
+			p->highres = 0;
+		}
+	}
 
 	/* Set calibration matrix */
 	if (p->ccmtx != NULL) {

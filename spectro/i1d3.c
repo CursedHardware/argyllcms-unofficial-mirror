@@ -1,7 +1,7 @@
 /* 
  * Argyll Color Management System
  *
- * GretagMacbeth Huey related functions
+ * i1 Display 3 driver.
  *
  * Author: Graeme W. Gill
  * Date:   28/7/2011
@@ -127,6 +127,7 @@ typedef enum {
     i1d3_locked       = 0x0020,		/* Get locked status */
     i1d3_freqmeas     = 0x0100,		/* Measure transition over given time */
     i1d3_periodmeas   = 0x0200,		/* Measure time between transition count */
+//  i1d3_aiomeas      = 0x0400,		/* AIO measure ? (Rev. B) */
     i1d3_readintee    = 0x0800,		/* Read internal EEPROM */
     i1d3_readextee    = 0x1200,		/* Read external EEPROM */
     i1d3_setled       = 0x2100,		/* Set the LED state */
@@ -136,6 +137,7 @@ typedef enum {
     i1d3_lockresp     = 0x9a00,		/* Unlock response */
     i1d3_relock       = 0x9b00		/* Close device - relock ? */
 } i1Disp3CC;
+
 
 /* Diagnostic - return a description given the instruction code */
 static char *inst_desc(i1Disp3CC cc) {
@@ -277,9 +279,9 @@ i1d3_command(
 		rv = i1d3_interp_code((inst *)p, I1D3_BAD_RD_LENGTH);
 	}
 
-	/* Hmm. Not sure about this bug workaround. Is this a rev B thing ? */
-	/* May get status 0x83 on i1d3_periodmeas when there are no transitions ? */ 
-	/* If so, ignore the error. */
+	/* The rev B. seems to return error code 0x83 if it doesn't find any edges */
+	/* within its timeout period, rather than simply returning 0 like the Rev. A. */
+	/* Ignore the error and process the 0 values. */
 	if (rv == inst_ok && cc == i1d3_periodmeas && recv[1] == 0x02 && recv[0] == 0x83) {
 		int i;
 		for (i = 2; i < 14; i++) {
@@ -591,6 +593,7 @@ static struct {
 	{ "i1Display3 ",         { 0x291e41d7, 0x51937bdd }, i1d3_disppro,  i1d3_hp_dreamc },
 	{ "i1Display3 ",         { 0x1abfae03, 0xf25ac8e8 }, i1d3_disppro,  i1d3_wacom_dc },
 	{ "i1Display3 ",         { 0x828c43e9, 0xcbb8a8ed }, i1d3_disppro,  i1d3_tpa_1 },
+	{ "i1Display3 ",         { 0xe8d1a980, 0xd146f7ad }, i1d3_disppro,  i1d3_barco },
 	{ NULL }, { NULL } 
 };
 
@@ -1749,7 +1752,7 @@ i1d3_take_emis_measurement(
 					}
 					if (mask3 != 0x0) {
 
-						a1logd(p->log,3,"Doing 2nd initial period measurement mask 0x%x, edgec %d %d %d\n",mask2,edgec[0],edgec[1],edgec[2]);
+						a1logd(p->log,3,"Doing 2nd initial period measurement mask 0x%x, edgec %d %d %d\n",mask3,edgec[0],edgec[1],edgec[2]);
 						/* Take a 2nd initial period  measurement */
 						if ((ev = i1d3_period_measure(p, edgec, mask3, rmeas2)) != inst_ok) {
 							p->th_en = isth;
@@ -2587,8 +2590,6 @@ static int i1d3_diff_thread(void *pp) {
 
 static inst_code set_default_disp_type(i1d3 *p);
 
-
-static inst_code i1d3_bfsearch(i1d3 *p);
 
 /* Initialise the I1D3 */
 static inst_code

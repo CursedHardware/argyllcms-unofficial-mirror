@@ -350,11 +350,15 @@ static char *get_sys_info() {
 #ifdef UNIX
 
 static char *get_sys_info() {
-	static char sysinfo[300] = { "Unknown" };
+	static char sysinfo[500] = { "Unknown" };
 	struct utsname ver;
 
 	if (uname(&ver) == 0)
-		sprintf(sysinfo,"%s %s %s %s",ver.sysname, ver.version, ver.release, ver.machine);
+#if defined(__APPLE__)
+		sprintf(sysinfo,"%s, %s, %s, %s (OS X %s)",ver.sysname, ver.version, ver.release, ver.machine, osx_get_version_str());
+#else
+		sprintf(sysinfo,"%s, %s, %s, %s",ver.sysname, ver.version, ver.release, ver.machine);
+#endif
 	return sysinfo;
 }
 
@@ -789,7 +793,7 @@ size_t nsize
 }
 
 /******************************************************************/
-/* OS X App Nap fixes                                             */
+/* OS X support functions                                         */
 /******************************************************************/
 
 #if defined(__APPLE__)
@@ -803,6 +807,144 @@ size_t nsize
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 # include <objc/objc-auto.h>
 #endif
+
+#include <CoreFoundation/CFURL.h>
+#include <CoreFoundation/CFStream.h>
+#include <CoreFoundation/CFPropertyList.h>
+
+/* OS X version info. Apple has not maintained any consistent function to do this ! */
+/* (This code is from "Mecki" via stackoverflow) */
+
+static bool osx_versionOK = false;
+static bool osx_onceToken = false;
+static unsigned osx_versions[3] = { 0, 0, 0 };
+static char osx_versions_str[40] = { "0.0.0" };
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 1050
+
+#include <Carbon/Carbon.h>
+
+void initMacOSVersion() {
+    SInt32 vers;
+    SInt32 maj, min, bug;
+
+	osx_onceToken = true;
+
+    Gestalt(gestaltSystemVersion, &vers);
+	maj = vers/0x1000 * 10 + (vers/0x100 % 0x10) ;
+	min = (vers/0x10) % 0x10;
+	bug = (vers) % 0x10;
+
+	osx_versions[0] = maj;
+	osx_versions[1] = min;
+	osx_versions[2] = bug;
+
+	sprintf(osx_versions_str, "%d.%d.%d", maj, min, bug);
+
+	osx_versionOK = true;
+}
+
+#else
+
+#include <CoreFoundation/CFURL.h>
+#include <CoreFoundation/CFStream.h>
+#include <CoreFoundation/CFPropertyList.h>
+
+void initMacOSVersion() {
+	osx_onceToken = true;
+
+	// `Gestalt()` actually gets the system version from this file.
+	// Even `if (@available(macOS 10.x, *))` gets the version from there.
+	CFURLRef url = CFURLCreateWithFileSystemPath(
+		NULL, CFSTR("/System/Library/CoreServices/SystemVersion.plist"),
+		kCFURLPOSIXPathStyle, false);
+	if (!url) return;
+
+	CFReadStreamRef readStr = CFReadStreamCreateWithFile(NULL, url);
+	CFRelease(url);
+	if (!readStr) return;
+
+	if (!CFReadStreamOpen(readStr)) {
+		CFRelease(readStr);
+		return;
+	}
+
+	CFErrorRef outError = NULL;
+	CFPropertyListRef propList = CFPropertyListCreateWithStream(
+		NULL, readStr, 0, kCFPropertyListImmutable, NULL, &outError);
+	CFRelease(readStr);
+	if (!propList) {
+		CFShow(outError);
+		CFRelease(outError);
+		return;
+	}
+
+	if (CFGetTypeID(propList) != CFDictionaryGetTypeID()) {
+		CFRelease(propList);
+		return;
+	}
+
+	CFDictionaryRef dict = propList;
+	CFTypeRef ver = CFDictionaryGetValue(dict, CFSTR("ProductVersion"));
+	if (ver) CFRetain(ver);
+	CFRelease(dict);
+	if (!ver) return;
+
+	if (CFGetTypeID(ver) != CFStringGetTypeID()) {
+		CFRelease(ver);
+		return;
+	}
+
+	CFStringRef verStr = ver;
+	// `1 +` for the terminating NUL (\0) character
+	CFIndex size = 1 + CFStringGetMaximumSizeForEncoding(
+		CFStringGetLength(verStr), kCFStringEncodingASCII);
+	// `calloc` initializes the memory with all zero (all \0)
+	char * cstr = calloc(1, size);
+	if (!cstr) {
+		CFRelease(verStr);
+		return;
+	}
+
+	CFStringGetBytes(ver, CFRangeMake(0, CFStringGetLength(verStr)),
+		kCFStringEncodingASCII, '?', false, (UInt8 *)cstr, size, NULL);
+	CFRelease(verStr);
+
+	int scans = sscanf(cstr, "%u.%u.%u",
+		&osx_versions[0], &osx_versions[1], &osx_versions[2]);
+	free(cstr);
+
+	// There may only be two values, but only one is definitely wrong.
+	// As `version` is `static`, its zero initialized.
+	osx_versionOK = (scans >= 2);
+
+	sprintf(osx_versions_str, "%d.%d.%d", osx_versions[0], osx_versions[1], osx_versions[2]);
+}
+
+#endif
+
+/* Get the OS X version number. */
+/* Return maj + min/100.0 + bugfix/10000.0 */
+/* (Returns 0.0 if unable to get version */
+double osx_get_version() {
+	double rv = 0.0;
+
+	if (!osx_onceToken)
+		initMacOSVersion();
+
+	if (osx_versionOK)
+		rv = osx_versions[0] + osx_versions[1]/100.0 + osx_versions[2]/10000.0;
+
+	return rv;
+}
+
+/* Get text OS X verion number, i.e. "10.3.1" */
+char *osx_get_version_str() {
+	if (!osx_onceToken)
+		initMacOSVersion();
+
+	return osx_versions_str;
+}
 
 /*
 	OS X 10.9+ App Nap problems bug:

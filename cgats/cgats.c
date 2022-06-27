@@ -1956,6 +1956,10 @@ real_format(double value, int nsd, char *fmt) {
 	if (value < 1.0) {
 		int thr = -5;
 		ndigs = (int)(log10(value));
+		if (ndigs > 310 || ndigs < 310) {   /* Protect against silliness.. */
+			strcpy(fmt,"%g");
+			return;
+		}
 		if (ndigs <= thr) {
 			sprintf(fmt,"%%%d.%de",xtot,tot-2);
 			return;
@@ -1965,6 +1969,10 @@ real_format(double value, int nsd, char *fmt) {
 	} else {
 		int thr = -0;
 		ndigs = (int)(log10(value));
+		if (ndigs > 310 || ndigs < 310) {   /* Protect against silliness.. */
+			strcpy(fmt,"%g");
+			return;
+		}
 		if (ndigs >= (nsd + thr)) {
 			sprintf(fmt,"%%%d.%de",xtot,tot-2);
 			return;

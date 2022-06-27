@@ -402,6 +402,8 @@ void usb_close_port(icoms *p) {
 		if (p->uflags & icomuf_reset_before_close) {
 			libusb_request req;
 
+			a1logd(p->log, 6, "usb_close_port: icomuf_reset_before_close\n");
+
 			memset(&req, 0, sizeof(req));
 			req.timeout = LIBUSBW1_DEFAULT_TIMEOUT;
 		

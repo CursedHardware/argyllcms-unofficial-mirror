@@ -2122,11 +2122,36 @@ a1log *log			/* verb, debug & error log */
 
 				/* Advance to next patch. */
 				incflag = 1;
+
 			} else {	/* Unrecognised response */
 				continue;
 			}
+
+			/* Sanity check value */
+			if (incflag && emit_warnings != 0 && accurate_expd != 0) {
+				double werror = 0.0;
+
+				if (val.XYZ_v == 0)
+					error("Instrument didn't return XYZ value");
+				werror = xyzLabDE(1.0, val.XYZ, scols[pix]->eXYZ);
+
+				/* Arbitrary threshold. Good seems about 15-35, bad 95-130 */
+				if (werror >= 30.0) {
+#ifdef DEBUG
+					printf("(Warning) Patch error %f (>35 not good, >95 bad)\n",werror);
+#endif
+					if (cap2 & inst2_no_feedback)
+						bad_beep();
+					empty_con_chars();
+					printf("\nThe patch has %s unexpected response! (DeltaE %f)\n",werror > 80.0 ? "a very " : "an", werror);
+
+					incflag = 0;		/* Don't auto move forward */
+				}
+			}
 		}
-	}
+	}		
+	/* -------------------------------------------------- */
+
 	/* clean up */
 	if (it != NULL)
 		it->del(it);

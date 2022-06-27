@@ -8,6 +8,30 @@ Not included yet:
 * Started adding comms for Lumagen Radiance detection.
 
 
+Version 2.3.1 27th June 2022
+-------------
+
+* Added value sanity check & warning to chartread patch by patch mode.
+
+* Fixed crash on 64 bit MSWin in spectro/aglob due to changing
+  SDK declarations for _findfirst().
+
+* Fixed one remaining problem with not coping with "Colour"
+  spelling rather than "Color" in cxf2ti3.
+
+* Add code in cgats write to check for float format
+  problems when faced with -inf or +inf value.
+
+* Fix i1Pro3 highres in ccxxmake, dispcal & dispread.
+
+* Changed OS X usb reset to re-enumerate instead, as reset
+  does nothing on OS X >= 10.8.
+
+* Added spectro/instlib.api.txt file to public distribution.
+
+* Fixed possible crashes in xicc/ccss.c and spectro/oeminst.c
+  (Thanks to localcanine).
+
 Version 2.3.0 24th December 2021
 -------------
 

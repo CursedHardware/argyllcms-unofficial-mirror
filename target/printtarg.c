@@ -2981,7 +2981,7 @@ char *argv[];
 	int tiffdith = 0;		/* flag, use TIFF 8 bit dithering */
 	int tiffcomp = 1;		/* flag, use TIFF compression */
 	int spacer = -1;		/* -1 = default for instrument */
-							/* 0 = forse no spacer, 1 = Force B&W spacers */
+							/* 0 = Force no spacer, 1 = Force B&W spacers */
 							/* 2 = Force colored spacer */
 	int rstart = -1;		/* Random sequence start value */
 	char *sixpat = DEF_SIXPAT;	/* Strip index pattern */		
@@ -3004,7 +3004,7 @@ char *argv[];
 	int nmask = 0;			/* Device colorant mask */
 	int nchan = 0;			/* Number of device chanels */
 	int i;
-	int si, fi, wi;			/* sample id index, field index, keyWord index */
+	int si, fi, wi;			/* Sample id index, field index, keyWord index */
 	char label[400];		/* Space for chart label */
 	double marg = DEF_MARGINE;	/* Margin from paper edge in mm */
 	int nosubmarg = 0;		/* Don't subtract it from raster */
@@ -3012,7 +3012,7 @@ char *argv[];
 	int nollimit = 0;		/* NZ to release any strip length limits */
 	paper *pap = NULL;		/* Paper size pointer, NULL if custom */
 	double cwidth, cheight;	/* Custom paper width and height in mm */
-	col *cols;				/* test patch colors */
+	col *cols;				/* Test patch colors */
 	int npat;				/* Number of patches */
 	int nppat;				/* Number of patches including padding */
 	col pcold[8];			/* pre-defined density extreme colors */

@@ -77,7 +77,7 @@
 #define ORD32  uint32_t		/* 32 bit unsigned */
 #define ORD64  uint64_t		/* 64 bit unsigned */
 
-#define PNTR intptr_t
+#define IPNTR intptr_t		/* Integer that can hold a pointer */
 
 #define PF64PREC "ll"		/* printf format precision specifier */
 #define CF64PREC "LL"		/* Constant precision specifier */
@@ -111,7 +111,7 @@
 #define ORD32  unsigned __int32		/* 32 bit unsigned */
 #define ORD64  unsigned __int64		/* 64 bit unsigned */
 
-#define PNTR UINT_PTR
+#define IPNTR UINT_PTR				/* Integer that can hold a pointer */
 
 #define PF64PREC "I64"				/* printf format precision specifier */
 #define CF64PREC "i64"				/* Constant precision specifier */
@@ -137,20 +137,20 @@
 #define ORD32  unsigned int		/* 32 bit unsigned */
 
 #ifdef __GNUC__
-# ifdef __LP64__	/* long long could be 128 bit ? */
-#  define INR64  long				/* 64 bit signed */
-#  define ORD64  unsigned long		/* 64 bit unsigned */
+# ifdef __LP64__				/* long long could be 128 bit ? */
+#  define INR64  long			/* 64 bit signed */
+#  define ORD64  unsigned long	/* 64 bit unsigned */
 #  define PF64PREC "l"			/* printf format precision specifier */
 #  define CF64PREC "L"			/* Constant precision specifier */
 # else
-#  define INR64  long long			/* 64 bit signed */
+#  define INR64  long long		/* 64 bit signed */
 #  define ORD64  unsigned long long	/* 64 bit unsigned */
 #  define PF64PREC "ll"			/* printf format precision specifier */
 #  define CF64PREC "LL"			/* Constant precision specifier */
 # endif /* !__LP64__ */
 #endif /* __GNUC__ */
 
-#define PNTR unsigned long 
+#define IPNTR unsigned long 	/* Integer that can hold a pointer */
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __attribute__((noreturn))
@@ -410,6 +410,14 @@ size_t nsize
 /* =========================================================== */
 
 #if defined(__APPLE__)
+
+/* Get the OS X version number. */
+/* Return maj + min/100.0 + bugfix/10000.0 */
+/* (Returns 0.0 if unable to get version */
+double osx_get_version();
+
+/* Get text OS X verion number, i.e. "10.3.1" */
+char *osx_get_version_str();
 
 /* Tell App Nap that this is user initiated */
 void osx_userinitiated_start();

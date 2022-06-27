@@ -1,0 +1,472 @@
+Instlib API
+-----------
+
+Although instlib is writen in the C language, it uses an
+object oriented style of API.
+
+The instlib API is declared in the inst.h file, with suplimental
+definitions in other .h files such as insttypes.h, disptechs.h,
+icoms.h, xspect.h etc.
+
+1) Instrument discovery
+   --------------------
+
+	A list of potential instruments is returned by a call to new_icompaths().
+
+	The diagnostic log argument should be set to the default global log g_log, if
+	it is not being overridden to use a different log.
+
+	The list of instruments can then be itterated through, to select which
+	instrument to use:
+
+		icompaths *icmps;
+	
+		icmps = new_icompaths(g_log);
+
+		if (icmps != NULL && icmps->paths != NULL) {
+			int i;
+			for (i = 0; ;i++) {
+				if (icmps->paths[i] == NULL)
+					break;
+				printf(" %d = '%s'\n",i+1,icmps->paths[i]->name);
+			}
+		}
+
+	The chosen instrument device path can be retrieved using the "comport"
+	index 1..N, which corresponds to the index in the icompaths list (see above):
+
+		icompath *ipath;
+
+		if ((ipath = icmps->get_path(icmps, comport)) == NULL)
+           ... error ...
+
+
+2) User interface callback function
+   --------------------------------
+
+	There is the option of setting a user interface callback function,
+	either at the creation of the instrument object, or afterwards.
+
+	The callback is used for one of four different purposes:
+
+     To poll for a user abort during communication setup.
+     To signal that the instrument measurement has been triggered.
+     To poll for an abort while waiting to trigger.
+     To poll for a user abort during measurement.
+
+    The callback function will have the purpose paramater set appropriately.
+
+	 For inst_negcoms, the return value of inst_user_abort
+	 will abort the communication negotiation.
+
+     For inst_armed return value should be one of:
+     inst_ok to do nothing, inst_user_abort to abort the measurement,
+     or inst_user_trig to trigger the measurement.
+
+     For inst_triggered, the return value of the callback is ignored. 
+
+     For inst_measuring the return value should be one of:
+     inst_ok to do nothing, or inst_user_abort to abort the measurement.
+
+		typedef struct _uicontext {
+			... your context here ...
+		} uicontext;
+	
+		uicontext cb_cntx;
+
+		inst_code ui_cb_func(void *cntx, inst_ui_purp purp) {
+			uicontext *p = (uicontext *)cntx;
+	
+			/* Negotiating communications with instrument. */
+			if (purp == inst_triggered) {
+
+				// Can abort by returning inst_user_abort;
+
+				return inst_ok;
+
+			/* Instrument is armed and ready for measurement */
+			} else if (purp == inst_armed) {
+
+				// Can trigger by returning inst_user_trig;
+				// Can abort by returning inst_user_abort;
+
+				return inst_ok;		// Wait some more
+
+			/* Instrument measurement has been triggerted
+			} else if (purp == inst_triggered) {
+
+				... show in user interface that the instrument measurement
+				    has triggered ...
+
+				return inst_ok;
+		
+			/* Instrument is busy measuring */
+			} else if (purp == inst_measuring) {
+
+				// Can abort by returning inst_user_abort;
+
+				return inst_ok;
+			}
+			return inst_ok;
+		}
+	
+
+3) Opening instrument
+   ------------------
+
+	Given the instrument device path ipath (see above), first create an instrument
+	object. A user interface callback function can be provided (see above).
+
+		inst *it;
+
+		if ((it = new_inst(ipath, 0, g_log, ui_cb_func, cb_cntx)) == NULL)
+			... error ...
+
+	and establish communications:
+
+		baud_rate br = baud_38400;  /* Target baud rate - ignored for i1pro */
+		flow_control fc = fc_nc;    /* flow control - ignored for i1pro */
+
+        if ((rv = it->init_coms(it, br, fc, 15.0)) != inst_ok)
+			... error ... 
+
+	and initialise the instrument:
+
+		if ((rv = it->init_inst(it)) != inst_ok)
+			... error ...
+
+
+4) Getting instrument capabilities and configuration
+   -------------------------------------------------
+	
+	Because instlib handles many different types of instruments,
+	it is very useful to be able to determine what capabililities
+	an instrument has, to determine what sort of measurements it is
+	capable of making, and how to best configure and operate it.
+
+	Capabilities are indicated by three 32 bit flag values, and are
+	retrieved by the capabilities() function:
+
+		inst_mode  cap;
+		inst2_capability cap2;
+		inst3_capability cap3;
+
+		it->capabilities(it, &cap, &cap2, &cap3); 
+
+	The first set of flags correspond to the measurement mode capabilities.
+
+	Modes consist of basic mode combinations (light measurement mode + action),
+	+ dependent modes + independent modes.
+
+	It is generaly best to test and set for mode combinations rather than independent
+	flags, and to use the IMODETST(flags, mode) macro and check_mode() function
+	to test for a particular mode combination capability. (see the inst_mode enum).
+
+	For instance, if we are intending to do strip reflectance measurement, we
+	should test if it has this capability: 
+
+		if (!IMODETST(cap, inst_mode_ref_strip)
+		 || it->check_mode(it, inst_mode_ref_strip) != inst_ok)
+			... error ...
+
+	Configuration consists of two aspects: setting the operating mode and setting options.
+
+	If we want to configure for reflective strip reading with spectral:
+
+		inst_mode mode = inst_mode_ref_strip;
+
+		if (!IMODETST(cap, inst_mode_spectral))
+			... error, no spectral support ...
+
+		mode |= inst_mode_spectral;
+
+		if ((rv = it->set_mode(it, mode)) != inst_ok)
+			... error ...
+
+	The exact capabilities may change with mode, so they should be re-fetched
+	if they are needed again:
+	
+		it->capabilities(it, &cap, &cap2, &cap3);
+
+	For reflectance measurement with an X-Rite type instrument, we may want to
+	set the XRGA handling. i.e. to get xrga standard measurements:
+
+		if ((rv = it->get_set_opt(it, inst_opt_set_xcalstd, xcalstd_xrga)) != inst_ok)
+		    ... warning, XRGA not supported ...
+
+	Many instruments normally need a calibration every time they
+	are opened, but if several measurements are being done in quick
+	succession the calibration after opening the instrument
+	can be supressed by setting the inst_opt_noinitcalib option:
+
+		if ((rv = it->get_set_opt(it, inst_opt_noinitcalib, 0)) != inst_ok) {
+			... warning, not supported ...
+
+6) Asynchronous callback handler
+   -----------------------------
+
+	To handle certain asynchronouos events, you can register
+	a callback handler. This function is typically called from
+	a different thread from the one making calls to inst functions.
+
+	Events are:
+	  inst_event_switch: Instrument measure/calibrate/user trigger switch pressed.
+	  inst_event_mconf: The measurement configuration has changed (ie. sensor position)
+      inst_event_scan_ready: Ready for manual strip scan (i.e. issue audible prompt to user)
+
+	Which events are issued will depend on the type of instrument and what mode and state
+	it is in.
+
+		void event_callback_handler(void *cntx, inst_event_type event) {
+			if (event == inst_event_scan_ready)
+				normal_beep();
+		}
+	
+		it->set_event_callback(it, event_callback_handler, (void *)it);
+
+	If no event handler is registered, then the inst_event_scan_ready event will
+	generate a "beep" using operating system facilities.
+
+7) Dealing with calibration
+   ------------------------
+
+	Often it is better to do a proactive calibration, rather than waiting for
+	a calibration error to be returned by a measurement request. A need for
+	calibration can be determined by calling needs_calibration():
+
+		if (it->needs_calibration(it) & inst_calt_n_dfrble_mask)
+			... do needed calibration ...
+
+	Performing a calibration involves (usually) repeated calls to
+	calibrate(), with arguments *calt containing the mask of calibrations
+	to be performed, and *calc set to the current calibration condition.					
+
+	Alternately, one of the psudo-calibration types inst_calt_all,		
+	inst_calt_needed or inst_calt_available can be used,			
+	and/or the *calc of inst_calc_none to get calibrate()					
+	to determine the required calibration types and conditions.			
+	(The corresponding calibration types will be used & returned.)			
+																				
+	If no error is returned to the first call to calibrate(),
+	then the instrument was capable of calibrating without user or		
+	application intervention. If on the other hand calibrate() returns	
+	inst_cal_setup, then the appropriate action indicated by the value	
+	returned in *calc should be taken by the user or application,			
+	before retrying calibration() with the current setup indicated		
+	by *calc. If more than one calibration type is requested, then		
+	several retries may be needed with different calibration conditions.	
+ 	Each call to calibrate() will update *calt to reflect the remaining	
+	calibration to be performed. calibrate() returns inst_ok when no		
+	more calibrations remain.												
+																				
+	If the calc has the inst_calc_optional_flag flag set,					
+	then the user should be offered the option of skipping the			
+	calibration. If they decide to skip it, return a calc with			
+	inst_calc_optional_flag set, and if they want to proceed,				
+	make sure the inst_calc_optional_flag is cleared in the returned		
+	calc.
+
+	The id parameter allows passing back messages to the user, such
+	as the serial number of the calibration plaque, or messages,
+	while the idtype parameter indicates the nature of what is
+	passed back in id, to allow for internationalization of
+	any messages.
+
+	The following is a cut down version of inst_handle_calibrate()
+	in the file instappsup.c.
+																				
+		inst_cal_type calt = inst_calt_needed;
+		inst_cal_cond calc = inst_calc_none;
+		inst_code ev;
+		int usermes = 0;			/* User was given a message */
+		inst_calc_id_type idtype;	/* Condition identifier type */
+		char id[200];				/* Condition identifier */
+	
+		/* Untill we're done with the calibration */
+		for (;;) {
+	
+		    ev = p->calibrate(p, &calt, &calc, &idtype, id);
+	
+			/* We're done */
+			if ((ev & inst_mask) == inst_ok) {
+				if ((calc & inst_calc_cond_mask) == inst_calc_message)
+					... display message id to user, or substitute our
+					    own message based on the value of idtype ...
+				... done calibration ...
+			}
+	
+			/* User aborted */
+			if ((ev & inst_mask) == inst_user_abort)
+				... done calibration with user abort ...
+	
+			/* Retry on an error */
+			if ((ev & inst_mask) != inst_cal_setup) {
+				if ((ev & inst_mask) == inst_unsupported)
+					... requested calibration type is unsupported ...
+	
+				... ask user whether to rety or abort,
+				    and don't continue on abort ...
+	
+			} else {
+	
+				/* Ask user to do/setup calibration */
+				switch (calc & inst_calc_cond_mask) {
+
+					case inst_calc_man_ref_white:
+						... ask user to place instrument on its reflective white
+						reference S/N id string, and continue when done ...
+						break;
+
+					... cases not needed for i1pro have been omitted ...
+
+					default:
+						... we're not handling some calc ...
+				}
+
+				if (calc & inst_calc_optional_flag)
+					... offer user option to skip or abort calibration & measurement ...
+				else
+					... offer user option to abort calibration & measurement ...
+	
+				... get user response ...
+
+				/* If optional calib. and user wants to skip it */
+				/* Loop back to calibrate() with inst_calc_optional_flag still set */
+				if ((calc & inst_calc_optional_flag) != 0 && ... user says skip ...)
+					goto oloop;
+
+				if (... user says abort ...)
+					... abort calibration & measurement ...
+
+				/* Remove any skip flag and continue with the calibration */
+				calc &= inst_calc_cond_mask;
+			}
+	 oloop:;
+		}
+
+8) Taking a single measurement
+   ---------------------------
+
+	We may want to set a particular trigger mode before doing this. The appropriate
+	trigger mode depends on the instrument capabilities, as well as the way we
+	want to use it.
+
+	We can check what trigger modes are available by looking at the cap2 values
+	and comparing against the inst2_prog_trig, inst2_user_trig, inst2_switch_trig &
+	inst2_user_switch_trig flags, and then choose which mode to use. i.e. if we
+	want the user to initiate the measurement we might use:
+
+		/* Enable switch or user via uicallback trigger if possible */
+		if (cap2 & inst2_user_switch_trig) {
+			if ((rv = it->get_set_opt(it, inst_opt_trig_user_switch)) != inst_ok)
+				... error ...
+
+		/* Or go for user via uicallback trigger */
+		} else if (cap2 & inst2_user_trig) {
+			if ((rv = it->get_set_opt(it, inst_opt_trig_user)) != inst_ok)
+				... error ...
+		} else
+			... error, no usable trigger mode ...
+
+	or if we wanted to trigger progromatically:
+
+		if (cap2 & inst2_prog_trig) {
+			if ((rv = it->get_set_opt(it, inst_opt_trig_prog)) != inst_ok)
+				... error ...
+
+		} else
+			... error, no usable trigger mode ...
+
+	To measure one patch:
+
+		ipatch val;
+
+		rv = it->read_sample(it, "SPOT", &val, 1);
+
+		if (rv == inst_ok
+		 || (rv & inst_mask) == inst_user_trig)
+			... OK ...
+
+		else if ((rv & inst_mask) == inst_user_abort)
+			... abort measurements ...
+
+		else if ((rv & inst_mask) == inst_needs_cal)
+			... do calibration ...
+
+		else if ((rv & inst_mask) == inst_misread)
+			... deal with misread, i.e. retry ? ...
+
+		else
+			... some other error, probably fatal ...
+
+	ipatch values are in XYZ % (0..100) for reflective & transmissive,
+	cd/m^2 for emissive, and Lux for ambient.
+	Spectral will be analogous to the XYZ (see inst_meas_type).
+	By default values may be -ve due to noise (depending on instrument),
+	unless the clamp flag is set.
+
+9) Taking strip measurements
+   -------------------------
+
+	We may want to set a particular trigger mode before doing this (see above).
+
+	Each strip may need certain parameters, depending on the type of instrument
+	used. For instance, a DTP51 displays a 7 character strip name,
+	and a 3 character pass name and a guide number, whereas an i1pro instrument
+	will ignore these parameters. 
+	Similarly, the patch width, gap width and trailer width are only
+	needed by a DTP20 and DTP41.
+
+	To measure a strip:
+
+		#define NPATCHES 21
+		ipatch vals[NPATCHES];
+
+		rv = it->read_strip(it, "STRIP", NPATCHES, "001", 1, 7.366, 2.032, 18.8, vals);
+
+		if (rv == inst_ok
+		 || (rv & inst_mask) == inst_user_trig)
+			... OK ...
+
+		else if ((rv & inst_mask) == inst_user_abort)
+			... abort measurements ...
+
+		else if ((rv & inst_mask) == inst_needs_cal)
+			... do calibration ...
+
+		else if if ((rv & inst_mask) == inst_wrong_config)
+			... deal with bad sensor position, i.e. ColorMunki ...
+
+		else if ((rv & inst_mask) == inst_misread)
+			... deal with misread, i.e. retry ? ...
+
+		else
+			... some other error, probably fatal ...
+
+10) Closing instrument
+   ------------------
+
+	To close an instrument and the communication port, call the del() function:
+
+
+		it->del(it);
+
+
+12) Error codes
+   -----------
+
+	The inst_code return codes generally consist of two parts; an instrument specific
+	16 bit error code in the lower 16 bits, and an abstract error code in the upper 8 bits.
+
+	These two parts can be separated using the inst_code inst_mask and inst_imask values.
+
+	An English language interpretation of the 16 bit instrument specific error code
+	can be obtained using the inst_interp_error() function:
+
+		it->inst_interp_error(it, rv)
+
+	and an English language interpretation of the 8 bit abstract error code
+	can be obtained using the interp_error() function:
+
+		it->interp_error(it, rv));
+

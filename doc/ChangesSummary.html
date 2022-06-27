@@ -17,6 +17,23 @@
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the <a
         href="../log.txt">log.txt</a> file.</h3>
+    <h1>[V2.3.0 -&gt; V2.3.1] 27th June 2022</h1>
+    <ul>
+      <li> Added value sanity check &amp; warning to chartread patch by
+        patch mode.</li>
+      <li>Fixed crash on 64 bit MSWin in spectro/aglob due to changing
+        SDK declarations for _findfirst().</li>
+      <li>Fixed one remaining problem with not coping with "Colour"
+        spelling rather than "Color" in cxf2ti3.</li>
+      <li>Add code in cgats write to check for float format problems
+        when faced with -inf or +inf value.</li>
+      <li>Fix i1Pro3 highres in ccxxmake, dispcal &amp; dispread.</li>
+      <li>Changed OS X usb reset to re-enumerate instead, as reset does
+        nothing on OS X &gt;= 10.8.</li>
+      <li>Added spectro/instlib.api.txt file to public distribution.</li>
+      <li>Fixed possible crashes in xicc/ccss.c and
+        spectro/oeminst.c&nbsp; </li>
+    </ul>
     <h1>[V2.2.1 -&gt; V2.3.0] 24th December 2021</h1>
     <ul>
       <li>Fixed spotread -YL (i1Pro1/2 lamp remediation) to function
@@ -1399,6 +1416,7 @@
 
 
 
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1413,6 +1431,7 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
 
 
 

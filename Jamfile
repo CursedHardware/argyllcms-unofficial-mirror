@@ -17,7 +17,6 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
 SubInclude numlib ;
 SubInclude plot ;
 SubInclude icc ;
-#SubInclude icc4 ;
 SubInclude cgats ;
 SubInclude xml ;
 SubInclude yajl ;

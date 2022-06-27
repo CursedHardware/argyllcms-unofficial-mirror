@@ -6,7 +6,7 @@
  * Author: Graeme W. Gill
  * Date:   13/11/2012
  *
- * Copyright 2006 - 2013, Graeme W. Gill
+ * Copyright 2006 - 2022, Graeme W. Gill
  * All rights reserved.
  *
  * This material is licenced under the GNU GENERAL PUBLIC LICENSE Version 2 or later :-
@@ -149,12 +149,14 @@ main(int argc, char *argv[]) {
 	if (has_ccss) {
 		int len;
 		char *pp;
-		char tname[MAXNAMEL+1] = { '\000' };
+		char *tname;
 		aglob ag;
 
+		len = strlen(exe_path) + 20;		/* Room for glob string */
+		if ((tname = malloc(len)) == NULL)
+			error("malloc glob name %d bytes failed",len);
 		strcpy(tname, exe_path);
 
-		len = strlen(tname);
 		if ((pp = strrchr(tname, '/')) != NULL)
 			*pp = '\000';
 		if ((pp = strrchr(tname, '/')) != NULL) {
@@ -185,6 +187,7 @@ main(int argc, char *argv[]) {
 			}
 			aglob_cleanup(&ag);
 		}
+		free(tname);
 	}
 
 #ifdef NEVER
@@ -241,7 +244,7 @@ main(int argc, char *argv[]) {
 		}
 
 		/* Create install path and name */
-		len = strlen(install_dir) + strlen(xf->name);
+		len = strlen(install_dir) + strlen(xf->name) + 1;
 		if ((install_name = malloc(len)) == NULL)
 			error("malloc install_name %d bytes failed",len);
 
