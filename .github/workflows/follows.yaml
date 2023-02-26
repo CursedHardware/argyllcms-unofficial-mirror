@@ -1,0 +1,34 @@
+name: Follow latest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: 0 0 * * *
+
+jobs:
+  follow-latest:
+    runs-on: ubuntu-22.04
+    strategy:
+      max-parallel: 1
+      matrix:
+        branch: [main, develop]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.branch }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: git fetch origin main
+      - run: git checkout origin/main .github
+      - run: pip install -r .github/scripts/requirements.txt
+      - run: rm -rf *
+      - run: .github/scripts/main.py ${{ matrix.branch }}
+      - name: Get version
+        run: echo "version=$(grep -m1 ARGYLL_VERSION_STR h/aconfig.h | cut -d '"' -f2)" >> $GITHUB_OUTPUT
+        id: version
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: v${{ steps.version.outputs.version }}
