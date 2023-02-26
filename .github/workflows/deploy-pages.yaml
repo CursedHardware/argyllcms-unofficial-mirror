@@ -1,0 +1,31 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+    paths: [doc]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - run: cp -v doc/ArgyllDoc.html doc/index.html
+      - run: >
+          echo -e 'User-agent: *\nDisallow: /' > doc/robots.txt
+      - uses: actions/upload-pages-artifact@main
+        with:
+          path: doc
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
