@@ -3,9 +3,8 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
-    paths:
-      - doc
-  
+    paths: [doc]
+
 jobs:
   build:
     runs-on: ubuntu-22.04
