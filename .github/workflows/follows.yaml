@@ -32,3 +32,23 @@ jobs:
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: v${{ steps.version.outputs.version }}
+  follow-release:
+    runs-on: ubuntu-22.04
+    needs: follow-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r .github/scripts/requirements.txt
+      - run: .github/scripts/release.py
+      - uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.event.head_commit.message }}
+          tag_name: ${{ github.event.head_commit.message }}
+          files: |
+            Argyll_*.zip
+            Argyll_*.tgz
