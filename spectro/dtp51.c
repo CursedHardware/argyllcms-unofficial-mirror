@@ -367,7 +367,7 @@ dtp51_init_inst(inst *pp) {
 	/* Reset it */
 	if ((ev = dtp51_command(p, "0PR\r", buf, MAX_MES_SIZE, 1.5)) != inst_ok)
 		return ev;
-	sleep(2);	/* Let it recover from reset */
+	msec_sleep(2000);	/* Let it recover from reset */
 
 	/* Turn echoing of characters off */
 	if ((ev = dtp51_command(p, "EC\r", buf, MAX_MES_SIZE, 1.5)) != inst_ok)

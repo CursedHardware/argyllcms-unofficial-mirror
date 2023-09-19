@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <math.h>
 #include "aconfig.h"
 #include "cgats.h"
@@ -229,6 +230,7 @@ void usage(void) {
 	fprintf(stderr,"usage: specplot [infile.sp]\n");
 	fprintf(stderr," -v               verbose\n");
 	fprintf(stderr," -c               combine multiple files into one plot\n");
+	fprintf(stderr," -n               normalize max level\n");
 	fprintf(stderr," -z               don't make range cover zero\n");
 	fprintf(stderr," -s               don't plot spectra\n");
 	fprintf(stderr," -d I|A|M|T|E     print density values\n");
@@ -248,6 +250,7 @@ main(
 	int k;
 	int verb = 0;
 	int comb = 0;
+	int norm = 0;
 	int zero = 1;
 	int noplot = 0;
 	icxDensityType dens = icxDT_none;
@@ -300,6 +303,9 @@ main(
 
 			} else if (argv[fa][1] == 'c') {
 				comb = 1;
+
+			} else if (argv[fa][1] == 'n') {
+				norm = 1;
 
 			} else if (argv[fa][1] == 'z') {
 				zero = 0;
@@ -364,6 +370,39 @@ main(
 			/* or at least one and we're not combining files and at start of a new file, */
 			/* or at least one and there are no more files */
 			if (nsp >= MAXGRAPHS || (nsp > 0 && ((!comb && soff == 0) || fa >= argc))) {
+				if (norm) {
+					int j;
+					double mlev = 0.0;
+
+					for (i = 0; i < nsp; i++) {
+
+						xspect_denorm(&sp[i]);
+
+						for (j = 0; j < sp[i].spec_n; j++) {
+							if (sp[i].spec[j] > mlev)
+								mlev = sp[i].spec[j];
+						}
+					}
+
+					if (mlev > 1e-6) {
+						for (i = 0; i < nsp; i++) {
+							double mm = 0.0;
+
+							for (j = 0; j < sp[i].spec_n; j++) {
+								if (sp[i].spec[j] > mm)
+									mm = sp[i].spec[j];
+							}
+
+							if (mm > 1e-6) {
+								mm = mlev/mm;
+								for (j = 0; j < sp[i].spec_n; j++) {
+									sp[i].spec[j] *= mm;
+								}
+							}
+						}
+					}
+				}
+
 				/* Plot what we've got */
 				do_spec(buf, sp, nsp, mt, zero, noplot, dens, douv, uvmin, uvmax);
 				nsp = 0;

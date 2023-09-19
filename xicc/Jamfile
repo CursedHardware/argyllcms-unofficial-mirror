@@ -26,7 +26,7 @@ HDRS = ../h ../icc ../rspl ../cgats ../numlib ../gamut ../spectro ../profile
        ../plot ../render $(TIFFINC) $(JPEGINC) $(LibWinH) ;
 
 # XICC library
-Library libxicc :  xicc.c xlutfix.c xspect.c xcolorants.c xutils.c iccjpeg.c xdevlin.c
+Library libxicc :  xicc.c xspect.c xcolorants.c xutils.c iccjpeg.c xdevlin.c
         xcam.c cam97s3.c cam02.c mpp.c ccmx.c ccss.c xfit.c xdgb.c moncurve.c xcal.c
 		bt1886.c tm3015.c ;
 

@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 	icg->add_other(icg, "CTI3"); 	/* our special input type is Calibration Target Information 3 */
 
 	if (icg->read_name(icg, ti3name))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI3 format file");
@@ -414,7 +414,7 @@ int main(int argc, char *argv[])
 		error("Failed to create an mpp");
 
 	if (p->read_mpp(p, mppname))
-		error("Read error : %s",p->err);
+		error("Read error : %s",p->e.m);
 
 	/* Set just PCS and use XYZ model */
 	p->set_ilob(p, icxIT_default, NULL, icxOT_default, NULL, icSigLabData, 0);

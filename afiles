@@ -11,13 +11,9 @@ Makefile
 License.txt
 License2.txt
 License3.txt
-ttbd.txt
 log.txt
-notes.txt
 makeall.bat
 install.bat
 makeall.sh
-ziparch.sh
 makeinstall.sh
 makepackagebin.sh
-makeoemdnldbin.sh

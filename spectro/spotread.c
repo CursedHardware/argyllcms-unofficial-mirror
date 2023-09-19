@@ -58,15 +58,14 @@
 # include "numsup.h"
 # include "xspect.h"
 # include "conv.h"
+# include "rspl1.h"
 #endif /* SALONEINSTLIB */
 #include "inst.h"
 #include "icoms.h"
 #include "ccss.h"
 #include "ccmx.h"
 #include "instappsup.h"
-#if !defined(NOT_ALLINSTS) || defined(EN_SPYD2)
 # include "spyd2.h"
-#endif
 #include "i1pro.h"
 #include "i1pro_imp.h"
 
@@ -443,7 +442,7 @@ usage(char *diag, ...) {
 	icompaths *icmps;
 	inst2_capability cap2 = 0;
 	fprintf(stderr,"Measure spot values, Version %s\n",ARGYLL_VERSION_STR);
-	fprintf(stderr,"Author: Graeme W. Gill, licensed under the GPL Version 2 or later\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	if (diag != NULL) {
 		va_list args;
 		fprintf(stderr,"Diagnostic: ");
@@ -466,12 +465,10 @@ usage(char *diag, ...) {
 			for (i = 0; ; i++) {
 				if (paths[i] == NULL)
 					break;
-#if !defined(NOT_ALLINSTS) || defined(EN_SPYD2)
 				if ((paths[i]->dtype == instSpyder1 && setup_spyd2(0) == 0)
 				 || (paths[i]->dtype == instSpyder2 && setup_spyd2(1) == 0))
 					fprintf(stderr,"    %d = '%s' !! Disabled - no firmware !!\n",i+1,paths[i]->name);
 				else
-#endif
 					fprintf(stderr,"    %d = '%s'\n",i+1,paths[i]->name);
 			}
 		} else
@@ -525,7 +522,7 @@ usage(char *diag, ...) {
 #endif
 	fprintf(stderr," -V                   Show running average and std. devation from ref.\n");
 #ifndef SALONEINSTLIB
-	fprintf(stderr," -T                   Display correlated color temperatures, CRI, TLCI & IES TM-30-15\n");
+	fprintf(stderr," -T                   Display/Suppress correlated color temperatures, CRI, TLCI & IES TM-30-15\n");
 	fprintf(stderr," -d                   Display density values\n");
 #endif /* !SALONEINSTLIB */
 //	fprintf(stderr," -K type              Run instrument calibration first\n");
@@ -552,7 +549,8 @@ usage(char *diag, ...) {
 	fprintf(stderr," -Y y                 Show even serial instrument display calibration types in usage (slow!)\n");                 
 //	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
 #ifndef SALONEINSTLIB
-	fprintf(stderr," -Y W:fname.sp        Save white tile ref. spectrum to file\n");
+	fprintf(stderr," -Y W:fname.sp        Save instrument white tile ref. spectrum to file\n");
+	fprintf(stderr," -Y S:fname.cmf       Save instrument raw & XYZ spectral sensitivites to files\n");
 #endif	/* !SALONEINSTLIB */
 	fprintf(stderr," -W n|h|x             Override serial port flow control: n = none, h = HW, x = Xon/Xoff\n");
 	fprintf(stderr," -D [level]           Print debug diagnostics to stderr\n");
@@ -593,7 +591,7 @@ int main(int argc, char *argv[]) {
 #ifndef SALONEINSTLIB
 	int doYuv= 0;					/* Display Yuv instead of Lab */
 #endif
-	int doCCT= 0;					/* Display correlated color temperatures */
+	int doCCT= 0;					/* Display correlated color temperatures etc. */
 	int doDensity= 0;				/* Display density values */
 	inst_mode mode = 0, smode = 0;	/* Normal mode and saved readings mode */
 	inst_opt_type trigmode = inst_opt_unknown;	/* Chosen trigger mode */
@@ -603,6 +601,7 @@ int main(int argc, char *argv[]) {
 	char ccxxname[MAXNAMEL+1] = "\000";  /* Colorimeter Correction/Colorimeter Calibration name */
 	char filtername[MAXNAMEL+1] = "\000";  /* Filter compensation */
 	char wtilename[MAXNAMEL+1] = "\000";  /* White file spectrum */
+	char specsens[MAXNAMEL+1] = "\000";  /* Spectral sensitivities file name */
 	char psetrefname[MAXNAMEL+1] = "\000";  /* Preset reference spectrum */
 	char outspname[MAXNAMEL+1] = "\000";  /* Save doone spectrum file */
 	FILE *fp = NULL;				/* Logfile */
@@ -997,7 +996,7 @@ int main(int argc, char *argv[]) {
 				refstats = 1;
 #ifndef SALONEINSTLIB
 
-			/* Show CCT etc. */
+			/* Show/Suppress CCT etc. */
 			} else if (argv[fa][1] == 'T') {
 				doCCT = 1;
 
@@ -1083,6 +1082,12 @@ int main(int argc, char *argv[]) {
 					if (na[1] != ':')
 						usage("-Y W:fname.sp syntax incorrect");
 						strncpy(wtilename,&na[2],MAXNAMEL-1); wtilename[MAXNAMEL-1] = '\000';
+
+				/* Save specrtal sensitivites spectrums to a file */
+				} else if (na[0] == 'S') {
+					if (na[1] != ':')
+						usage("-Y S:fname.cmf syntax incorrect");
+						strncpy(specsens,&na[2],MAXNAMEL-1); specsens[MAXNAMEL-1] = '\000';
 #endif	/* !SALONEINSTLIB */
 
 				/* i1Pro lamp drift test & fix */
@@ -1152,6 +1157,13 @@ int main(int argc, char *argv[]) {
 		labwpillum = 0;
 	}
 
+	/* Xor ambient and doCCT */
+	if (ambient) {
+		if (doCCT)
+			doCCT = 0;		/* Suppress */
+		else
+			doCCT = 1;		/* Show */
+	}
 	/* - - - - - - - - - - - - - - - - - - -  */
 	/* Setup Lab conversion wp if not D50 */
 	if (illum_set && labwpillum && !emiss) {
@@ -1688,7 +1700,7 @@ remediate:;
 				}
 				if (cs->read_ccss(cs,ccxxname)) {
 					printf("\nReading CCMX/CCSS File '%s' failed with error %d:'%s'\n",
-				     	       ccxxname, cs->errc, cs->err);
+				     	       ccxxname, cs->e.c, cs->e.m);
 					cs->del(cs);
 					it->del(it);
 					return -1;
@@ -1824,6 +1836,32 @@ remediate:;
 		if (verb)
 			printf("Saved reference white tile spectrum to '%s'\n",wtilename);
 	}
+	/* Save reference white tile reflectance spectrum */
+	if (specsens[0] != '\000') {
+		xspect cmf[3];
+		xspect xyzcmf[3];
+		char xyzspecsens[MAXNAMEL+1 + 10] = "xyz";
+
+		strcat(xyzspecsens, specsens);
+
+		if ((rv = it->get_set_opt(it, inst_opt_get_cal_sp_sens, cmf, xyzcmf)) != inst_ok) {
+			printf("\nGetting instrument spectral sensitivites failed with error :'%s' (%s)\n",
+	       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
+			it->del(it);
+			return -1;
+		}
+
+		if (write_cmf(specsens, cmf) != 0)
+			error("Failed to save raw spectral sensitivites to file '%s'",specsens);
+
+		if (write_cmf(xyzspecsens, xyzcmf) != 0)
+			error("Failed to save XYZ spectral sensitivites to file '%s'",xyzspecsens);
+
+		if (verb) {
+			printf("Saved raw instrument spectral sensitivites to '%s'\n",specsens);
+			printf("Saved XYZ instrument spectral sensitivites to '%s'\n",xyzspecsens);
+		}
+	}
 #endif	/* !SALONEINSTLIB */
 
 #ifdef DEBUG
@@ -1916,6 +1954,7 @@ remediate:;
 		ipatch val;								/* Raw measurement value */
 		double tXYZ[3];
 #ifndef SALONEINSTLIB
+		int bad_cct = 0, bad_vct = 0, bad_vdt = 0;
 		double cct, vct, vdt;
 		double cct_de, vct_de, vdt_de;
 		double cct_sn, vct_sn, vdt_sn;			/* Sign: 1 + above, -1 = below */
@@ -2747,7 +2786,7 @@ remediate:;
 
 #ifndef SALONEINSTLIB
 			/* Compute color temperatures */
-			if (ambient || doCCT) {
+			if (doCCT) {
 				icmXYZNumber wp;
 				double nxyz[3], axyz[3];
 				double lab[3], alab[3];
@@ -2760,60 +2799,66 @@ remediate:;
 
 				/* Compute CCT */
 				if ((cct = icx_XYZ2ill_ct(axyz, icxIT_Ptemp, obType, custObserver, nxyz, NULL, 0)) < 0)
-					error ("Got bad cct\n");
-				axyz[0] /= axyz[1];
-				axyz[2] /= axyz[1];
-				axyz[1] /= axyz[1];
-				icmXYZ21960UCS(lab, nxyz);
-				icmXYZ21960UCS(alab, axyz);
-				cct_de = sqrt((lab[1] - alab[1]) * (lab[1] - alab[1])
-				            + (lab[2] - alab[2]) * (lab[2] - alab[2]));
-
-				
-				cct_sn = 1.0;
-				icmXYZ2Yxy(yxy, nxyz);
-				icmXYZ2Yxy(ayxy, axyz);
-				/* Dot product of vector from aprox. locus curve "center" */
-				/* xy 0.5, 0.25 with vector from	*/
-				if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
-				  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
-					cct_sn = -1.0;
+					bad_cct = 1;
+				else {
+					axyz[0] /= axyz[1];
+					axyz[2] /= axyz[1];
+					axyz[1] /= axyz[1];
+					icmXYZ21960UCS(lab, nxyz);
+					icmXYZ21960UCS(alab, axyz);
+					cct_de = sqrt((lab[1] - alab[1]) * (lab[1] - alab[1])
+					            + (lab[2] - alab[2]) * (lab[2] - alab[2]));
+	
+					
+					cct_sn = 1.0;
+					icmXYZ2Yxy(yxy, nxyz);
+					icmXYZ2Yxy(ayxy, axyz);
+					/* Dot product of vector from aprox. locus curve "center" */
+					/* xy 0.5, 0.25 with vector from	*/
+					if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
+					  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
+						cct_sn = -1.0;
+				}
 			
 				/* Compute VCT */
 				if ((vct = icx_XYZ2ill_ct(axyz, icxIT_Ptemp, obType, custObserver, nxyz, NULL, 1)) < 0)
-					error ("Got bad vct\n");
-				axyz[0] /= axyz[1];
-				axyz[2] /= axyz[1];
-				axyz[1] /= axyz[1];
-				icmAry2XYZ(wp, axyz);
-				icmXYZ2Lab(&wp, lab, nxyz);
-				icmXYZ2Lab(&wp, alab, axyz);
-				vct_de = icmCIE2K(lab, alab);
-
-				vct_sn = 1.0;
-				icmXYZ2Yxy(yxy, nxyz);
-				icmXYZ2Yxy(ayxy, axyz);
-				if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
-				  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
-					vct_sn = -1.0;
+					bad_vct = 1;
+				else {
+					axyz[0] /= axyz[1];
+					axyz[2] /= axyz[1];
+					axyz[1] /= axyz[1];
+					icmAry2XYZ(wp, axyz);
+					icmXYZ2Lab(&wp, lab, nxyz);
+					icmXYZ2Lab(&wp, alab, axyz);
+					vct_de = icmCIE2K(lab, alab);
+	
+					vct_sn = 1.0;
+					icmXYZ2Yxy(yxy, nxyz);
+					icmXYZ2Yxy(ayxy, axyz);
+					if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
+					  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
+						vct_sn = -1.0;
+				}
 			
 				/* Compute VDT */
 				if ((vdt = icx_XYZ2ill_ct(axyz, icxIT_Dtemp, obType, custObserver, nxyz, NULL, 1)) < 0)
-					error ("Got bad vct\n");
-				axyz[0] /= axyz[1];
-				axyz[2] /= axyz[1];
-				axyz[1] /= axyz[1];
-				icmAry2XYZ(wp, axyz);
-				icmXYZ2Lab(&wp, lab, nxyz);
-				icmXYZ2Lab(&wp, alab, axyz);
-				vdt_de = icmCIE2K(lab, alab);
-
-				vdt_sn = 1.0;
-				icmXYZ2Yxy(yxy, nxyz);
-				icmXYZ2Yxy(ayxy, axyz);
-				if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
-				  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
-					vdt_sn = -1.0;
+					bad_vdt = 1;
+				else {
+					axyz[0] /= axyz[1];
+					axyz[2] /= axyz[1];
+					axyz[1] /= axyz[1];
+					icmAry2XYZ(wp, axyz);
+					icmXYZ2Lab(&wp, lab, nxyz);
+					icmXYZ2Lab(&wp, alab, axyz);
+					vdt_de = icmCIE2K(lab, alab);
+	
+					vdt_sn = 1.0;
+					icmXYZ2Yxy(yxy, nxyz);
+					icmXYZ2Yxy(ayxy, axyz);
+					if ((yxy[1] - ayxy[1]) * (ayxy[1] - 0.5)
+					  + (yxy[2] - ayxy[2]) * (ayxy[2] - 0.25) < 0.0)
+						vdt_sn = -1.0;
+				}
 			}
 
 			/* Compute D50 (or other) Lab from XYZ */
@@ -2971,17 +3016,28 @@ remediate:;
 						printf(" Suggested EV @ ISO100 for %.1f Lux incident light = %.1f\n",
 							       XYZ[1],
 						           log(XYZ[1]/2.5)/log(2.0));
-				} else {
+				} else if (doCCT) {
 #ifndef SALONEINSTLIB
-					printf(" Ambient = %.1f Lux%s, CCT = %.0fK (Duv %.4f)\n",
+					if (bad_cct)
+						printf(" Ambient = %.1f Lux%s, (Bad CCT)\n",
+					       XYZ[1], ambient == 2 ? "-Seconds" : "");
+					else
+						printf(" Ambient = %.1f Lux%s, CCT = %.0fK (Duv %.4f)\n",
 					       XYZ[1], ambient == 2 ? "-Seconds" : "",
 					       cct, cct_sn * cct_de);
 					if (ambient != 2) 
 						printf(" Suggested EV @ ISO100 for %.1f Lux incident light = %.1f\n",
 							       XYZ[1],
 						           log(XYZ[1]/2.5)/log(2.0));
-					printf(" Closest Planckian temperature = %.0fK (DE2K %.1f)\n",vct, vct_sn * vct_de);
-					printf(" Closest Daylight temperature  = %.0fK (DE2K %.1f)\n",vdt, vdt_sn * vdt_de);
+					if (bad_vct)
+						printf(" (Bad Planckian temperature)\n");
+					else
+						printf(" Closest Planckian temperature = %.0fK (DE2K %.1f)\n",vct, vct_sn * vct_de);
+
+					if (bad_vdt)
+						printf(" (Bad Daylight temperature)\n");
+					else
+						printf(" Closest Daylight temperature  = %.0fK (DE2K %.1f)\n",vdt, vdt_sn * vdt_de);
 #else /* SALONEINSTLIB */
 					printf(" Ambient = %.1f Lux%s\n",
 					       XYZ[1], ambient == 2 ? "-Seconds" : "");
@@ -2989,13 +3045,22 @@ remediate:;
 				}
 #ifndef SALONEINSTLIB
 			} else if (doCCT) {
-				printf("                           CCT = %.0fK (Duv %.4f)\n",cct, cct_sn * cct_de);
-				printf(" Closest Planckian temperature = %.0fK (DE2K %.1f)\n",vct, vct_sn * vct_de);
-				printf(" Closest Daylight temperature  = %.0fK (DE2K %.1f)\n",vdt, vdt_sn * vdt_de);
+				if (bad_cct)
+					printf("                      (Bad CCT)\n");
+				else
+					printf("                           CCT = %.0fK (Duv %.4f)\n",cct, cct_sn * cct_de);
+				if (bad_vct)
+					printf("    (Bad Planckian temperature)\n");
+				else
+					printf(" Closest Planckian temperature = %.0fK (DE2K %.1f)\n",vct, vct_sn * vct_de);
+				if (bad_vdt)
+					printf("     (Bad Daylight temperature)");
+				else
+					printf(" Closest Daylight temperature  = %.0fK (DE2K %.1f)\n",vdt, vdt_sn * vdt_de);
 #endif
 			}
 #ifndef SALONEINSTLIB
-			if (sp.spec_n > 0 && (ambient || doCCT)) {
+			if (sp.spec_n > 0 && doCCT) {
 				int i, invalid = 0;
 				double RR[14];
 				double cri;
@@ -3009,13 +3074,13 @@ remediate:;
 				}
 				printf("\n");
 			}
-			if (sp.spec_n > 0 && (ambient || doCCT)) {
+			if (sp.spec_n > 0 && doCCT) {
 				int invalid = 0;
 				double tlci;
 				tlci = icx_EBU2012_TLCI(&invalid, &sp);
 				printf(" Television Lighting Consistency Index 2012 (Qa) = %.1f%s\n",tlci,invalid ? " (Caution)" : "");
 			}
-			if (sp.spec_n > 0 && (ambient || doCCT)) {
+			if (sp.spec_n > 0 && doCCT) {
 				int invalid;
 				double Rf, Rg, cct, dc;
 				double bins[IES_TM_30_15_BINS][2][3];

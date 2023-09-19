@@ -395,7 +395,12 @@ void del_i1proimp(i1pro *p) {
 				a1logd(p->log,5,"i1pro switch thread termination failed\n");
 				m->th->terminate(m->th);	/* Try and force thread to terminate */
 			}
-			m->th->del(m->th);
+			/* Strange Mac M2/rosetta bug ?? */
+			if (m->th->del == NULL) {
+				a1logd(p->log,1,"i1pro_del: ,m->th-del is NULL!!!");
+			} else {
+				m->th->del(m->th);
+			}
 			usb_uninit_cancel(&m->sw_cancel);		/* Don't need cancel token now */
 			usb_uninit_cancel(&m->rd_sync);			/* Don't need sync token now */
 			a1logd(p->log,5,"i1pro switch thread terminated\n");

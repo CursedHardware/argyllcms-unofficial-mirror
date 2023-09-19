@@ -20,8 +20,9 @@
  * free
  */
 
-#include "yajl_alloc.h"
 #include <stdlib.h>
+
+#include "yajl_alloc.h"
 
 static void * yajl_internal_malloc(void *ctx, size_t sz)
 {

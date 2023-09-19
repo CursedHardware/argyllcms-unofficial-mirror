@@ -14,15 +14,15 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_parse.h"
-#include "yajl_lex.h"
-#include "yajl_parser.h"
-#include "yajl_alloc.h"
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
+
+#include "yajl_parse.h"
+#include "yajl_lex.h"
+#include "yajl_parser.h"
+#include "yajl_alloc.h"
 
 const char *
 yajl_status_to_string(yajl_status stat)

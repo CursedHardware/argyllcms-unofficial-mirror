@@ -16,9 +16,11 @@
 /*
  * TTBD:
  *
+#ifdef PRIVATE
  * Would be good to have a safe C string library availble, to simplify
- * string handling and provide UTF8/16 bit support.
+ * string handling.
  * See mgs/casting/str.hpp and sds library.
+#endif
  *
  */
 
@@ -79,8 +81,10 @@
 
 #define IPNTR intptr_t		/* Integer that can hold a pointer */
 
-#define PF64PREC "ll"		/* printf format precision specifier */
-#define CF64PREC "LL"		/* Constant precision specifier */
+#define PFSTPREC "z"		/* size_t printf format precision specifier (ie %zu) */
+
+#define PF64PREC "ll"		/* 64 bit printf format precision specifier */
+#define CF64PREC(NNN) NNN##LL		/* 64 bit Constant precision specifier */
 
 #ifndef ATTRIBUTE_NORETURN
 # ifdef _MSC_VER
@@ -113,8 +117,13 @@
 
 #define IPNTR UINT_PTR				/* Integer that can hold a pointer */
 
-#define PF64PREC "I64"				/* printf format precision specifier */
-#define CF64PREC "i64"				/* Constant precision specifier */
+#define PFSTPREC "I"				/* size_t printf format precision specifier (ie %Iu) */
+
+#define PF64PREC "I64"				/* 64 bit printf format precision specifier */
+#define CF64PREC(NNN) NNN##i64		/* 64 bit Constant precision specifier */
+
+#define vsnprintf _vsnprintf
+#define snprintf _snprintf
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __declspec(noreturn)
@@ -129,24 +138,26 @@
 /* The following works on a lot of modern systems, including */
 /* LLP64 and LP64 models, but won't work with ILP64 which needs int32 */
 
-#define INR8   signed char		/* 8 bit signed */
-#define INR16  signed short		/* 16 bit signed */
-#define INR32  signed int		/* 32 bit signed */
-#define ORD8   unsigned char	/* 8 bit unsigned */
-#define ORD16  unsigned short	/* 16 bit unsigned */
-#define ORD32  unsigned int		/* 32 bit unsigned */
+#define INR8   signed char			/* 8 bit signed */
+#define INR16  signed short			/* 16 bit signed */
+#define INR32  signed int			/* 32 bit signed */
+#define ORD8   unsigned char		/* 8 bit unsigned */
+#define ORD16  unsigned short		/* 16 bit unsigned */
+#define ORD32  unsigned int			/* 32 bit unsigned */
+
+#define PFSTPREC "l"				/* size_t printf format precision specifier (ie %lu) */
 
 #ifdef __GNUC__
-# ifdef __LP64__				/* long long could be 128 bit ? */
-#  define INR64  long			/* 64 bit signed */
-#  define ORD64  unsigned long	/* 64 bit unsigned */
-#  define PF64PREC "l"			/* printf format precision specifier */
-#  define CF64PREC "L"			/* Constant precision specifier */
+# ifdef __LP64__					/* long long could be 128 bit ? */
+#  define INR64  long				/* 64 bit signed */
+#  define ORD64  unsigned long		/* 64 bit unsigned */
+#  define PF64PREC "l"				/* 64 bit printf format precision specifier */
+#  define CF64PREC(NNN) NNN##L		/* 64 bit Constant precision specifier */
 # else
-#  define INR64  long long		/* 64 bit signed */
+#  define INR64  long long			/* 64 bit signed */
 #  define ORD64  unsigned long long	/* 64 bit unsigned */
-#  define PF64PREC "ll"			/* printf format precision specifier */
-#  define CF64PREC "LL"			/* Constant precision specifier */
+#  define PF64PREC "ll"				/* 64 bit printf format precision specifier */
+#  define CF64PREC(NNN) NNN##LL		/* 64 bit Constant precision specifier */
 # endif /* !__LP64__ */
 #endif /* __GNUC__ */
 

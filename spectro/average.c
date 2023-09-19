@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
 			inps[n].c->add_other(inps[n].c, ""); 	/* Allow any signature file */
 		
 			if (inps[n].c->read_name(inps[n].c, inps[n].name))
-				error("CGATS file '%s' read error : %s",inps[n].name,inps[n].c->err);
+				error("CGATS file '%s' read error : %s",inps[n].name,inps[n].c->e.m);
 		
 			if (inps[n].c->ntables < 1)
 				error ("Input file '%s' doesn't contain at least one table",inps[n].name);
@@ -523,7 +523,7 @@ int main(int argc, char *argv[]) {
 	
 						if (fabs(diff) > 0.001)
 							error ("File '%s' set %d has field '%s' value that differs from '%s'",
-					       inps[n].name, i+1, inps[n].c->t[0].fsym[j], inps[0].name);
+					       inps[n].name, i+1, inps[n].c->t[0].fsym[chix[j]], inps[0].name);
 					}
 				}
 			}
@@ -627,7 +627,7 @@ int main(int argc, char *argv[]) {
 
 		if (n >= ninps) {		/* If ouput file, write it */
 			if (inps[n].c->write_name(inps[n].c, inps[ninps].name))
-				error("CGATS file '%s' write error : %s",inps[n].name,inps[n].c->err);
+				error("CGATS file '%s' write error : %s",inps[n].name,inps[n].c->e.m);
 		}
 		inps[n].c->del(inps[n].c);
 	}

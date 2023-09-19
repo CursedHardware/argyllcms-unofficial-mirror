@@ -2201,7 +2201,7 @@ datao map_oh
 					/* Dot of neighbor color and point */
 					tv = smp[i].sv[1] * smp[ix].sv[1] + smp[i].sv[2] * smp[ix].sv[2];
 
-					/* Ignore if of the opposote hue */
+					/* Ignore if of the opposite hue */
 					if (tv < 0.0)
 						continue;
 
@@ -2279,7 +2279,7 @@ datao map_oh
 						/* Save weighting */
 						smp[ix].nd[smp[ix].nnd].rw = w;		/* Won't be normalized */
 
-//printf("~1 adding %d at %f %f %f, rad %f L %f, w %f dir.\n",i, smp[i].sv[0], smp[i].sv[1], smp[i].sv[2],sqrt(dd),tv[0],smp[ix].nd[smp[ix].nnd].w);
+//printf("~1 adding %d at %f %f %f, rad %f, w %f dir.\n",i, smp[i].sv[0], smp[i].sv[1], smp[i].sv[2],sqrt(dd),smp[ix].nd[smp[ix].nnd].w);
 
 						smp[ix].nnd++;
 					}

@@ -90,8 +90,7 @@ struct _xcal {
 	int devchan;			/* Number of chanels in device space */
 	profxinf xpi;			/* Extra calibration description information */
 
-	char err[CGATS_ERRM_LENGTH];		/* Error message */
-	int errc;							/* Error code */
+	icmErr e;				/* Error code & message */
 
 	rspl *cals[MAX_CHAN];
 	

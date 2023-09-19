@@ -59,6 +59,9 @@
 #include "icoms.h"
 #include "i1d3.h"
 
+#define USE_AIO_MODE		/* [def] Use AIO mode for Rev B */
+#define ENABLE_DIFF_THREAD	/* [def] monitor the diffuser position */
+
 #undef PLOT_SPECTRA		/* Plot the sensor senitivity spectra */
 #undef PLOT_XYZSPECTRA	/* Plot the calibrated sensor senitivity spectra */
 #undef SAVE_SPECTRA		/* Save the sensor senitivity spectra to "sensors.cmf" */
@@ -74,7 +77,11 @@
 #define I1D3_MEAS_TIMEOUT 40.0      /* Longest reading timeout in seconds */ 
 									/* Typically 20.0 is the maximum needed. */
 
-#define I1D3_SAT_FREQ 100000.0		/* L2F sensor frequency limit ? Should this be increased ?? */
+#define I1D3_AIO_TIMEOUT 6.0		/* [6.0] Longest AIO measurement possible */
+
+#define I1D3_SAT_FREQ 250000.0		/* L2F sensor frequency limit */
+									/* (We're assuming it is actual/4, max 1MHz) */
+									/* This corresponds to 16000 cd/m^2 */
 
 static inst_code i1d3_interp_code(inst *pp, int ec);
 static inst_code i1d3_check_unlock(i1d3 *p);
@@ -110,11 +117,13 @@ static int icoms2i1d3_err(int se, int torc) {
 /* over EP 0x81 and 0x01. The command byte 0 is the major code, */
 /* and byte 1 is the sub code for command 0x00 . The response is byte 0 */
 /* error code, byte 1 echoing the major command number. */
+/* and there may be an nul terminated error string after that */
 /* Major code 00 works when locked ? */
 /* Response codes:
 
 	00	OK
-	83	After pulse count measure in low light. Means ???
+	81	After measure means too bright ??
+	83	After freq measure in low light. Means what ???
 
  */
 typedef enum {
@@ -125,9 +134,15 @@ typedef enum {
     i1d3_firmver      = 0x0012,		/* Firmware version string */
     i1d3_firmdate     = 0x0013,		/* Firmware date string */
     i1d3_locked       = 0x0020,		/* Get locked status */
+
+    i1d3_morehw       = 0x1000,		/* On Rev B. Returns two 4 bit nibbles, high and low */
+
+    i1d3_morefirm     = 0x0031,		/* Firmware version as binary (Rev. B) */
+									/* Returns string info i.e. "i1Display3 v1.0 11Jan11" */
+									/* on older instruments. */
     i1d3_freqmeas     = 0x0100,		/* Measure transition over given time */
     i1d3_periodmeas   = 0x0200,		/* Measure time between transition count */
-//  i1d3_aiomeas      = 0x0400,		/* AIO measure ? (Rev. B) */
+	i1d3_aiomeas      = 0x0400,		/* AIO measure (Rev. B) */
     i1d3_readintee    = 0x0800,		/* Read internal EEPROM */
     i1d3_readextee    = 0x1200,		/* Read external EEPROM */
     i1d3_setled       = 0x2100,		/* Set the LED state */
@@ -153,6 +168,10 @@ static char *inst_desc(i1Disp3CC cc) {
 			return "GetProductType";
 		case i1d3_firmver:
 			return "GetFirmwareVersion";
+		case i1d3_morehw:
+			return "GetMoreHardwareVersion";
+		case i1d3_morefirm:
+			return "GetMoreFirmwareVersion";
 		case i1d3_firmdate:
 			return "GetFirmwareDate";
 		case i1d3_locked:
@@ -161,6 +180,8 @@ static char *inst_desc(i1Disp3CC cc) {
 			return "Frequency Measure";
 		case i1d3_periodmeas:
 			return "Period Measure";
+		case i1d3_aiomeas:
+			return "AOI Measure";
 		case i1d3_readintee:
 			return "ReadInternalEEPROM";
 		case i1d3_readextee:
@@ -212,12 +233,8 @@ i1d3_command(
 		send[1] = (cc & 0xff);	/* Minor command */
 
 	if (!nd) {
-		if (cc == i1d3_lockresp)
-			a1logd(p->log, 4, "i1d3_command: Sending cmd '%s' args '%s'\n",
-			                         inst_desc(cc), icoms_tohex(send, 64));
-		else
-			a1logd(p->log, 4, "i1d3_command: Sending cmd '%s' args '%s'\n",
-			                         inst_desc(cc), icoms_tohex(send, 8));
+		a1logd(p->log, 4, "i1d3_command: Sending cmd '%s' args '%s'\n",
+		                         inst_desc(cc), icoms_tohex(send, 64));
 	}
 
 	if (p->icom->port_type(p->icom) == icomt_hid) {
@@ -280,34 +297,29 @@ i1d3_command(
 	}
 
 	/* The rev B. seems to return error code 0x83 if it doesn't find any edges */
-	/* within its timeout period, rather than simply returning 0 like the Rev. A. */
-	/* Ignore the error and process the 0 values. */
-	if (rv == inst_ok && cc == i1d3_periodmeas && recv[1] == 0x02 && recv[0] == 0x83) {
-		int i;
-		for (i = 2; i < 14; i++) {
-			if (recv[i] != 0)
-				break;
-		}
-		if (i >= 14) {		/* returned all zero's */
-			if (!nd) a1logd(p->log, 1, "i1d3_command: ignoring status byte = 0x%x\n",recv[0]);
-			recv[0] = 0x00;	/* Fudge OK status */
-		}
-	}
+	/* within its timeout period, rather than simply returning 0 for that channel */
+	/* like the Rev. A. Return our own error code so that the higher level code */
+	/* can retry using frequency measurement mode. */
 
 	/* The first byte returned seems to be a command result error code. */
 	if (rv == inst_ok && recv[0] != 0x00) {
 		if (!nd) a1logd(p->log, 1, "i1d3_command: status byte != 00 = 0x%x\n",recv[0]);
-		rv = i1d3_interp_code((inst *)p, I1D3_BAD_RET_STAT);
+		if (recv[0] == 0x83)
+			rv = i1d3_interp_code((inst *)p, I1D3_PERIOD_MEAS_FAIL);
+		else
+			rv = i1d3_interp_code((inst *)p, I1D3_BAD_RET_STAT);
 	}
 
 	/* The second byte is usually the command code being echo'd back, but not always. */
 	/* ie., get i1d3_get_diff returns the status instead. */
 	if (rv == inst_ok) {
 		if (cc != i1d3_get_diff) {
-			if (recv[1] != cmd) {
-				if (!nd) a1logd(p->log, 1, "i1d3_command: major cmd not echo'd != 0x%02x = 0x%02x\n",
-				                                                               cmd,recv[1]);
-				rv = i1d3_interp_code((inst *)p, I1D3_BAD_RET_CMD);
+		 	if (cc != i1d3_morehw) {
+				if (recv[1] != cmd) {
+					if (!nd) a1logd(p->log, 1, "i1d3_command: major cmd not echo'd != 0x%02x = 0x%02x\n",
+					                                                               cmd,recv[1]);
+					rv = i1d3_interp_code((inst *)p, I1D3_BAD_RET_CMD);
+				}
 			}
 		} else {	/* i1d3_get_diff as special case */
 			int i;
@@ -321,17 +333,14 @@ i1d3_command(
 		}
 	}
 
-	if (!nd) {
-		if (cc == i1d3_lockchal)
-			a1logd(p->log, 4, "i1d3_command: got '%s' ICOM err 0x%x\n",icoms_tohex(recv, 64),ua);
-		else
-			a1logd(p->log, 4, "i1d3_command: got '%s' ICOM err 0x%x\n",icoms_tohex(recv, 14),ua);
-	}
+	if (!nd)
+		a1logd(p->log, 4, "i1d3_command: got '%s' ICOM err 0x%x\n",icoms_tohex(recv, 64),ua);
 
 	if (rv != inst_ok) {
 		/* Flush any extra response, in case responses are out of sync */
 		if (ishid) {
-			p->icom->hid_read(p->icom, recv, 64, &rbytes, 0.2);
+			unsigned char buf[64];
+			p->icom->hid_read(p->icom, buf, 64, &rbytes, 0.2);
 		} else {
 			p->icom->usb_read(p->icom, NULL, 0x81, recv, 64, &rbytes, 0.2);
 		}
@@ -414,8 +423,8 @@ i1d3_get_info(
 	i1d3 *p,				/* Object */
 	char *rv				/* 64 byte buffer */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -440,8 +449,8 @@ i1d3_check_status(
 	i1d3 *p,				/* Object */
 	int *stat				/* Status - 0 if OK, 1 if not OK */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -465,8 +474,8 @@ i1d3_get_prodname(
 	i1d3 *p,				/* Object */
 	char *rv				/* 32 byte buffer */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -488,8 +497,8 @@ i1d3_get_prodtype(
 	i1d3 *p,				/* Object */
 	int *stat				/* 16 bit version number */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -505,14 +514,14 @@ i1d3_get_prodtype(
 	return inst_ok;
 }
 
-/* Get firmware version */
+/* Get firmware version string */
 static inst_code
 i1d3_get_firmver(
 	i1d3 *p,				/* Object */
 	char *rv				/* 32 byte buffer */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -528,14 +537,74 @@ i1d3_get_firmver(
 	return inst_ok;
 }
 
+/* Get more hw information. */
+/* On Rev A this will fail. */
+/* On Rev B returns two nibbles of info */
+static inst_code
+i1d3_get_morehw(
+	i1d3 *p,				/* Object */
+	int *ptop,				/* return top nibble */
+	int *pbot				/* return bottom nibble */
+) {
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
+	unsigned int ver;
+	inst_code ev;
+
+	memset(todev, 0, 64);
+	memset(fromdev, 0, 64);
+
+	if ((ev = i1d3_command(p, i1d3_morehw, todev, fromdev, 0.5, 0)) != inst_ok) {
+		return ev;
+	}
+	
+	ver = fromdev[2];
+
+	a1logd(p->log, 3, "i1d3_get_morefirm: got top 0x%x bot 0x%x\n",(ver >> 4) & 0xf, ver & 0xf);
+
+	*ptop = (ver >> 4) & 0xf;
+	*pbot =  ver & 0xf;
+
+	return inst_ok;
+}
+
+/* Get more firmware - use with Rev B only. */
+/* On Rev A returns string info i.e. "i1Display3 v1.0 11Jan11" */
+/* On Rev B returns fw version as 16 bit number */
+static inst_code
+i1d3_get_morefirm(
+	i1d3 *p,				/* Object */
+	int *pver				/* return version number */
+) {
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
+	unsigned int ver;
+	inst_code ev;
+
+	memset(todev, 0, 64);
+	memset(fromdev, 0, 64);
+
+	if ((ev = i1d3_command(p, i1d3_morefirm, todev, fromdev, 1.0, 0)) != inst_ok) {
+		return ev;
+	}
+	
+	ver = buf2short(fromdev + 3);
+
+	a1logd(p->log, 3, "i1d3_get_morefirm: got 0x%x\n",ver);
+
+	*pver = ver;
+
+	return inst_ok;
+}
+
 /* Get firmware date name */
 static inst_code
 i1d3_get_firmdate(
 	i1d3 *p,				/* Object */
 	char *rv				/* 32 byte buffer */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -557,8 +626,8 @@ i1d3_lock_status(
 	i1d3 *p,				/* Object */
 	int *stat				/* Status - 0 if Unlocked, 1 if locked */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -585,15 +654,17 @@ static struct {
 	i1d3_dtype btype;						/* Base type enumerator */
 	i1d3_dtype stype;						/* Sub type enumerator */
 } i1d3_codes[] = {
-	{ "i1Display3 ",         { 0xe9622e9f, 0x8d63e133 }, i1d3_disppro,  i1d3_disppro },
-	{ "Colormunki Display ", { 0xe01e6e0a, 0x257462de }, i1d3_munkdisp, i1d3_munkdisp },
-	{ "i1Display3 ",         { 0xcaa62b2c, 0x30815b61 }, i1d3_disppro,  i1d3_dpp_oem },
-	{ "i1Display3 ",         { 0xa9119479, 0x5b168761 }, i1d3_disppro,  i1d3_nec_ssp },
-	{ "i1Display3 ",         { 0x160eb6ae, 0x14440e70 }, i1d3_disppro,  i1d3_quato_sh3 },
-	{ "i1Display3 ",         { 0x291e41d7, 0x51937bdd }, i1d3_disppro,  i1d3_hp_dreamc },
-	{ "i1Display3 ",         { 0x1abfae03, 0xf25ac8e8 }, i1d3_disppro,  i1d3_wacom_dc },
-	{ "i1Display3 ",         { 0x828c43e9, 0xcbb8a8ed }, i1d3_disppro,  i1d3_tpa_1 },
-	{ "i1Display3 ",         { 0xe8d1a980, 0xd146f7ad }, i1d3_disppro,  i1d3_barco },
+	{ "i1Display3",         { 0xe9622e9f, 0x8d63e133 }, i1d3_disppro,  i1d3_disppro },
+	{ "Colormunki Display", { 0xe01e6e0a, 0x257462de }, i1d3_munkdisp, i1d3_munkdisp },
+	{ "i1Display3",         { 0xcaa62b2c, 0x30815b61 }, i1d3_disppro,  i1d3_dpp_oem },
+	{ "i1Display3",         { 0xa9119479, 0x5b168761 }, i1d3_disppro,  i1d3_nec_ssp },
+	{ "i1Display3",         { 0x160eb6ae, 0x14440e70 }, i1d3_disppro,  i1d3_quato_sh3 },
+	{ "i1Display3",         { 0x291e41d7, 0x51937bdd }, i1d3_disppro,  i1d3_hp_dreamc },
+	{ "i1Display3",         { 0x1abfae03, 0xf25ac8e8 }, i1d3_disppro,  i1d3_wacom_dc },
+	{ "i1Display3",         { 0x828c43e9, 0xcbb8a8ed }, i1d3_disppro,  i1d3_tpa_1 },
+	{ "i1Display3",         { 0xe8d1a980, 0xd146f7ad }, i1d3_disppro,  i1d3_barco },
+	{ "i1Display3",			{ 0x171ae295, 0x2e5c7664 }, i1d3_disppro,  i1d3_crysta },
+	{ "i1Display3",         { 0x64d8c546, 0x4b24b4a7 }, i1d3_disppro,  i1d3_viewsonic_xri1 },
 	{ NULL }, { NULL } 
 };
 
@@ -601,8 +672,8 @@ static inst_code
 i1d3_unlock(
 	i1d3 *p				/* Object */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 	int ix, nix;
 
@@ -677,8 +748,8 @@ i1d3_get_diffpos(
 	int *pos,				/* 0 = display, 1 = ambient */
 	int nd					/* nz = no debug message */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -704,8 +775,8 @@ i1d3_read_internal_eeprom(
 	unsigned char *bytes	/* return bytes here */
 ) {
 	inst_code ev;
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	int ll;
 
 	if (addr < 0 || addr > 255)
@@ -747,8 +818,8 @@ i1d3_read_external_eeprom(
 	unsigned char *bytes	/* return bytes here */
 ) {
 	inst_code ev;
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	int ll;
 	int sdebug;
 
@@ -797,8 +868,8 @@ i1d3_freq_measure(
 	double rgb[3]			/* Return the RGB count values */
 ) {
 	int intclks;
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -847,10 +918,10 @@ i1d3_period_measure(
 	i1d3 *p,				/* Object */
 	int edgec[3],			/* Measurement edge count for each channel */
 	int mask,				/* Bit mask to enable channels */
-	double rgb[3]			/* Return the RGB values */
+	double rgb[3]			/* Return the RGB clock count values */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 
 	memset(todev, 0, 64);
@@ -863,12 +934,104 @@ i1d3_period_measure(
 	todev[7] = (unsigned char)mask;	
 	todev[8] = 0;			/* Unknown parameter, always 0 */	
 	
-	if ((ev = i1d3_command(p, i1d3_periodmeas, todev, fromdev, I1D3_MEAS_TIMEOUT, 0)) != inst_ok)
-		return ev;
+	ev = i1d3_command(p, i1d3_periodmeas, todev, fromdev, I1D3_MEAS_TIMEOUT, 0);
 	
+	if (ev != inst_ok) {
+		if ((ev & inst_imask) == I1D3_PERIOD_MEAS_FAIL)
+			rgb[0] = rgb[1] = rgb[2] = 0.0;
+		return ev; 
+	}
+
 	rgb[0] = (double)buf2uint(fromdev + 2);
 	rgb[1] = (double)buf2uint(fromdev + 6);
 	rgb[2] = (double)buf2uint(fromdev + 10);
+
+	return inst_ok;
+}
+
+/* Take a raw measurement using a given integration time. */
+/* The measurent is the count of -ve edges (??) from the L2V */
+/* over the integration time. */
+/* The integration time is also returned, but defaults to the */
+/* nominated integration time when the frequency is above the set threshold */
+static inst_code
+i1d3_aio_measure(
+	i1d3 *p,				/* Object */
+	double *inttime,		/* Integration time in seconds. (Return clock rounded) */
+	double rgb[3]			/* Return the RGB frequency in Hz */
+) {
+	int intclks;
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
+	double miclks[3];
+	int flags[3];		
+	int i;
+	inst_code ev;
+
+	memset(todev, 0, 64);
+	memset(fromdev, 0, 64);
+
+	a1logd(p->log,4,"i1d3_aio_measure called with int time %f secs\n",*inttime);
+
+	/* Device devolves to lower integration time if it is above 6.5 secs */
+	if (*inttime > I1D3_AIO_TIMEOUT)		/* Hmm */
+		*inttime = I1D3_AIO_TIMEOUT;
+
+	/* Theoretical max = 357.9 seconds */
+	intclks = (int)(*inttime * p->clk_freq + 0.5);
+	*inttime = (double)intclks / p->clk_freq;
+
+	int2buf(todev + 1, intclks);
+
+	todev[5] = 0;			/* Unknown parameter, typically 0 */
+	todev[6] = 7;			/* Unknown parameter, always 7 ? mask ?? */
+	short2buf(todev + 7, 1000);	/* Threshold for measuring period exactly */
+							/* (Not quite clear how this corrsponds to behavior) */
+							/* May set tradeoff of measurement accuracy vs. refresh mode */
+							/* integration time accuracy ? */
+	
+	ev = i1d3_command(p, i1d3_aiomeas, todev, fromdev, I1D3_MEAS_TIMEOUT, 0);
+
+	if (ev != inst_ok) {
+		if ((ev & inst_imask) == I1D3_PERIOD_MEAS_FAIL)
+			rgb[0] = rgb[1] = rgb[2] = 0.0;
+		return ev; 
+	}
+
+	rgb[0] = (double)buf2uint(fromdev + 2);
+	rgb[1] = (double)buf2uint(fromdev + 6);
+	rgb[2] = (double)buf2uint(fromdev + 10);
+
+	miclks[0] = (double)buf2uint(fromdev + 14);		/* 48 MHz clocks. 32 bits = 89 secs ? */
+	miclks[1] = (double)buf2uint(fromdev + 18);
+	miclks[2] = (double)buf2uint(fromdev + 22);
+
+	flags[0] = fromdev[26];
+	flags[1] = fromdev[27];
+	flags[2] = fromdev[28];
+
+	a1logd(p->log, 3, "i1d3_aio_measure got counts %.0f %.0f %.0f, clocks %.0f %.0f %.0f flags %d %d %d ev 0x%x\n",rgb[0],rgb[1],rgb[2],miclks[0],miclks[1],miclks[2],flags[0],flags[1],flags[2],ev);
+
+	/* The HW holds the L2F *OE high (disabled) until the start of the measurement period, */
+	/* and this has the effect of holding the internal integrator in a reset state. */
+	/* This then synchronizes the frequency output to the start of the measurement,*/
+	/* and if the count is over the nominal integration time, this has the effect of */
+	/* rounding down the count output (0 to -1 bit error). We ignore this here, because */
+	/* it only affects measurements with large counts due to threshold set above. */
+
+	for (i = 0; i < 3; i++) {
+		rgb[i] -= 1.0;		/* Makes black work, and agrees with OEM driver result... */
+
+		/* Not sure where the factor of 0.25 comes from. */
+		/* Maybe Rev A and legacy modes are actually dividing L2F by 4, and */
+		/* Rev B AIO mode isn't ? */
+		/* This may explain AIO mode being more sensitive than period mode. */
+		rgb[i] = rgb[i] * 0.25 / (miclks[i]/(4.0 * p->clk_freq));	/* To Hz */
+	}
+
+  aio_done:;
+
+	a1logd(p->log, 3, "i1d3_aio_measure returning R %f G %f B %f Hz\n",rgb[0],rgb[1],rgb[2]);
 
 	return inst_ok;
 }
@@ -886,8 +1049,8 @@ i1d3_set_LEDs(
 	double ontime,			/* On time. Fade is included in this */
 	int count				/* Pulse count. 0x80 = infinity ? */
 ) {
-	unsigned char todev[64];
-	unsigned char fromdev[64];
+	unsigned char todev[64] = { 0 } ;
+	unsigned char fromdev[64] = { 0 } ;
 	inst_code ev;
 	double mul1, mul2;
 	int ftime, ntime; 
@@ -1530,53 +1693,7 @@ i1d3_measure_set_refresh(
 
 /* - - - - - - - - - - - - - - - - - - - - - - */
 
-#ifdef NEVER	/* No longer used - use general measurement instead */
-
-/* Take an ambient measurement and return the cooked reading */
-/* The cooked reading is the frequency of the L2V */
-static inst_code
-i1d3_take_amb_measurement(
-	i1d3 *p,			/* Object */
-	double *rgb			/* Return the ambient RGB values */
-) {
-	int i;				/* Returned byte - not used */
-	int pos;
-	inst_code ev;
-
-	if (p->inited == 0)
-		return i1d3_interp_code((inst *)p, I1D3_NOT_INITED);
-
-	a1logd(p->log,3,"take_amb_measurement called\n");
-
-	/* Check that the ambient filter is in place */
-	if ((ev = i1d3_get_diffpos(p, &pos, 0)) != inst_ok)
- 		return ev;
-
-	if (pos != 1)
-		return i1d3_interp_code((inst *)p, I1D3_SPOS_AMB);
-
-	if ((ev = i1d3_freq_measure(p, &p->inttime, rgb)) != inst_ok)
- 		return ev;
-
-	/* Scale to account for counting both edges (?) over integration time */
-	/* and subtract black level */
-	for (i = 0; i < 3; i++) {
-		rgb[i] *= 0.5/p->inttime;
-		rgb[i] -= p->black[i];
-		if (rgb[i] < 0.0)
-			rgb[i] = 0.0;
-	}
-
-	a1logd(p->log,3,"take_amb_measurement returned %f %f %f\n",rgb[0],rgb[1],rgb[2]);
-
-	return inst_ok;
-}
-
-#endif
-
-/* - - - - - - - - - - - - - - - - - - - - - - */
-
-/* Take a general measurement and return the cooked reading */
+/* Take a general emis/ambient measurement and return the cooked reading */
 /* The cooked reading is the frequency of the L2V */
 static inst_code
 i1d3_take_emis_measurement(
@@ -1679,10 +1796,14 @@ i1d3_take_emis_measurement(
 				double rmeas2[3];
 
 				a1logd(p->log,3,"Doing 1st period pre-measurement mask 0x%x, edgec %d %d %d\n",mask2,edgec[0],edgec[1],edgec[2]);
+
 				/* Take an initial period pre-measurement over 2 edges */
 				if ((ev = i1d3_period_measure(p, edgec, mask2, rmeas2)) != inst_ok) {
+					if ((ev & inst_imask) == I1D3_PERIOD_MEAS_FAIL) {
+						goto permeasfail;		/* Deal with Rev B quirk */
+					}
 					p->th_en = isth;
-		 			return ev;
+			 		return ev;
 				}
 
 				a1logd(p->log,3,"Got %f %f %f raw %f %f %f Hz\n",rmeas2[0],rmeas2[1],rmeas2[2],
@@ -1753,8 +1874,12 @@ i1d3_take_emis_measurement(
 					if (mask3 != 0x0) {
 
 						a1logd(p->log,3,"Doing 2nd initial period measurement mask 0x%x, edgec %d %d %d\n",mask3,edgec[0],edgec[1],edgec[2]);
+
 						/* Take a 2nd initial period  measurement */
 						if ((ev = i1d3_period_measure(p, edgec, mask3, rmeas2)) != inst_ok) {
+							if ((ev & inst_imask) == I1D3_PERIOD_MEAS_FAIL) {
+								goto permeasfail;			/* Deal with Rev B quirk */
+							}
 							p->th_en = isth;
 				 			return ev;
 						}
@@ -1936,6 +2061,9 @@ i1d3_take_emis_measurement(
 					a1logd(p->log,3,"Doing period re-measure mask 0x%x, edgec %d %d %d\n",mask,edgec[0],edgec[1],edgec[2]);
 					/* Measure again with desired precision, taking up to 0.4/0.8 secs */
 					if ((ev = i1d3_period_measure(p, edgec, mask, rmeas)) != inst_ok) {
+						if ((ev & inst_imask) == I1D3_PERIOD_MEAS_FAIL) {
+							goto permeasfail;			/* Deal with Rev B quirk */
+						}
 						p->th_en = isth;
 			 			return ev;
 					}
@@ -1956,11 +2084,179 @@ i1d3_take_emis_measurement(
 					a1logd(p->log,3,"Got %f %f %f Hz after period measure\n",rgb[0],rgb[1],rgb[2]);
 				}
 			}
+
+			/* Deal with Rev B quirk */
+			if (0) {
+				double int2;
+		permeasfail:;
+
+				a1logd(p->log,3,"Mitigating unexpected period measurement failure\n");
+
+				int2 = 10.0;
+				if (p->refperiod > 0.0) {		/* If we have a refresh period */
+					int n;
+					n = (int)ceil(int2/p->refperiod);	/* Quantize */
+					int2 = n * p->refperiod;
+				}
+				a1logd(p->log,4,"New integration time %f secs\n",int2);
+
+				/* Take a frequency measurement over this time */
+				if ((ev = i1d3_freq_measure(p, &int2, rmeas)) != inst_ok) {
+					p->th_en = isth;
+		 			return ev;
+				}
+
+				/* Convert to frequency */
+				for (i = 0; i < 3; i++) {
+					rgb[i] = (0.5 * rmeas[i])/int2;
+				}
+
+				a1logd(p->log,3,"Got %f %f %f raw, %f %f %f Hz\n",rmeas[0],rmeas[1],rmeas[2],rgb[0],rgb[1],rgb[2]);
+			}
 		}
 	}
-	p->th_en = isth;
 
 	a1logd(p->log,3,"Took %d msec to measure\n", msec_time() - msecstart);
+
+	p->th_en = isth;
+
+	/* Subtract black level */
+	for (i = 0; i < 3; i++) {
+		rgb[i] -= p->black[i];
+		if (rgb[i] < 0.0)
+			rgb[i] = 0.0;
+	}
+
+	a1logd(p->log,3,"Cooked RGB = %f %f %f\n",rgb[0],rgb[1],rgb[2]);
+
+	for (i = 0; i < 3; i++) {
+		if (rgb[i] > I1D3_SAT_FREQ)
+			return i1d3_interp_code((inst *)p, I1D3_TOOBRIGHT);
+	}
+	
+	return inst_ok;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Take a general emis/ambient adaptive measurement using AIO mode */
+/* and return the cooked reading. The cooked reading is the frequency of the L2V */
+static inst_code
+i1d3_take_aio_measurement(
+	i1d3 *p,			/* Object */
+	i1d3_mmode mode,	/* Measurement mode */
+	double *rgb			/* Return the cooked emsissive RGB values */
+) {
+	int i, k;
+	inst_code ev;
+	int msecstart = msec_time();	/* Debug */
+	double int2;
+	int isth;
+
+	if (p->inited == 0)
+		return i1d3_interp_code((inst *)p, I1D3_NOT_INITED);
+
+	a1logd(p->log,3,"\ni1d3_take_aio_measurement called\n");
+
+	/* Suspend thread so that it doesn't intefere with measurement timing */
+	isth = p->th_en;
+	p->th_en = 0;
+
+	/* Take an initial measurement */
+
+	/* Typically this is 200msec for non-refresh, 400msec for refresh. */
+	a1logd(p->log,3,"Doing fixed period aio measurement over %f secs\n",p->inttime);
+
+	ev = i1d3_aio_measure(p, &p->inttime, rgb);
+	if (ev != inst_ok) {
+		if ((ev & inst_imask) != I1D3_PERIOD_MEAS_FAIL) {
+			p->th_en = isth;
+			return ev; 
+		} else {
+			/* This may not actually occur with a small enough inttime. */
+			/* Assume it's close to zero. */
+			/* May not be so accurate for non-adaptive, but we'll re-measure if is. */
+			rgb[0] = rgb[1] = rgb[2] = 0.0;
+		}
+	}
+
+	/* See if we should re-measure with a longer integration time */
+	if (mode == i1d3_adaptive) {
+
+		int2 = 0.0;
+		for (i = 0; i < 3; i++) {
+			double count = rgb[i] * p->inttime;
+
+			/* If a channel is 20 x the threshold, don't remeasure */ 
+			if (count > (20 * 200.0)) {
+				break;
+			}
+
+			/* If there could be 0.25% quantization error */
+			if (count < 200.0) {
+				/* Compute a target integration time */
+				double tt = p->inttime * 200.0/(count > 0.0 ? count : 1.0);
+				if (tt > int2)
+					int2 = tt;
+			}
+		}
+
+		if (i >= 3 && int2 > 0.0) {
+			if (int2 > I1D3_AIO_TIMEOUT)
+				int2 = I1D3_AIO_TIMEOUT;		/* aio limit */
+
+			if (p->refperiod > 0.0) {		/* If we have a refresh period */
+				int n;
+				n = (int)ceil(int2/p->refperiod);	/* Quantize */
+				int2 = n * p->refperiod;
+
+				if (int2 > I1D3_AIO_TIMEOUT)
+					int2 -= p->refperiod;
+			}
+
+			ev = i1d3_aio_measure(p, &int2, rgb);
+
+			if (ev != inst_ok) {
+				double rmeas[3];
+
+				if ((ev & inst_imask) != I1D3_PERIOD_MEAS_FAIL) {
+					p->th_en = isth;
+					return ev; 
+				}
+
+				/* Hmm. We don't know of a way of making AIO not fail, */
+				/* so fall back on pure frequency measurements. This */
+				/* will not be quite as accurate, but it's the best we can do */
+				/* given the Rev B quirk. */
+				a1logd(p->log,3,"Mitigating unexpected aio failure\n");
+
+				int2 = 10.0;
+
+				if (p->refperiod > 0.0) {		/* If we have a refresh period */
+					int n;
+					n = (int)ceil(int2/p->refperiod);	/* Quantize */
+					int2 = n * p->refperiod;
+				}
+				a1logd(p->log,4,"New integration time %f secs\n",int2);
+
+				/* Take a frequency measurement over this time */
+				if ((ev = i1d3_freq_measure(p, &int2, rmeas)) != inst_ok) {
+					p->th_en = isth;
+		 			return ev;
+				}
+
+				/* Convert to frequency */
+				for (i = 0; i < 3; i++)
+					rgb[i] = (0.5 * rmeas[i])/int2;
+
+				a1logd(p->log,3,"Got %f %f %f raw, %f %f %f Hz\n",rmeas[0],rmeas[1],rmeas[2],rgb[0],rgb[1],rgb[2]);
+			}
+		}
+	}
+
+	a1logd(p->log,3,"Took %d msec to measure\n", msec_time() - msecstart);
+
+	p->th_en = isth;
 
 	/* Subtract black level */
 	for (i = 0; i < 3; i++) {
@@ -2005,9 +2301,13 @@ i1d3_take_XYZ_measurement(
 		if (pos != 1)
 			return i1d3_interp_code((inst *)p, I1D3_SPOS_AMB);
 
-		/* Best type of reading, including refresh support */
-		if ((ev = i1d3_take_emis_measurement(p, mmode, XYZ)) != inst_ok)
-			return ev;
+		if (p->use_aio) {
+			if ((ev = i1d3_take_aio_measurement(p, mmode, XYZ)) != inst_ok)
+				return ev;
+		} else {
+			if ((ev = i1d3_take_emis_measurement(p, mmode, XYZ)) != inst_ok)
+				return ev;
+		}
 
 		/* Multiply by ambient calibration matrix */
 		icmMulBy3x3(XYZ, p->ambi_cal, XYZ);		/* Values in Lux */
@@ -2021,9 +2321,13 @@ i1d3_take_XYZ_measurement(
 		if (pos != 0)
 			return i1d3_interp_code((inst *)p, I1D3_SPOS_EMIS);
 
-		/* Best type of reading, including refresh support */
-		if ((ev = i1d3_take_emis_measurement(p, mmode, XYZ)) != inst_ok)
-			return ev;
+		if (p->use_aio) {
+			if ((ev = i1d3_take_aio_measurement(p, mmode, XYZ)) != inst_ok)
+				return ev;
+		} else {
+			if ((ev = i1d3_take_emis_measurement(p, mmode, XYZ)) != inst_ok)
+				return ev;
+		}
 
 		/* Multiply by current emissive calibration matrix */
 		icmMulBy3x3(XYZ, p->emis_cal, XYZ);
@@ -2052,6 +2356,10 @@ static inst_code i1d3_decode_intEE(
 
 	strncpy(p->vers_no, (char *)buf + 0x2C, 10);
 	p->vers_no[10] = '\000';
+
+	p->hwrev = 0;		/* default to 'A' */
+	if (p->vers_no[0] >= 'A')
+		p->hwrev = p->vers_no[0] - 'A';
 
 	/* Read the black level offset */
 	for (i = 0; i < 3; i++) {
@@ -2344,7 +2652,7 @@ i1d3_comp_calmat(
 		}
 #endif /* PLOT_XYZSPECTRA */
 #ifdef SAVE_XYZSPECTRA		/* Save the default XYZ senitivity spectra to "sensorsxyz.cmf" */
-		write_nxspect("sensorsxyz.cmf", calcmfs, 3, 0);
+		write_cmf("sensorsxyx.cmf", calcmfs);
 #endif
 	}
 #endif /* PLOT_XYZSPECTRA || SAVE_XYZSPECTRA */
@@ -2624,8 +2932,32 @@ i1d3_init_inst(inst *pp) {
 	}
 	if ((ev = i1d3_get_firmver(p, p->firm_ver)) != inst_ok)
 		return ev;
+
+	/* This will fail on older HW */
+	if ((ev = i1d3_get_morehw(p, &p->hw_top, &p->hw_bot)) != inst_ok) {
+		p->hw_top = 0;
+		p->hw_bot = 0;
+
+		/* Could compute this from firm_ver string... */
+		p->firmv = 0;
+
+	/* Only call this on newer HW */
+	} else if ((ev = i1d3_get_morefirm(p, &p->firmv)) != inst_ok) {
+		return ev;
+	}
+
 	if ((ev = i1d3_get_firmdate(p, p->firm_date)) != inst_ok)
 		return ev;
+
+
+#ifdef USE_AIO_MODE
+	/* Should we use AIO mode ? */
+	if (p->firmv >= 0x21a
+	 && getenv("I1D3_DISABLE_AIO") == NULL) {
+		p->use_aio = 1;
+		a1logd(p->log, 4, "i1d3_init_inst: using AIO mode\n");
+	}
+#endif /* USE_AIO_MODE */
 
 	/* Unlock instrument */
 	if ((ev = i1d3_lock_status(p,&stat)) != inst_ok)
@@ -2688,9 +3020,10 @@ i1d3_init_inst(inst *pp) {
 
 	a1logv(p->log,1,"Product Name:      %s\n"
 	                "Serial Number:     %s\n"
+	                "Hardware Rev.:     %s\n"
 	                "Firmware Version:  %s\n"
 	                "Firmware Date:     %s\n"
-	                ,p->prod_name,p->serial_no,p->firm_ver,p->firm_date);
+	                ,p->prod_name,p->serial_no,p->vers_no,p->firm_ver,p->firm_date);
 
 	if (p->log->debug >= 4) {
 		a1logd(p->log,4,"Default calibration:\n");
@@ -2709,10 +3042,14 @@ i1d3_init_inst(inst *pp) {
 		a1logd(p->log,4,"\n");
 	}
 
+#ifdef ENABLE_DIFF_THREAD
 	/* Start the diffuser monitoring thread */
 	p->th_en = 1;
 	if ((p->th = new_athread(i1d3_diff_thread, (void *)p)) == NULL)
 		return i1d3_interp_code((inst *)p, I1D3_INT_THREADFAILED);
+#else
+# pragma message("######### i1pro3.c Diffuser thread disabled !!!!! ########")
+#endif
 
 	/* Flash the LED, just cos we can! */
 	if ((ev = i1d3_set_LEDs(p, i1d3_flash, 0.2, 0.05, 2)) != inst_ok)
@@ -3706,6 +4043,17 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 	i1d3 *p = (i1d3 *)pp;
 	inst_code rv = inst_ok;
 
+	a1loge(p->log, 4, "i1d3_get_disptypesel: called recreate = %d\n",recreate);
+
+	/* Create/Re-create a current list of available display types */
+	if (p->dtlist == NULL || recreate) {
+		if ((rv = inst_creat_disptype_list(pp, &p->ndtlist, &p->dtlist,
+		    i1d3_disptypesel, 1 /* doccss*/, 1 /* doccmx */)) != inst_ok) {
+			a1loge(p->log, 1, "i1d3_get_disptypesel: inst_creat_disptype_list failed\n");
+			return rv;
+		}
+	}
+
 	if (!allconfig && p->dpos) {	/* If set to Ambient, there are no display types ? */
 
 		if (pnsels != NULL)
@@ -3714,15 +4062,8 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 		if (psels != NULL)
 			*psels = NULL;
 
+		a1loge(p->log, 4, "i1d3_get_disptypesel: ambient so no dtype\n");
 		return inst_ok;
-	}
-
-	/* Create/Re-create a current list of abailable display types */
-	if (p->dtlist == NULL || recreate) {
-		if ((rv = inst_creat_disptype_list(pp, &p->ndtlist, &p->dtlist,
-		    i1d3_disptypesel, 1 /* doccss*/, 1 /* doccmx */)) != inst_ok) {
-			return rv;
-		}
 	}
 
 	if (pnsels != NULL)
@@ -3730,6 +4071,8 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 
 	if (psels != NULL)
 		*psels = p->dtlist;
+
+	a1loge(p->log, 1, "i1d3_get_disptypesel: returing %d dtypes\n",p->ndtlist);
 
 	return inst_ok;
 }
@@ -3956,6 +4299,62 @@ i1d3_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		return inst_ok;
 	}
 
+	/* Get the raw & XYZ spectral sensitivities */
+	if (m == inst_opt_get_cal_sp_sens) {
+		xspect *sp1, *sp2;
+		inst_code rv;
+		va_list args;
+		int i;
+
+		va_start(args, m);
+		sp1 = va_arg(args, xspect *);
+		sp2 = va_arg(args, xspect *);
+		va_end(args);
+
+		if (sp1 != NULL) {
+			sp1[0] = p->sens[0];		/* Struct copy */
+			sp1[1] = p->sens[1];
+			sp1[2] = p->sens[2];
+		}
+
+		if (sp2 != NULL) {
+			/* Compute the calibrated sensor spectra */
+			int i, j, k;
+			xspect calcmfs[3];
+			double scale;
+			xspect *xyz[3];
+			standardObserver(xyz, icxOT_CIE_1931_2);
+
+			for (j = 0; j < 3; j++) {
+				XSPECT_COPY_INFO(&calcmfs[j], &p->sens[j]); 
+			}
+
+			/* For each wavelength */
+			for (i = 0; i < p->sens[0].spec_n; i++) {
+				/* Do matrix multiply */
+				for (j = 0; j < 3; j++) {
+					calcmfs[j].spec[i] = 0.0;
+					for (k = 0; k < 3; k++) {
+						calcmfs[j].spec[i] += p->emis_cal[j][k] * p->sens[k].spec[i];
+					}
+				}
+			}
+
+			/* Scale the X to be 1.0 */
+			scale = value_xspect(xyz[1], 555.0)/value_xspect(&calcmfs[1], 555.0);
+			for (i = 0; i < p->sens[0].spec_n; i++) {
+				for (j = 0; j < 3; j++) {
+					calcmfs[j].spec[i] *= scale;
+				}
+			}
+
+			sp2[0] = calcmfs[0];		/* Struct copy */
+			sp2[1] = calcmfs[1];
+			sp2[2] = calcmfs[2];
+		}
+
+		return inst_ok;
+	}
 
 	/* Set the ccss observer type */
 	if (m == inst_opt_set_ccss_obs) {
@@ -4100,7 +4499,7 @@ i1d3_get_set_opt(inst *pp, inst_opt_type m, ...) {
 /* Can only call this once. */
 static void get_escape_code(i1d3 *p) {
 	char *cp;
-	static eset = 0;
+	static int eset = 0;
 
 	if (eset)
 		return;
@@ -4110,7 +4509,7 @@ static void get_escape_code(i1d3 *p) {
 		unsigned char k[8];
 
 
-		if (sscanf(cp, "%2hx%2hx%2hx%2hx%2hx%2hx%2hx%2hx",
+		if (sscanf(cp, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
 			&k[0], &k[1], &k[2], &k[3], &k[4], &k[5], &k[6], &k[7]) != 8)
 			return;
 

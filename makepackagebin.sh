@@ -3,6 +3,8 @@ echo "Script to invoke Jam and then package the binary release."
 
 # Must use this rather than "jam -q" to ensure builtin libraries are used.
 
+PRODUCT=Argyll
+
 # Set the environment string VERSION from the #define, ie 1.0.0
 VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | head -1 | sed 's/# define ARGYLL_VERSION_STR //' | sed 's/"//g'`
 
@@ -38,9 +40,9 @@ VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | head -1 | sed 's/# define ARGYLL_
 #   FreeBSD 9.1 64 bit [bash]       freebsd9.1   amd64-portbld-freebsd9.1 amd64
 #
 
-echo "About to make Argyll binary distribution $VERSION"
+echo "About to make $PRODUCT binary distribution $VERSION"
 
-TOPDIR=Argyll_V$VERSION
+TOPDIR=${PRODUCT}_V$VERSION
 
 if [ X$OS != "XWindows_NT" ] ; then
 	# Fixup issues with the .zip format
@@ -51,9 +53,20 @@ fi
 export OSTYPE MACHTYPE HOSTTYPE
 unset USETARPREFIX
 
+# Can't do parallel build on recent MS VC++
+if [ X$VisualStudioVersion = "X17.0" ] ; then
+	NUMBER_OF_PROCESSORS=1
+fi
+
+# Clean up so we get a solid build
 # .sp come from profile, .cht from scanin and .ti3 from spectro
 rm -f bin/*.exe bin/*.dll
 rm -f ref/*.sp ref/*.cht ref/*.ti2
+
+if ! jam -fJambase -sBUILTIN_TIFF=true -sBUILTIN_JPEG=true -sBUILTIN_PNG=true -sBUILTIN_Z=true -sBUILTIN_SSL=true clean ; then
+	echo "Clean failed!"
+	exit 1
+fi 
 
 # Make sure it's built and installed
 if ! jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-2} -sBUILTIN_TIFF=true -sBUILTIN_JPEG=true -sBUILTIN_PNG=true -sBUILTIN_Z=true -sBUILTIN_SSL=true install ; then
@@ -65,34 +78,36 @@ fi
 
 if [ X$OS = "XWindows_NT" ] ; then
 	echo "We're on MSWindows!"
-	# Hack cross comile
-	if [ X$COMPILER = "XMINGW64" ] ; then
-		echo "We're cross compiling to MSWin 64 bit !"
-		PACKAGE=Argyll_V${VERSION}_win64_exe.zip
+	# On Win10 we need to check compiler
+	if [ X${COMPILER/MINGW64//} != X$COMPILER	\
+	  -o X${COMPILER/MSVCPP64//} != X$COMPILER ] ; then
+		echo "We're compiling to MSWin 64 bit !"
+		PACKAGE=${PRODUCT}_V${VERSION}_win64_exe.zip
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
 		unset USETAR
-	else
-		# ~~ should detect native 64 bit here ~~
-		echo "We're on MSWin 32 bit !"
-		PACKAGE=Argyll_V${VERSION}_win32_exe.zip
+	else if [ X${COMPILER/MINGW//} != X$COMPILER	\
+	       -o X${COMPILER/MSVCPP//} != X$COMPILER ] ; then
+		echo "We're compiling to MSWin 32 bit !"
+		PACKAGE=${PRODUCT}_V${VERSION}_win32_exe.zip
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
 		unset USETAR
 	fi
+	fi
 else if [ X$OSTYPE = "Xdarwin7.0" ] ; then
 	echo "We're on OSX 10.3 PPC!"
-	PACKAGE=Argyll_V${VERSION}_osx10.3_ppc_bin.tgz
+	PACKAGE=${PRODUCT}_V${VERSION}_osx10.3_ppc_bin.tgz
 	USBDIRS="usb"
 	USBBINFILES="binfiles.osx"
 	USETAR=true
 else if [ X$OSTYPE = "Xdarwin8.0" ] ; then
 	if [ X$MACHTYPE = "Xi386-apple-darwin8.0" ] ; then
 		echo "We're on OSX 10.4 i386!"
-		PACKAGE=Argyll_V${VERSION}_osx10.4_i86_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.4_i86_bin.tgz
 	else if [ X$MACHTYPE = "Xpowerpc-apple-darwin8.0" ] ; then
 		echo "We're on OSX 10.4 PPC!"
-		PACKAGE=Argyll_V${VERSION}_osx10.4_ppc_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.4_ppc_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"
@@ -111,10 +126,10 @@ else if [ X$OSTYPE = "Xdarwin10.0" \
        -o X$OSTYPE = "Xdarwin20" ] ; then
 	if [ X$HOSTTYPE = "Xx86_64" ] ; then
 		echo "We're on OSX 10.X x86_64!"
-		PACKAGE=Argyll_V${VERSION}_osx10.6_x86_64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.6_x86_64_bin.tgz
 	else if [ X$HOSTTYPE = "Xarm64" ] ; then
 		echo "We're on OSX 11.X arm64!"
-		PACKAGE=Argyll_V${VERSION}_macOS11_arm64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_macOS11_arm64_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"
@@ -124,10 +139,10 @@ else if [ X$OSTYPE = "Xdarwin10.0" \
 else if [ X$OSTYPE = "Xlinux-gnu" ] ; then
 	if [[ "$MACHTYPE" = x86_64-*-linux-gnu ]] ; then
 		echo "We're on Linux x86_64!"
-		PACKAGE=Argyll_V${VERSION}_linux_x86_64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_linux_x86_64_bin.tgz
 	else if [[ "$MACHTYPE" = *86-*-linux-gnu ]] ; then
 		echo "We're on Linux x86!"
-		PACKAGE=Argyll_V${VERSION}_linux_x86_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_linux_x86_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"
@@ -144,7 +159,7 @@ if [ X$PACKAGE = "X" ] ; then
 	exit 1
 fi 
 
-echo "Making GNU Argyll binary distribution $PACKAGE for Version $VERSION"
+echo "Making GNU $PRODUCT binary distribution $PACKAGE for Version $VERSION"
 
 rm -rf $TOPDIR
 mkdir $TOPDIR
@@ -199,7 +214,7 @@ else
 	# zip archive.zip path/file to update
 fi
 rm -rf $TOPDIR
-echo "Done GNU Argyll binary distribution $PACKAGE"
+echo "Done GNU $PRODUCT binary distribution $PACKAGE"
 
 exit 0
 

@@ -1027,7 +1027,7 @@ main(int argc, char *argv[]) {
 #endif // NEVER
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	a1logd(g_log, 1, "cxf2ti3: done - %d patches\n",ocg->t[0].nsets);
 

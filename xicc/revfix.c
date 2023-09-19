@@ -4,6 +4,7 @@
  * the AtoB1 table, and also correct the neutral
  * axis of the BtoA0 and BtoA2 tables.
  *
+ * This only works with profiles with icSigLut16Type & icSigLut8Type Luts
  *
  * Author:  Graeme W. Gill
  * Date:    9/7/00
@@ -37,6 +38,9 @@
 
 #define USE_CAM_CLIP_OPT		/* Clip in CAM Jab space rather than Lab */
 #undef DEBUG		/* Print each value changed */
+
+
+typedef icmLut1 icmLut;			/* Will only work for icSigLut16Type & icSigLut8Type */
 
 void usage(void) {
 	fprintf(stderr,"Invert AtoB1 to make BtoA1 for CMYK profiles, Version %s\n",ARGYLL_VERSION_STR);
@@ -120,7 +124,9 @@ static void do_abstract(callback *p, double out[3], double in[3]) {
 
 /* - - - - - - - - - */
 /* New input table */
-void Lab_Labp(void *cntx, double out[3], double in[3]) {
+void Lab_Labp(void *cntx, double out[3], double in[3]
+, int tn
+) {
 	callback *p = (callback *)cntx;
 
 #ifdef DEBUG
@@ -129,11 +135,11 @@ void Lab_Labp(void *cntx, double out[3], double in[3]) {
 	if (p->AtoB != p->AtoB1) {
 		/* Non-colorimetric, use existing input table */
 		if (p->BtoA->input(p->BtoA, out, in) > 1)
-			error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+			error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 	} else {
 		/* Colorimetric, use inverse AtoB output */
 		if (p->AtoB1->inv_output(p->AtoB1, out, in) > 1)
-			error ("%d, %s",p->AtoB1->pp->errc,p->AtoB1->pp->err);
+			error ("%d, %s",p->AtoB1->pp->e.c,p->AtoB1->pp->e.m);
 	}
 #ifdef DEBUG
 	printf("New Lab' %f %f %f\n",out[0],out[1],out[2]);
@@ -144,7 +150,9 @@ void Lab_Labp(void *cntx, double out[3], double in[3]) {
 /*  clut  */
 
 /* Normal CLUT routine */
-void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
+void Labp_CMYKp(void *cntx, double out[4], double in[3]
+, int tn
+) {
 	double temp[4], targetk = 0.0;
 	int rv;
 	callback *p = (callback *)cntx;
@@ -160,11 +168,11 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 			/* Simple because BtoA input & output tables don't change */
 			/* Figure out what DEV' K value the BtoA table currently has for this PCS' */
 			if (p->BtoA->clut(p->BtoA, temp, in) > 1)
-				error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+				error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 
 			/* Convert DEV' to DEV */
 			if (p->BtoA->output(p->BtoA, temp, temp) > 1)
-				error ("%d, %s",p->BtoA->pp->errc,p->AtoB->pp->err);
+				error ("%d, %s",p->BtoA->pp->e.c,p->AtoB->pp->e.m);
 		} else {
 			/* More complicated because old BtoA in/out tables are different */
 			/* from the new ones. */
@@ -172,11 +180,11 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 			/* so we don't have to use BtoA1->inv_input, & BtoA1->inv_output */
 			/* Convert PCS' to PCS */
 			if (p->AtoB->output(p->AtoB, temp, in) > 1)
-				error ("%d, %s",p->AtoB->pp->errc,p->AtoB->pp->err);
+				error ("%d, %s",p->AtoB->pp->e.c,p->AtoB->pp->e.m);
 	
 			/* Figure out what DEV K value the BtoA table currently has for this PCS */
 			if (((icxLuBase *)p->BtoA)->lookup((icxLuBase *)p->BtoA, temp, temp) > 1)
-				error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+				error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 		}
 		targetk = temp[3];
 #ifdef DEBUG
@@ -195,10 +203,10 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 		/* Can't assume B2A in/out tables are inverses of AtoB */
 		/* Convert PCS' -> PCS for this table */
 		if (p->BtoA->inv_input(p->BtoA, temp, temp) > 1)
-			error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+			error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 		/* Convert PCS -> PCS' for colorimetric */
 		if (p->AtoB1->inv_output(p->AtoB1, temp, temp) > 1)
-			error ("%d, %s",p->AtoB->pp->errc,p->AtoB->pp->err);
+			error ("%d, %s",p->AtoB->pp->e.c,p->AtoB->pp->e.m);
 	}
 
 	/* Abstract profile applied before inversion */
@@ -211,7 +219,7 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 
 	/* PCS' -> DEV' colorimetric (aux target is DEV space) */
 	if ((rv = p->AtoB1->inv_clut(p->AtoB1, out, temp)) > 1)
-		error ("%d, %s",p->AtoB1->pp->errc,p->AtoB1->pp->err);
+		error ("%d, %s",p->AtoB1->pp->e.c,p->AtoB1->pp->e.m);
 
 	/* ~~~ Note that the ink limit will be wrong for non-colorimetric, */
 	/* since AtoB1->inv_clut will be assuming A->toB1->inv_input as the output table, */
@@ -227,10 +235,10 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 		/* Can't assume B2A in/out tables are inverses of AtoB */
 		/* Converts DEV' -> DEV colorimetric */
 		if (p->AtoB1->inv_input(p->AtoB1, out, out) > 1)
-			error ("%d, %s",p->AtoB->pp->errc,p->AtoB->pp->err);
+			error ("%d, %s",p->AtoB->pp->e.c,p->AtoB->pp->e.m);
 		/* Convert DEV -> DEV' for this table */
 		if (p->BtoA->inv_output(p->BtoA, out, out) > 1)
-			error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+			error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 	}
 #ifdef DEBUG
 	printf("New CMYK' %f %f %f %f\n",out[0],out[1],out[2],out[3]);
@@ -250,7 +258,9 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 
 /* - - - - - - - - - */
 /* New output table */
-void CMYKp_CMYK(void *cntx, double out[4], double in[4]) {
+void CMYKp_CMYK(void *cntx, double out[4], double in[4]
+, int tn
+) {
 	callback *p = (callback *)cntx;
 
 #ifdef DEBUG
@@ -259,11 +269,11 @@ void CMYKp_CMYK(void *cntx, double out[4], double in[4]) {
 	if (p->AtoB != p->AtoB1) {
 		/* Non-colorimetric, use existing output table */
 		if (p->BtoA->output(p->BtoA, out, in) > 1)
-			error ("%d, %s",p->BtoA->pp->errc,p->BtoA->pp->err);
+			error ("%d, %s",p->BtoA->pp->e.c,p->BtoA->pp->e.m);
 	} else {
 		/* Colorimetric, use inverse AtoB input */
 		if (p->AtoB1->inv_input(p->AtoB1, out, in) > 1)
-			error ("%d, %s",p->AtoB1->pp->errc,p->AtoB1->pp->err);
+			error ("%d, %s",p->AtoB1->pp->e.c,p->AtoB1->pp->e.m);
 	}
 #ifdef DEBUG
 	printf("New CMYK %f %f %f %f\n",out[0],out[1],out[2],out[3]);
@@ -281,6 +291,7 @@ main(int argc, char *argv[]) {
 	char abs_name[MAXNAMEL+1] = "\000";	/* Abstract profile name */
 	icmFile *rd_fp, *wr_fp;
 	icc *icco;
+	icmErr err = { 0, { '\000'} };
 	int verb = 0;
 	int clutres = 0;
 	int do0 = 0;
@@ -431,19 +442,19 @@ main(int argc, char *argv[]) {
 	strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
 
 	/* Open up the profile for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err, in_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read header etc. */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	/* Read every tag */
 	if (icco->read_all_tags(icco) != 0) {
-		error("Unable to read all tags: %d, %s",icco->errc,icco->err);
+		error("Unable to read all tags: %d, %s",icco->e.c,icco->e.m);
 	}
 
 	rd_fp->del(rd_fp);
@@ -603,7 +614,7 @@ main(int argc, char *argv[]) {
 		                            | (intsep ? ICX_INT_SEPARATE : 0),
 		                            icmFwd, icRelativeColorimetric,
 		                            icmSigDefaultData, icmLuOrdNorm, NULL, &ink)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 
 		cb.AtoB1->spaces((icxLuBase *)cb.AtoB1, NULL, NULL, NULL, NULL, &alg,
 		                                              NULL, NULL, &cb.pcsspace);
@@ -612,15 +623,15 @@ main(int argc, char *argv[]) {
 
 		/* Open up the abstract profile if supplied, and setup luo */
 		if (abs_name[0] != '\000') {
-			if ((abs_fp = new_icmFileStd_name(abs_name,"r")) == NULL)
-				error ("Can't open abstract profile file '%s'",abs_name);
+			if ((abs_fp = new_icmFileStd_name(&err, abs_name,"r")) == NULL)
+				error ("Can't open abstract profile file '%s' (0x%x, '%s')",abs_name,err.c,err.m);
 			
-			if ((abs_icc = new_icc()) == NULL)
-				error ("Creation of Abstract profile ICC object failed");
+			if ((abs_icc = new_icc(&err)) == NULL)
+				error ("Creation of Abstract profile ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 			/* Read header etc. */
 			if ((rv = abs_icc->read(abs_icc,abs_fp,0)) != 0)
-				error ("%d, %s",rv,abs_icc->err);
+				error ("%d, %s",rv,abs_icc->e.m);
 	
 			if (abs_icc->header->deviceClass != icSigAbstractClass)
 				error("Abstract profile isn't an abstract profile");
@@ -639,7 +650,7 @@ main(int argc, char *argv[]) {
 		        (cb.pcsspace == icSigLabData && cb.abs_intent == icRelativeColorimetric)
 				             ? icSigLabData : icSigXYZData,
 				icmLuOrdNorm, NULL, NULL)) == NULL)
-				error ("%d, %s",abs_icc->errc, abs_icc->err);
+				error ("%d, %s",abs_icc->e.c, abs_icc->e.m);
 		} else {
 			cb.abs_luo = NULL;
 		}
@@ -676,7 +687,7 @@ main(int argc, char *argv[]) {
 				/* Setup CMYK -> Lab conversion (Fwd) object */
 				if ((cb.AtoB = (icxLuLut *)xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmFwd, intent,
 				                         icmSigDefaultData, icmLuOrdNorm, NULL, NULL)) == NULL)
-					error ("%d, %s",xicco->errc, xicco->err);
+					error ("%d, %s",xicco->e.c, xicco->e.m);
 	
 				cb.AtoB->spaces((icxLuBase *)cb.AtoB, NULL, NULL, NULL, NULL, &alg, NULL, NULL, NULL);
 				if (alg != icmLutType)
@@ -686,7 +697,7 @@ main(int argc, char *argv[]) {
 			/* Setup Lab -> CMYK conversion (Bwd) object */
 			if ((cb.BtoA = (icxLuLut *)xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, intent,
 			                           icmSigDefaultData, icmLuOrdNorm, NULL, NULL)) == NULL)
-				error ("%d, %s",xicco->errc, xicco->err);
+				error ("%d, %s",xicco->e.c, xicco->e.m);
 
 			cb.BtoA->spaces((icxLuBase *)cb.BtoA, NULL, NULL, NULL, NULL, &alg, NULL, NULL, NULL);
 			if (alg != icmLutType)
@@ -701,21 +712,6 @@ main(int argc, char *argv[]) {
 			if (wo->ttype != icSigLut16Type && wo->ttype != icSigLut8Type)
 				error("Lut table isn't Lut8 or Lut16 Type");
 
-			/* Set reverse input table resolution to same as fwd output */
-			wo->inputEnt = cb.AtoB->lut->outputEnt;
-
-			/* Let user override for BtoA1 */
-			if (sig == icSigBToA1Tag && clutres > 0) {
-				if (verb)
-					printf("Overriding existing clut resolution %d with %d\n",wo->clutPoints,clutres);
-		    	wo->clutPoints = clutres;
-			}
-			/* If Lut8, make sure the input and output tables have 256 enries. */
-			if (wo->ttype == icSigLut8Type) {
-		    	wo->inputEnt = 256;
-		    	wo->outputEnt = 256;
-			}
-			wo->allocate((icmBase *)wo);/* Allocate space */
 
 			/* Make sure that we don't process a table twice */
 			done[ii] = wo;
@@ -729,6 +725,30 @@ main(int argc, char *argv[]) {
 					printf("Skipping %s table - already done\n", icm2str(icmRenderingIntent, intent));
 
 			} else {
+				icmXformSigs sigs[1];
+				unsigned int inputEnt;
+				unsigned int cres, clutPoints[MAX_CHAN];
+				unsigned int outputEnt;
+
+				sigs[0].sig = sig;
+				sigs[0].ttype = icSigLut16Type;
+
+				if ((inputEnt = cb.AtoB->plu->max_out_res(cb.AtoB->plu, NULL)) == 0)
+					inputEnt = 1024;
+
+				if ((cres = cb.AtoB->plu->max_clut_res(cb.AtoB->plu, NULL)) == 0)
+					cres = 17;
+
+				/* Let user override for BtoA1 */
+				if (sig == icSigBToA1Tag && clutres > 0) {
+					if (verb)
+						printf("Overriding existing clut resolution %d with %d\n",cres,clutres);
+			    	cres = clutres;
+				}
+				for (i = 0; i < 3; i++)
+					clutPoints[i] = cres; 
+				if ((outputEnt = cb.AtoB->plu->max_in_res(cb.AtoB->plu, NULL)) == 0)
+					outputEnt = 1024;
 		
 				if (verb)
 					printf("About to start processing %s\n", icm2str(icmRenderingIntent, intent));
@@ -736,28 +756,35 @@ main(int argc, char *argv[]) {
 				if (cb.verb) {
 					unsigned int ui;
 					int extra;
-					for (cb.total = 1, ui = 0; ui < wo->inputChan; ui++, cb.total *= wo->clutPoints)
+					for (cb.total = 1, ui = 0; ui < 3; cb.total *= clutPoints[ui], ui++)
 						; 
 					/* Add in cell center points */
-					for (extra = 1, ui = 0; ui < wo->inputChan; ui++, extra *= (wo->clutPoints-1))
+					for (extra = 1, ui = 0; ui < 3; extra *= clutPoints[ui]-1, ui++)
 						;
 					cb.total += extra;
 					printf(" 0%%"), fflush(stdout);
 				}
-				/* Use helper function to do the hard work. */
-				if (wo->set_tables(wo,
-						ICM_CLUT_SET_APXLS,
-						&cb,				/* Context */
-						icSigLabData, 		/* Input color space */
-						icSigCmykData, 		/* Output color space */
-						Lab_Labp,			/* Linear input transform Lab->Lab' */
-						NULL, NULL,			/* Use default Lab' range */
-						Labp_CMYKp,			/* Lab' -> CMYK' transfer function */
-						NULL, NULL,			/* Use default CMYK' range */
-						CMYKp_CMYK,		 	/* Output transfer function, CMYK'->CMYK */
-						NULL, NULL			/* default APXLS range */
-				) != 0)
-					error("Setting 16 bit Lab->CMYK Lut failed: %d, %s",icco->errc,icco->err);
+
+				if (icco->create_lut_xforms(
+					icco,
+					ICM_CLUT_SET_APXLS,
+					&cb,				/* Context */
+					1,					/* One table */
+					sigs,				/* signatures and tag types for each table */
+					2,					/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+					inputEnt, clutPoints, outputEnt,	/* Table resolutions */
+					icSigLabData, 		/* Input color space */
+					icSigCmykData, 		/* Output color space */
+					NULL, NULL,			/* Use default input range */
+					Lab_Labp,			/* Linear input transform Lab->Lab' */
+					NULL, NULL,			/* Use default Lab' range */
+					Labp_CMYKp,			/* Lab' -> CMYK' transfer function */
+					NULL, NULL,			/* Use default CMYK' range */
+					CMYKp_CMYK,		 	/* Output transfer function, CMYK'->CMYK */
+					NULL, NULL			/* default APXLS range */
+				) != ICM_ERR_OK)
+					error("Setting 16 bit Lab->CMYK Lut failed: %d, %s",icco->e.c,icco->e.m);
+
 	
 				if (verb)
 					printf("\nDone processing %s\n", icm2str(icmRenderingIntent, intent));
@@ -784,11 +811,15 @@ main(int argc, char *argv[]) {
 	/* ======================================= */
 	
 	/* Open up the other profile for writing */
-	if ((wr_fp = new_icmFileStd_name(out_name,"w")) == NULL)
-		error ("Can't open file '%s'",out_name);
+	if ((wr_fp = new_icmFileStd_name(&err, out_name,"w")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",out_name,err.c,err.m);
+
+	/* Relax format so we don't barf on input profile contents */
+	icco->set_cflag(icco, icmCFlagWrFormatWarn);
+	icco->set_cflag(icco, icmCFlagWrVersionWarn);
 
 	if ((rv = icco->write(icco,wr_fp,0)) != 0)
-		error ("Write file: %d, %s",rv,icco->err);
+		error ("Write file: %d, %s",rv,icco->e.m);
 
 	wr_fp->del(wr_fp);
 	icco->del(icco);

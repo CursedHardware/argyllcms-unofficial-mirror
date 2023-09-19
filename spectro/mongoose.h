@@ -1,4 +1,5 @@
 // Copyright (c) 2004-2012 Sergey Lyubka
+// Modified by Graeme W. Gill
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -116,12 +117,31 @@ typedef void *(*mg_callback_t)(enum mg_event event, struct mg_connection *conn);
 struct mg_context *mg_start(mg_callback_t callback, void *user_data,
                             const char **options);
 
+// Get the host name (GWG)
+// Return NULL on error. Free after use.
+char *mg_get_hostname();
+
+// Get the IPV4 address (GWG)
+// Return 4 bytes in a[]
+// Return nz if not available (try ipv6)
+int mg_get_ipv4(unsigned char *a);
+
+// Get the IPV^ address (GWG)
+// Return 16 bytes in a[]
+// Return nz if not available (try ipv4)
+int mg_get_ipv6(unsigned char *a);
+
+
 // Get the allocated port number of the first port 0 listener,
 // or the last non-0 port listener.
 // Return 0 on error
 int mg_get_listening_port(struct mg_context *ctx);
 
-// Get a URL for accessing the server. */
+// Get a the server IP and port number. (GWG)
+// Return NULL on error. Free after use.
+char *mg_get_ip_port(struct mg_context *ctx);
+
+// Get a URL for accessing the server.
 // Return NULL on error. Free after use.
 char *mg_get_url(struct mg_context *ctx);
 
@@ -311,7 +331,6 @@ const char *mg_version(void);
 //   char buf[33];
 //   mg_md5(buf, "aa", "bb", NULL);
 void mg_md5(char buf[33], ...);
-
 
 #ifdef __cplusplus
 }

@@ -67,7 +67,7 @@
  * + (VV2 - VV3) * P2
  * +  VV3
  *
- * Note that withing the simplex, 0 <= P0 && P0 <= P1 && P1 <= P2 && P2 <= 1
+ * Note that within the simplex, 0 <= P0 && P0 <= P1 && P1 <= P2 && P2 <= 1
  *
  * It is this which is used in rev.c for solving the reverse
  * interpolation problem.

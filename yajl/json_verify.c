@@ -14,11 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_parse.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "yajl_parse.h"
 
 static void
 usage(const char * progname)

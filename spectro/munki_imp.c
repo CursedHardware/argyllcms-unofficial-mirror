@@ -114,7 +114,7 @@
 #undef HIGH_RES_DEBUG
 #undef HIGH_RES_PLOT
 #undef HIGH_RES_PLOT_STRAYL		/* Plot stray light upsample */
-
+#undef FAKE_EEPROM				/* Get [und] EEPROM data from munki_fake_eeprom.h */
 
 #define DISP_INTT 0.7			/* Seconds per reading in display spot mode */
 								/* More improves repeatability in dark colors, but limits */
@@ -472,6 +472,11 @@ static int buf2ushort(unsigned char *buf) {
 /* ============================================================ */
 /* High level functions */
 
+#ifdef FAKE_EEPROM
+# pragma message("######### munki_imp.c FAKE EEPROM compiled !!!!! ########")
+# include "munki_fake_eeprom.h"
+#endif
+
 /* Initialise our software state from the hardware */
 munki_code munki_imp_init(munki *p) {
 	munkiimp *m = (munkiimp *)p->m;
@@ -571,8 +576,17 @@ munki_code munki_imp_init(munki *p) {
 		a1logd(p->log,3,"munki_imp_init malloc %d bytes failed\n",rucalsize);
 		return MUNKI_INT_MALLOC;
 	}
+
+#ifdef FAKE_EEPROM
+	if (calsize != FAKE_EEPROM_SIZE) {
+		fprintf(stderr,"Fake EEPROM size %d != expected %d\n",FAKE_EEPROM_SIZE,calsize);
+		return -1;
+	}
+	memcpy(calbuf, fake_eeprom_data, calsize);
+#else
 	if ((ev = munki_readEEProm(p, calbuf, 0, calsize)) != MUNKI_OK)
 		return ev;
+#endif
 
 	if ((ev = munki_parse_eeprom(p, calbuf, rucalsize)) != MUNKI_OK)
 		return ev;
@@ -6276,7 +6290,7 @@ void munki_scale_specrd(
 #define USE_GAUSSIAN		/* [def] Use gaussian filter shape, else lanczos2 */
 
 #define DO_CCDNORM			/* [def] Normalise CCD values to original */
-#define DO_CCDNORMAVG		/* [und???] Normalise averages rather than per CCD bin */
+#undef DO_CCDNORMAVG		/* [und] Normalise averages rather than per CCD bin */
 #define BOX_INTEGRATE    	/* [und] Integrate raw samples as if they were +/-0.5 boxes */
 							/*       (This improves coeficient consistency a bit ?) */
 
@@ -6467,8 +6481,12 @@ munki_code munki_create_hr(munki *p, int ref) {
 
 		/* For each matrix value */
 		sx = mtx_index1[j];		/* Starting index */
-		if (j < (m->nwav1-1) && sx == mtx_index1[j+1]) {	/* Skip duplicates + last */
-//			printf("~1 skipping %d\n",j);
+
+		if (j < (m->nwav1-2)		/* Skip duplicates + last */
+		  && sx == mtx_index1[j+1]
+		  && mtx_nocoef1[j] == mtx_nocoef1[j+1]) {
+//printf("~1 skipping %d\n",j);
+
 			wl_short1 += wl_step1;
 			nwav1--;
 			cx += mtx_nocoef1[j];
@@ -7094,8 +7112,11 @@ munki_code munki_create_hr(munki *p, int ref) {
 
 				/* For each matrix value */
 				sx = mtx_index1[j];		/* Starting index */
-				if (j < (m->nwav1-2) && sx == mtx_index1[j+1]) {
+				if (j < (m->nwav1-2)			/* Skip duplicates */
+				 && sx == mtx_index1[j+1]
+				 && mtx_nocoef1[j] == mtx_nocoef1[j+1]) {
 					cx += mtx_nocoef1[j];
+//printf("~1 skipping dup Norm CCD [%d] [%d] %f\n",sx,cx, mtx_coef1[cx]);
 					continue;			/* Skip all duplicate filters */
 				}
 				for (k = 0; k < mtx_nocoef1[j]; k++, cx++, sx++) {
@@ -7109,8 +7130,11 @@ munki_code munki_create_hr(munki *p, int ref) {
 
 				/* For each matrix value */
 				sx = mtx_index2[j];		/* Starting index */
-				if (j < (m->nwav2-2) && sx == mtx_index2[j+1]) {
+				if (j < (m->nwav2-2)			/* Skip duplicates */
+				 && sx == mtx_index2[j+1]
+				 && mtx_nocoef2[j] == mtx_nocoef2[j+1]) {
 					cx += mtx_nocoef2[j];
+//printf("~1 skipping dup HiRes CCD [%d] [%d] %f\n",sx,cx, mtx_coef2[cx]);
 					continue;			/* Skip all duplicate filters */
 				}
 				for (k = 0; k < mtx_nocoef2[j]; k++, cx++, sx++) {
@@ -7135,35 +7159,45 @@ munki_code munki_create_hr(munki *p, int ref) {
 			}
 #endif
 
+			/* Because we're attempting to extend the wl range slightly at both ends, */
+			/* we can't really use the normal res ccdsum as the target, since this */
+			/* would curtail any extension. So instead we create extrapolated */
+			/* ccdsum values at the ends to estimate the needed normalization. */ 
 			/* Figure valid range and extrapolate to edges */
-			dth[0] = 0.0;		/* ref */
-			dth[1] = 0.007;		/* hires */
+			dth[0] = 0.0;		/* ref threshold */
+			dth[1] = 0.007;		/* hires threshold */
 
 			for (k = 0; k < 2; k++) {
 
-				for (i = 0; i < 128; i++) {
-					if (ccdsum[k][i] > max[k]) {
+				/* Find the peak value */
+				for (i = 0; i < 64; i++) {
+					if (ccdsum[k][i] >= max[k]) {
+						max[k] = ccdsum[k][i];
+						maxix[k] = i;
+					}
+				}
+				for (i = 127; i >= 0; i--) {
+					if (ccdsum[k][i] >= max[k]) {
 						max[k] = ccdsum[k][i];
 						maxix[k] = i;
 					}
 				}
 
-//printf("~1 max[%d] = %f\n",k, max[k]);
+//printf("~1 max[%d] = %f at ix %d\n",k, max[k],maxix[k]);
 				/* Figure out the valid range */
-				for (i = maxix[k]; i >= 0; i--) {
+				for (i = 0; i < maxix[k]; i++) {
 					if (ccdsum[k][i] > (0.8 * max[k])) {
 						x[0] = (double)i;
-					} else {
 						break;
 					}
 				}
-				for (i = maxix[k]; i < 128; i++) {
+				for (i = 127; i > maxix[k]; i--) {
 					if (ccdsum[k][i] > (0.8 * max[k])) {
 						x[3] = (double)i;
-					} else {
 						break;
 					}
 				}
+//printf("~1 raw extrap nodes %.0f, %.0f\n",x[0],x[3]);
 				/* Space off the last couple of entries */
 				x[0] += 2.0;
 				x[3] -= 6.0;
@@ -7229,7 +7263,7 @@ munki_code munki_create_hr(munki *p, int ref) {
 				}
 			}
 
-#else			/* Correct by CCD bin */
+#else		/* Correct by CCD bin */
 
 			/* Correct the weighting of each CCD value in the hires output */
 			for (i = 0; i < 128; i++) {
@@ -9172,11 +9206,13 @@ munki_code munki_parse_eeprom(munki *p, unsigned char *buf, unsigned int len) {
 		                           chipid[0], chipid[1], chipid[2], chipid[3],
 		                           chipid[4], chipid[5], chipid[6], chipid[7]);
 
+#ifndef FAKE_EEPROM				/* Get [und] EEPROM data from munki_fake_eeprom.h */
 	/* Check that the chipid matches the calibration */
 	for (i = 0; i < 8; i++) {
 		if (chipid[i] != m->chipid[i])
 			return MUNKI_HW_CALIBMATCH;
 	}
+#endif
 
 	/* Serial number */
 	if (d->get_8_asciiz(d, m->serno, 24, 16) == NULL)

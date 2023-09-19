@@ -58,6 +58,7 @@ extern "C" {
 #if (__STDC_VERSION__ >= 199901L)	/* C99 */
 
 #include <stdint.h> 
+#include <limits.h> 
 
 typedef int64_t longlong ;
 

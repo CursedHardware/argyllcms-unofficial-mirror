@@ -60,7 +60,7 @@
 	For emissive measurement this is because the diffraction grating 
 	has a rather bumpy spectral response, so that up-sampling the reference
 	correction is not very accurate. Unlike the i1pro2 though, the illuminant
-	(being LED) is also bumpy, and can't be uses as a smooth reference to
+	(being LED) is also bumpy, and can't be used as a smooth reference to
 	correct these errors. (There is a static correction which will only be
 	accurate for my specific instrument.)
 	For reflective measurement a high-res result is unusable due to the
@@ -71,6 +71,31 @@
 	 of ArgyllCMS FWA correction so as to support hi-res., but it would
 	 almost certainly not exactly match the results of the manufacturers driver
 	 for FWA/OBE papers.)
+
+ */
+
+/*
+	Future changes:
+
+	* It would be nice to add a manual emissive high res calibration,
+	  that allows computing instrument specific hi-res correction table.
+
+	  Idea would be to:
+
+		+ Have user measure incandescent spectrum.
+		+ Compute std res and high values from it.
+		+ Fit super-sampled incandescent curve to it
+			i.e. assume perfect 10nm triangle sub-samping of 1nm--incandescent
+			fit color temp + wl shift (?) + straight line slope params.
+		+ Reject if fit is poor.
+		+ Do smooth exact fit to std-res using rspl ??
+		+ Compute correction factors between 3.33 nm triangle sub-sampling of 1nm-incandescent
+		  and measured high res values.
+		+ Mark as calibrated values and store in cal.
+
+		See correct_emis_coef()
+		and i1pro1/2 code in i1pro_compute_white_cal()
+
 
  */
 
@@ -4805,11 +4830,11 @@ i1pro3_code i1pro3_conv2XYZ(
 				vals[i].mtype = inst_mrt_transmissive;
 			else {
 				vals[i].mtype = inst_mrt_reflective;
-				if (m->filt == inst3_filter_D50)
+				if (m->filt == inst_opt_filter_D50)
 					vals[i].mcond = inst_mrc_D50;
-				else if (m->filt == inst3_filter_UVCut) 
+				else if (m->filt == inst_opt_filter_UVCut) 
 					vals[i].mcond = inst_mrc_uvcut;
-				else if (m->filt == inst3_filter_pol) 
+				else if (m->filt == inst_opt_filter_pol) 
 					vals[i].mcond = inst_mrc_pol;
 			}
 		}

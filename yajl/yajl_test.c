@@ -14,14 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_parse.h"
-#include "yajl_gen.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <assert.h>
+
+#include "yajl_parse.h"
+#include "yajl_gen.h"
 
 /* memory debugging routines */
 typedef struct

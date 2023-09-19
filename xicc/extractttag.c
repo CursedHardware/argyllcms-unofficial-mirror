@@ -66,6 +66,7 @@ main(int argc, char *argv[]) {
 	icmText *ro;
 	icmUnknown *uro;
 	icmFile *ifp, *ofp;
+	icmErr err = { 0, { '\000'} };
 	int verb = 0;
 	int  size = 0;
 	void *buf = NULL;
@@ -129,19 +130,19 @@ main(int argc, char *argv[]) {
 	/* - - - - - - - - - - - - - - - */
 
 	/* Open up the file for reading */
-	if ((ifp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Can't open file '%s'",in_name);
+	if ((ifp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	if ((rv = icco->read(icco,ifp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
-	sig = str2tag(tag_name);
+	sig = icmstr2tag(tag_name);
 
 	if ((ro = (icmText *)icco->read_tag_any(icco, sig)) == NULL) {
-		error("%d, %s",icco->errc, icco->err);
+		error("%d, %s",icco->e.c, icco->e.m);
 	}
 
 	if (ro->ttype == icmSigUnknownType) {
@@ -159,7 +160,7 @@ main(int argc, char *argv[]) {
 		if ((icg = new_cgats()) == NULL) {
 			error("new_cgats() failed");
 		}
-		if ((cgf = new_cgatsFileMem(ro->data, ro->size)) == NULL)  {
+		if ((cgf = new_cgatsFileMem(ro->desc, ro->count)) == NULL)  {
 			error("new_cgatsFileMem() failed");
 		}
 		icg->add_other(icg, "CTI3");
@@ -191,16 +192,16 @@ main(int argc, char *argv[]) {
 			error("writing to file '%s' failed\n",out_name);
 		}
 	} else {
-		if ((ofp = new_icmFileStd_name(out_name, "w")) == NULL) {
-			error("unable to open output file '%s'",out_name);
+		if ((ofp = new_icmFileStd_name(&err, out_name, "w")) == NULL) {
+			error("unable to open output file '%s' (0x%x, '%s')",out_name,err.c,err.m);
 		}
 	
 		if (ro->ttype == icmSigUnknownType) {
-			if (ofp->write(ofp, uro->data, 1, uro->size) != (uro->size)) {
+			if (ofp->write(ofp, uro->data, 1, uro->count) != (uro->count)) {
 				error("writing to file '%s' failed",out_name);
 			}
 		} else {
-			if (ofp->write(ofp, ro->data, 1, ro->size-1) != (ro->size-1)) {
+			if (ofp->write(ofp, ro->desc, 1, ro->count-1) != (ro->count-1)) {
 				error("writing to file '%s' failed",out_name);
 			}
 		}

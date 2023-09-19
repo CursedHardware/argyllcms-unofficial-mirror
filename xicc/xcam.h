@@ -65,6 +65,9 @@ struct _icxcam {
 	/* Debug */
 	void (*settrace)(struct _icxcam *s, int tracev);
 
+	/* Dump the viewing conditions to stdout */
+	void (*dump)(struct _icxcam *s);
+
 /* Private: */
 	icxCAM tag;			/* Type */
 	void *p;			/* Pointer to implementation */

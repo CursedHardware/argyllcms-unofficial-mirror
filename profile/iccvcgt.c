@@ -58,6 +58,7 @@ main(int argc, char *argv[]) {
 	char calname[MAXNAMEL+1] = "";
 	char outname[MAXNAMEL+1] = "";
 	icmFile *rd_fp, *wr_fp;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 	xcal *cal = NULL;			/* Calibration extracted or inserted */
 	int verb = 0;
@@ -122,15 +123,15 @@ main(int argc, char *argv[]) {
 	}
 
 	/* Open up the incoming profile for reading */
-	if ((rd_fp = new_icmFileStd_name(inname,"r")) == NULL)
-		error ("Can't open file '%s'",inname);
+	if ((rd_fp = new_icmFileStd_name(&err,inname,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",inname,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object for '%s' failed",inname);
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object for '%s' failed (0x%x, '%s')",inname,err.c,err.m);
 
 	/* Read header etc. */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	if (icco->header->deviceClass != icSigDisplayClass)
 		error("'%s' must be a Display profile",inname);
@@ -142,13 +143,13 @@ main(int argc, char *argv[]) {
 
 		/* Read every tag so that we can copy the profile */
 		if (icco->read_all_tags(icco) != 0)
-			error("Unable to read all tags from '%s': %d, %s",inname,icco->errc,icco->err);
+			error("Unable to read all tags from '%s': %d, %s",inname,icco->e.c,icco->e.m);
 
 		/* Open up and read the calibration file */
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read(cal, calname)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 
 		if (cal->devchan != 3)
 			error("'%s' doesn't contain 3 channels",calname);
@@ -156,7 +157,7 @@ main(int argc, char *argv[]) {
 		/* Delete the current video card gamma tag */
 		if (icco->find_tag(icco, icSigVideoCardGammaTag) == 0)
 			if (icco->delete_tag(icco, icSigVideoCardGammaTag) != 0)
-				error("Unable to delete videocardgamma tag: %d, %s",icco->errc,icco->err);
+				error("Unable to delete videocardgamma tag: %d, %s",icco->e.c,icco->e.m);
 
 		/* Decide on the vcgt resolution */
 		ncal = cal->cals[0]->g.res[0];
@@ -168,11 +169,11 @@ main(int argc, char *argv[]) {
 		if (wo == NULL)
 			error ("Unable to add VideoCardGamma tag");
 
-		wo->tagType = icmVideoCardGammaTableType;
+		wo->tagType = icVideoCardGammaTable;
 		wo->u.table.channels = 3;						/* rgb */
 		wo->u.table.entryCount = ncal;
 		wo->u.table.entrySize = 2;						/* 16 bits */
-		wo->allocate((icmBase*)wo);
+		wo->allocate(wo);
 		for (j = 0; j < 3; j++) {
 			for (i = 0; i < ncal; i++) {
 				double cc, vv = i/(ncal - 1.0);
@@ -181,16 +182,16 @@ main(int argc, char *argv[]) {
 					cc = 0.0;
 				else if (cc > 1.0)
 					cc = 1.0;
-				((unsigned short*)wo->u.table.data)[ncal * j + i] = (int)(cc * 65535.0 + 0.5);
+				wo->u.table.data[j][i] = cc;
 			}
 		}
 
 		/* Open up the output profile for writing */
-		if ((wr_fp = new_icmFileStd_name(outname,"w")) == NULL)
-			error ("Can't open file '%s'",outname);
+		if ((wr_fp = new_icmFileStd_name(&err,outname,"w")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",outname,err.c,err.m);
 	
 		if ((rv = icco->write(icco, wr_fp, 0)) != 0)
-			error ("Write file: %d, %s",rv,icco->err);
+			error ("Write file: %d, %s",rv,icco->e.m);
 	
 		wr_fp->del(wr_fp);
 
@@ -202,7 +203,7 @@ main(int argc, char *argv[]) {
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read_icc(cal, icco)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 
 		/* Write out the calibration file */
 		if (cal->write(cal, calname))

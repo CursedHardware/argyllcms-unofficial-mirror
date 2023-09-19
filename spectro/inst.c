@@ -163,6 +163,8 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 ) {
 	if (pnsels != NULL)
 		*pnsels = 0;
+	if (psels != NULL)
+		*psels = NULL;
 	return inst_unsupported;
 }
 
@@ -200,6 +202,8 @@ inst_meascondsel **sels	/* Return the array of measurement conditions types */
 ) {
 	if (no_selectors != NULL)
 		*no_selectors = 0;
+	if (sels != NULL)
+		*sels = NULL;
 	return inst_unsupported;
 }
 
@@ -757,6 +761,8 @@ void *cntx			/* Context for callback */
 		p->set_disptype = set_disptype;
 	if (p->get_disptechi == NULL)
 		p->get_disptechi = get_disptechi;
+	if (p->get_meascond == NULL)
+		p->get_meascond = get_meascond;
 	if (p->get_set_opt == NULL)
 		p->get_set_opt = get_set_opt;
 	if (p->read_chart == NULL)
@@ -827,6 +833,7 @@ void *cntx			/* Context for callback */
 /* --------------------------------------------------- */
 
 /* Free a display type list */
+/* (Used by instrument driver to cleanup pointers returned by inst_creat_disptype_list()) */
 void inst_del_disptype_list(inst_disptypesel *list, int no) {
 
 	if (list != NULL) {
@@ -896,6 +903,7 @@ static inst_disptypesel *expand_dlist(inst_disptypesel *list, int nlist, int *na
 */
 
 /* Create the display type list */
+/* Will free any existing list passed in pndtlist & pdtlist */
 inst_code inst_creat_disptype_list(inst *p,
 int *pndtlist,					/* Number in returned list */
 inst_disptypesel **pdtlist,		/* Returned list */
@@ -908,6 +916,8 @@ int doccmx						/* Add matching installed ccmx files */
 	char usels[256];			/* Used selectors 1 */
 	static char *asels = "123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	int fail = 0;
+
+	a1logd(g_log, 4, "inst_creat_disptype_list: doccss %d doccmx %d\n",doccss, doccmx);
 
 	/* free the old list */
 	inst_del_disptype_list(*pdtlist, *pndtlist);
@@ -931,6 +941,8 @@ int doccmx						/* Add matching installed ccmx files */
 			return inst_internal_error;
 
 		list[nlist-1] = sdtlist[i];		/* Struct copy */
+
+		a1logd(g_log, 5, " added static '%s'\n",list[nlist-1].desc);
 	}
 
 	/* Add any OEM and custom ccss's */
@@ -965,6 +977,8 @@ int doccmx						/* Add matching installed ccmx files */
 			list[nlist-1].cbid = 0;
 			list[nlist-1].sets = ss_list[i].sets; ss_list[i].sets = NULL;
 			list[nlist-1].no_sets = ss_list[i].no_sets; ss_list[i].no_sets = 0;
+
+			a1logd(g_log, 5, " added ccss '%s'\n",list[nlist-1].desc);
 		}
 		free_iccss(ss_list);
 	}
@@ -988,7 +1002,7 @@ int doccmx						/* Add matching installed ccmx files */
 					break;
 			}
 			if (j >= nlist) {
-				a1loge(p->log, 1, "inst_creat_disptype_list can't find cbid %d for '%s'\n",ss_list[i].cc_cbid, ss_list[i].path);
+				a1loge(p->log, 1, "inst_creat_disptype_list: can't find cbid %d for '%s'\n",ss_list[i].cc_cbid, ss_list[i].path);
 				continue;
 			}
 
@@ -1014,6 +1028,7 @@ int doccmx						/* Add matching installed ccmx files */
 			list[nlist-1].cbid = 0;
 			list[nlist-1].cc_cbid = ss_list[i].cc_cbid;
 			icmCpy3x3(list[nlist-1].mat, ss_list[i].mat);
+			a1logd(g_log, 5, " added ccss '%s'\n",list[nlist-1].desc);
 		}
 		free_iccmx(ss_list);
 	}
@@ -1088,9 +1103,11 @@ int doccmx						/* Add matching installed ccmx files */
 		*pdtlist = list;
 
 	if (fail) {
-		a1loge(p->log, 1, "inst_creat_disptype_list run out of selectors\n");
+		a1loge(p->log, 1, "inst_creat_disptype_list: run out of selectors\n");
 		return inst_internal_error;
 	}
+
+	a1logd(g_log, 5, "inst_creat_disptype_list: returning %d\n",nlist);
 
 	return inst_ok;
 }
@@ -1143,10 +1160,11 @@ iccmx *list_iccmx(instType itype, int *no) {
 	char **paths = NULL;
 	int npaths = 0;
 
-
 	npaths = xdg_bds(NULL, &paths, xdg_data, xdg_read, xdg_user, xdg_none,
 						"ArgyllCMS/\052.ccmx" XDG_FUDGE "color/\052.ccmx"
 	);
+
+	a1logd(g_log, 1, "list_iccms: xdg_bds returned %d paths\n",npaths);
 
 	if ((rv = malloc(sizeof(iccmx) * (npaths + 1))) == NULL) {
 		a1loge(g_log, 1, "list_iccmx: malloc of paths failed\n");
@@ -1185,7 +1203,7 @@ iccmx *list_iccmx(instType itype, int *no) {
 			continue;
 		}
 
-		a1logd(g_log, 5, "Reading '%s'\n",paths[i]);
+		a1logd(g_log, 5, "list_iccmx: reading '%s'\n",paths[i]);
 		if ((tech = cs->tech) == NULL)
 			tech = "";
 		if ((disp = cs->disp) == NULL)
@@ -1249,6 +1267,8 @@ iccmx *list_iccmx(instType itype, int *no) {
 	HEAPSORT(iccmx, rv, j)
 #undef HEAP_COMPARE
 
+	a1logd(g_log, 1, "list_iccmx: returning %d ccmx's\n",j);
+
 	return rv;
 }
 
@@ -1283,10 +1303,10 @@ iccss *list_iccss(int *no) {
 	char **paths = NULL;
 	int npaths = 0;
 
-
 	npaths = xdg_bds(NULL, &paths, xdg_data, xdg_read, xdg_user, xdg_none,
 						"ArgyllCMS/\052.ccss" XDG_FUDGE "color/\052.ccss"
 	);
+	a1logv(g_log, 1, "list_iccss: xdg_bds returned %d paths\n",npaths);
 
 	if ((rv = malloc(sizeof(iccss) * (npaths + 1))) == NULL) {
 		a1loge(g_log, 1, "list_iccss: malloc of paths failed\n");
@@ -1318,7 +1338,7 @@ iccss *list_iccss(int *no) {
 			continue;		/* Skip any unreadable ccss's */
 		}
 
-		a1logd(g_log, 5, "Reading '%s'\n",paths[i]);
+		a1logd(g_log, 5, "list_iccss: reading '%s'\n",paths[i]);
 		if ((tech = cs->tech) == NULL)
 			tech = "";
 		if ((disp = cs->disp) == NULL)
@@ -1381,6 +1401,8 @@ iccss *list_iccss(int *no) {
 #define HEAP_COMPARE(A,B) (strcmp(A.desc, B.desc) < 0) 
 	HEAPSORT(iccss, rv, j)
 #undef HEAP_COMPARE
+
+	a1logv(g_log, 1, "list_iccss: returning %d ccss's\n",j);
 
 	return rv;
 }

@@ -43,6 +43,7 @@
 #include "counters.h"
 #include "vrml.h"
 
+
 static void diag_gamut(icxLuBase *p, double detail, int doaxes,
                        double tlimit, double klimit, char *outname);
 
@@ -105,6 +106,7 @@ main(int argc, char *argv[]) {
 	char *xl, out_name[MAXNAMEL+4+1];
 	icmFile *fp;
 	icc *icco;
+	icmErr err = { 0, { '\000'} };
 	xicc *xicco;
 	gamut *gam;
 	int verb = 0;
@@ -392,6 +394,7 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	if (intent == -1) {
 		if (pcsor == icxSigJabData)
 			intent = icRelativeColorimetric;	/* Default to icxAppearance */
@@ -403,19 +406,19 @@ main(int argc, char *argv[]) {
 	strncpy(prof_name, argv[fa],MAXNAMEL); prof_name[MAXNAMEL] = '\000';
 
 	/* Open up the profile for reading */
-	if ((fp = new_icmFileStd_name(prof_name,"r")) == NULL)
-		error ("Can't open file '%s'",prof_name);
+	if ((fp = new_icmFileStd_name(&err, prof_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",prof_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	if ((rv = icco->read(icco,fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	if (verb) {
 		icmFile *op;
-		if ((op = new_icmFileStd_fp(stdout)) == NULL)
-			error ("Can't open stdout");
+		if ((op = new_icmFileStd_fp(&err, stdout)) == NULL)
+			error ("Can't open stdout (0x%x, '%s')",err.c,err.m);
 		icco->header->dump(icco->header, op, 1);
 		op->del(op);
 	}
@@ -447,11 +450,11 @@ main(int argc, char *argv[]) {
 
 	/* Setup the default viewing conditions */
 	if (xicc_enum_viewcond(xicco, &vc, -1, NULL, 0, NULL) == -2)
-		error ("%d, %s",xicco->errc, xicco->err);
+		error ("%d, %s",xicco->e.c, xicco->e.m);
 
 	if (vc_e != -1)
 		if (xicc_enum_viewcond(xicco, &vc, vc_e, NULL, 0, NULL) == -2)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	if (vc_s >= 0)
 		vc.Ev = vc_s;
 	if (vc_wXYZ[1] > 0.0) {
@@ -528,7 +531,8 @@ main(int argc, char *argv[]) {
 
 	/* Get a expanded color conversion object */
 	if ((luo = xicco->get_luobj(xicco, fl, func, intent, pcsor, order, &vc, &ink)) == NULL)
-		error ("%d, %s",xicco->errc, xicco->err);
+		error ("%d, %s",xicco->e.c, xicco->e.m);
+
 
 	if (special) {
 		if (func != icmFwd)
@@ -538,7 +542,22 @@ main(int argc, char *argv[]) {
 	} else {
 		/* Creat a gamut surface */
 		if ((gam = luo->get_gamut(luo, gamres)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
+
+		if (verb) {
+			double cs_wp[3], cs_bp[3];
+			double ga_wp[3], ga_bp[3];
+
+			if (gam->getwb(gam, cs_wp, cs_bp, NULL, ga_wp, ga_bp, NULL)) {
+				fprintf(stderr,"gamut map: Unable to read gamut white and black points\n");
+			} else {
+				printf(" Colorspace white/black are %f %f %f, %f %f %f\n",
+				cs_wp[0], cs_wp[1], cs_wp[2], cs_bp[0], cs_bp[1], cs_bp[2]);
+	
+				printf(" Gamut white/black are      %f %f %f, %f %f %f\n\n",
+				ga_wp[0], ga_wp[1], ga_wp[2], ga_bp[0], ga_bp[1], ga_bp[2]);
+			}
+		}
 
 		/* Expand gamut cylindrically */
 		if (expand != 1.0) {
@@ -740,4 +759,5 @@ char *outname		/* Output VRML/X3D file (no extension) */
 
 	wrl->del(wrl);
 }
+
 

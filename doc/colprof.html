@@ -70,6 +70,11 @@
 
 
 
+
+
+
+
+
       &nbsp; &nbsp; &nbsp; &nbsp; Verbose mode<br>
       &nbsp;<a href="#A">-A "manufacturer"</a>&nbsp; Set the
       manufacturer description string<br>
@@ -86,7 +91,9 @@
       Transparency, Matte, Negative, BlackAndWhite<br>
     </tt><tt>&nbsp;<a href="colprof.html#Zi">-Z prsa</a>&nbsp;
       &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default intent:
-      Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric</tt><tt><br>
+      Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric<br>
+
+
     </tt><tt> </tt><tt>&nbsp;<a href="#q">-q lmhu</a> &nbsp;&nbsp;
       &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Table resolution - Low, Medium
       (def), High, Ultra<br>
@@ -94,6 +101,11 @@
       &nbsp; Low quality B2A table - or specific B2A quality or none for
       input device<br>
       &nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -206,6 +218,11 @@
 
 
 
+
+
+
+
+
       &nbsp; &nbsp; &nbsp; &nbsp; Don't create output (PCS) shaper
       curves<br>
     </tt><tt>&nbsp;<a href="#nc">-nc</a>
@@ -247,8 +264,18 @@
 
 
 
+
+
+
+
+
       l = Lab cLUT (def.), x = XYZ cLUT,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -259,8 +286,18 @@
 
 
 
+
+
+
+
+
       g = gamma+matrix, s = shaper+matrix, m = matrix only,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -316,6 +353,11 @@
 
 
 
+
+
+
+
+
       If input profile, auto scale WP to allow extrapolation</tt><br>
     <tt><tt>&nbsp;<a href="colprof.html#ua">-ua</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
@@ -324,7 +366,8 @@
     </tt><tt> </tt><tt>&nbsp;<a href="#uc">-uc</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
       &nbsp;&nbsp; If input profile, clip cLUT values above WP<br>
-      &nbsp;</tt><tt><a href="#U">-U <span style="font-style: italic;">scale</span></a>
+      &nbsp;</tt><tt><a href="#u_scale">-u <span
+          style="font-style: italic;">scale</span></a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; If input
       profile, scale media white point by scale</tt><tt><br>
     </tt><tt> </tt><tt>&nbsp;</tt><tt><a href="#R">-R</a></tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -334,6 +377,11 @@ white
 1.0,
 black
 and
+
+
+
+
+
 
 
 
@@ -417,8 +465,18 @@ and
 
 
 
+
+
+
+
+
       Display Black Point override hack<br>
       &nbsp;<a href="#V">-V demphasis</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -459,6 +517,11 @@ and
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use Fluorescent
       Whitening Agent compensation [opt. simulated inst. illum.:<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -579,9 +642,19 @@ and
 
 
 
+
+
+
+
+
       Use colormetric source gamut to make output profile perceptual
       table<br>
       &nbsp;<a href="#nS">-nS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -646,6 +719,11 @@ and
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut mapping
       intent for output profile perceptual table:<br>
       &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -770,8 +848,18 @@ and
 
 
 
+
+
+
+
+
       pa - Perceptual Appearance</tt><br>
     <tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -843,8 +931,18 @@ and
 
 
 
+
+
+
+
+
       rl - White Point Matched Colorimetric (Lab)<br>
       &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -954,8 +1052,18 @@ and
 
 
 
+
+
+
+
+
       either an enumerated choice, or a parameter<br>
       &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1065,8 +1173,18 @@ and
 
 
 
+
+
+
+
+
       either an enumerated choice, or a parameter:value change<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1175,11 +1293,21 @@ and
 
 
 
+
+
+
+
+
       Enumerated Viewing Conditions:<br>
     </tt><tt>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
       &nbsp; </tt><tt><tt>pc - Critical print evaluation environment
         (ISO-3664 P1)</tt><tt><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1219,6 +1347,11 @@ and
       &nbsp; &nbsp;&nbsp;&nbsp; s:surround n = auto, a = average, m =
       dim, d = dark,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1338,6 +1471,11 @@ and
 
 
 
+
+
+
+
+
         g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of
         ambient (default 5)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp; &nbsp;
@@ -1359,6 +1497,11 @@ and
               effect scale factor (default 1.0)<br>
             </span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp; </span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1439,9 +1582,19 @@ and
 
 
 
+
+
+
+
+
       Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
     </tt><tt>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
+
+
+
+
+
 
 
 
@@ -1557,7 +1710,7 @@ Override
       style="font-weight: bold;">b</span> to set BlackAndWhite, the
     default is Color.<br>
     <br>
-    <a name="Zi"></a>The <b>-Z</b> parameter allows setting of the
+    <a name="Zi"></a>The <b>-Z</b> parameter also allows setting of the
     profile default intent. The default intent can be one of the four
     standard intents: <span style="font-weight: bold;">p</span> to set
     Perceptual, <span style="font-weight: bold;">r</span> to set
@@ -1566,6 +1719,8 @@ Override
     set Absolute colorimetric. Some CMM's will use this to determine the
     default intent that they will use.<br>
     <br>
+
+
     <a name="q"></a> The <b>-q</b> parameter sets the level of effort
     and/or resolution in the resulting profile. For table based profiles
     ("cLUT" profiles), it sets the main lookup table size, and hence
@@ -1670,10 +1825,20 @@ the
 
 
 
+
+
+
+
+
     device and CIE/spectral sample data and calibration curves used to
     create a profile is stored in the <span style="font-weight: bold;">'targ'</span>
     text tag in the resulting ICC profile. To suppress this and make the
     resulting profile smaller, use the <span style="font-weight: bold;">-nc
+
+
+
+
+
 
 
 
@@ -1817,9 +1982,19 @@ the
 
 
 
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;
       &nbsp;_______&nbsp; enle<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -1928,8 +2103,18 @@ the
 
 
 
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -2038,6 +2223,11 @@ the
 
 
 
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; /<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       stle&nbsp; | ------/<br>
@@ -2048,6 +2238,11 @@ the
       stpo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -2177,11 +2372,13 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     <b>-aX</b> with Display profiles will create a profile with both XYZ
     cLUT tags and fallback shaper/matrix tags for situations in which
     the profile needs to work with Applications or CMMs that don't
-    support cLUT. To help diagnose this situation<b>.<br>
-    </b><b>-aY</b> will create a similar profile for Display devices,
+    support cLUT. To help diagnose this situation.<br>
+    <b>-aY</b> will create a similar profile for Display devices,
     but the matrix will have&nbsp; dummy values that deliberately
     interchanges Red, Green and Blue channels, so that it is obvious if
     the cLUT tables are not being used. <br>
+
+
     <br>
     For RGB input or display profiles, a simpler type of profile using
     either a gamma curves or a general shaper curves, combined with a
@@ -2213,7 +2410,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     profile will clip the value, since it cannot be represented in the
     lut table. Using the <b>-u</b> flag causes the media white point to
     be automatically scaled (using the same type of scaling as the <span
-      style="font-weight: bold;">-U scale</span> option) to avoid
+      style="font-weight: bold;">-u scale</span> option) to avoid
     clipping values up to full device white, while still correcting the
     hue. This flag can be useful when the white point of the test chart
     doesn't represent the white points of media that will be used in
@@ -2237,7 +2434,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     Note that due to the finite nature of the cLUT grid, this may affect
     the accuracy of colors near the light surface of the device gamut.<br>
     <br>
-    <a name="U"></a><span style="font-weight: bold;"> -U <span
+    <a name="u_scale"></a><span style="font-weight: bold;"> -u <span
         style="font-style: italic;">scale</span>:</span> Input profiles
     will normally be created such that the white patch of the test chart
     will be mapped to perfect white when used with any of the
@@ -2247,7 +2444,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     be desirable in these cases to adjust the input profile white point
     to compensate for this. This can happen in the case of a camera
     profile, where the test chart is not perfectly exposed. The <span
-      style="font-weight: bold;">-U</span> parameter allows this. If the
+      style="font-weight: bold;">-u</span> parameter allows this. If the
     media converted is a little darker than the test chart white, then
     use a scale factor slightly less than 1.0 to make sure that the
     media white comes out as white on conversion (ie. try 0.9 for
@@ -2256,7 +2453,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     greater than 1.0 (ie. try 1.1 for instance). The <span
       style="font-weight: bold;">-u</span> option sets the scale
     automatically to accomodate a perfect white, but <span
-      style="font-weight: bold;">-U scale</span> can be used on top of
+      style="font-weight: bold;">-u scale</span> can be used on top of
     this automatic scaling.<br>
     <br>
     <a name="R"></a><span style="font-weight: bold;"> -</span><span
@@ -2331,6 +2528,11 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     using, you should specify the spectrum of the illuminant you are <span
       style="text-decoration: underline;">actually using</span> for the
     proofing, including its <span style="text-decoration: underline;">Ultra
+
+
+
+
+
 
 
 
@@ -2587,6 +2789,9 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     profile that has a gamut more representative of the images gamut, <b>or</b>
     you should provide a gamut using the the <a href="#g">-g parameter</a>.
     <br>
+    <b>Note</b> that the general gamut compression is not very well
+    tested or proven to be of use, so specifying a source gamut is a
+    more reliable way of getting a useful gamut mapping.<br>
     <br>
     <a name="nP"></a><span style="font-weight: bold;">-nP</span>:
     Normally when a source profile is provided to define the source
@@ -2734,6 +2939,11 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     parameter will override this default.<br>
     <br>
     For information on typical usage, see the <a href="Scenarios.html">Typical
+
+
+
+
+
 
 
 

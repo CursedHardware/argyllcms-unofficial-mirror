@@ -14,6 +14,8 @@
  * see the License2.txt file for licencing details.
  */
 
+#define USE_BEGINTHREAD		/* [def] hyper-threading doesn't work on VC++6 otherwise. */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -30,6 +32,7 @@
 #include <conio.h>
 #include <tlhelp32.h>
 #include <direct.h>
+#include <process.h>
 #endif
 
 #if defined(UNIX)
@@ -261,7 +264,9 @@ int amutex_chk(CRITICAL_SECTION *lock) {
 		static volatile LONG ilock = 0;
 
 		/* Try ilock */
-		if (InterlockedCompareExchange((LONG **)&ilock, (LONG *)1, (LONG *)0) == 0) {
+//		if (InterlockedCompareExchange((LONG **)&ilock, (LONG *)1, (LONG *)0) == 0)
+		if (InterlockedCompareExchange(&ilock, (LONG)1, (LONG)0) == 0)
+		{
 			/* We locked it */
 			if (lock->LockCount == amutex_static_LockCount) {	/* Still not inited */
 				InitializeCriticalSection(lock);				/* So we init it */
@@ -311,8 +316,6 @@ int set_normal_priority() {
 
 #endif /* NEVER */
 
-
-#undef USE_BEGINTHREAD
 
 /* If reusable, start a stopped thread. NOP if not reusable */
 static void athread_start(
@@ -406,11 +409,10 @@ athread *p
 	free(p);
 }
 
-/* _beginthread doesn't leak memory, but */
-/* needs to be linked to a different library */
+/* _beginthreadex inits the CRT properly, wheras CreateThread doesn't on VC++6 */ 
 #ifdef USE_BEGINTHREAD
 /* Thread function */
-static void __cdecl threadproc(
+static unsigned int __stdcall threadproc(
 	void *lpParameter
 ) {
 #else
@@ -449,10 +451,7 @@ DWORD WINAPI threadproc(
 		p->result = p->function(p->context);
 	}
 //	p->finished = 1;
-#ifdef USE_BEGINTHREAD
-#else
 	return 0;
-#endif
 }
  
 athread *new_athread_reusable(
@@ -490,8 +489,8 @@ athread *new_athread_reusable(
 
 	/* Create a thread */
 #ifdef USE_BEGINTHREAD
-	p->th = _beginthread(threadproc, 0, (void *)p);
-	if (p->th == -1) {
+	p->th = (HANDLE)_beginthreadex(NULL, 0, threadproc, (void *)p, 0, NULL);
+	if (p->th == (HANDLE)-1L) {
 #else
 	p->th = CreateThread(NULL, 0, threadproc, (void *)p, 0, NULL);
 	if (p->th == NULL) {
@@ -1359,6 +1358,69 @@ int kill_nprocess(char **pname, a1log *log) {
 #endif /* UNIX_APPLE */
 
 #endif /* UNIX_APPLE || NT */
+
+/* ===================================================================== */
+/* Some web support */
+
+static char nib2hex(int nib) {
+	nib &= 0xf;
+	if (nib < 10)
+		return '0' + nib;
+	else
+		return 'A' + nib - 10;
+}
+
+/* Destination should be strlen(s) * 3 + 1 */
+void encodeurl(char *d, char *s) {
+	char *dd = d;
+	DBGF((DBGA," encodeurl s = '%s'\n",s));
+	for (; *s != '\000'; s++) {
+		char c = *s; 
+
+		if (isalnum(c)
+		 || c == '~'
+		 || c == '-'
+		 || c == '.'
+		 || c == '_')
+			*d++ = c;
+		else {
+			*d++ = '%';
+			*d++ = nib2hex(c >> 4);
+			*d++ = nib2hex(c);
+		}
+	}
+	*d++ = '\000';
+	DBGF((DBGA," encodeurl d = '%s'\n",dd));
+}
+ 
+static int hex2nib(char c) {
+	int nib = 0;
+	if (c >= '0' && c <= '9')
+		nib = c - '0';
+	else if (c >= 'A' && c <= 'F')
+		nib = c - 'A' + 10;
+	else if (c >= 'a' && c <= 'f')
+		nib = c - 'a' + 10;
+	return nib;
+}
+
+/* Destination is smaller than src */
+void decodeurl(char *d, char *s) {
+	char *dd = d;
+	DBGF((DBGA," decodeurl s = '%s'\n",s));
+	for (; *s != '\000'; s++) {
+//		if (s[0] == '+')
+//			*d++ = ' ';
+//		else
+		if (s[0] == '%' && s[1] != '\000' && s[2] != '\000') {
+			*d++ = (hex2nib(s[1]) << 4) + hex2nib(s[2]); 
+			s += 2;
+		} else
+			*d++ = s[0];
+	}
+	*d++ = '\000';
+	DBGF((DBGA," decodeurl d = '%s'\n",dd));
+}
 
 /* ===================================================================== */
 /* Some compatibility functions */

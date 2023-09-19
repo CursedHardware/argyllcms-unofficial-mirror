@@ -825,7 +825,7 @@ int main(int argc, char *argv[]) {
 		error ("Creation of MPP object failed");
 
 	if ((rv = rco.mppo->read_mpp(rco.mppo,prof_name)) != 0)
-		error ("%d, %s",rv,rco.mppo->err);
+		error ("%d, %s",rv,rco.mppo->e.m);
 
 	rco.mppo->get_info(rco.mppo, &rco.imask, &rco.pdi, NULL, NULL, NULL, NULL, NULL, NULL);
 	ident = icx_inkmask2char(rco.imask, 1); 

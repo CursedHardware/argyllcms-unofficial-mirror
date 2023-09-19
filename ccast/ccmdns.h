@@ -42,7 +42,9 @@ struct _ccast_id {
 /* Get a list of Video out capable Chromecasts. Return NULL on error */
 /* Last pointer in array is NULL */ 
 /* Takes 0.5 second to return */
-ccast_id **get_ccids(void);
+ccast_id **get_ccids(
+void
+);
 
 /* Free up what get_ccids returned */
 void free_ccids(ccast_id **ids);

@@ -1520,7 +1520,7 @@ double g_def_gamma = 2.4;
   Flags used:
 
          ABCDEFGHIJKLMNOPQRSTUVWXYZ
-  upper  .......... ....... . .... 
+  upper  .................. . .... 
   lower  .......   . ...... .... ..
 
 */
@@ -1606,8 +1606,8 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -r                   Report on the calibrated display then exit\n");
 	fprintf(stderr," -R                   Report on the uncalibrated display then exit\n");
 	fprintf(stderr," -m                   Skip adjustment of the monitor controls\n");
-	fprintf(stderr," -o [profile%s]     Create fast matrix/shaper profile [different filename to outfile%s]\n",ICC_FILE_EXT,ICC_FILE_EXT);
-	fprintf(stderr," -O \"description\"     Fast ICC Profile Description string (Default \"outfile\")\n");
+	fprintf(stderr," -o [profile%s]       Create fast matrix/shaper profile [different filename to outfile%s]\n",ICC_FILE_EXT,ICC_FILE_EXT);
+	fprintf(stderr," -O \"description\"    Fast ICC Profile Description string (Default \"outfile\")\n");
 	fprintf(stderr," -u                   Update previous calibration and (if -o used) ICC profile VideoLUTs\n");
 	fprintf(stderr," -q [vlmh]            Quality - Very Low, Low, Medium (def), High\n");
 //	fprintf(stderr," -q [vfmsu]           Speed - Very Fast, Fast, Medium (def), Slow, Ultra Slow\n");
@@ -1624,8 +1624,8 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -g gamma             Set the target response curve advertised gamma (Def. %3.1f)\n",g_def_gamma);
 	fprintf(stderr,"                      Use \"-gl\" for L*a*b* curve\n");
 	fprintf(stderr,"                      Use \"-gs\" for sRGB curve\n");
-	fprintf(stderr,"                      Use \"-g709\" for REC 709 curve (should use -a as well!)\n");
-	fprintf(stderr,"                      Use \"-g240\" for SMPTE 240M curve (should use -a as well!)\n");
+	fprintf(stderr,"                      Use \"-g709\" for REC 709 curve (should use -a ambient as well!)\n");
+	fprintf(stderr,"                      Use \"-g240\" for SMPTE 240M curve (should use -a ambient as well!)\n");
 	fprintf(stderr,"                      Use \"-G2.4 -f0\" for BT.1886\n"); 
 	fprintf(stderr," -G gamma             Set the target response curve actual technical gamma\n");
 	fprintf(stderr," -f [degree]          Amount of black level accounted for with output offset (default all output offset)\n");
@@ -1644,7 +1644,7 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -n                   Don't set override redirect on test window\n");
 #endif
 	fprintf(stderr," -E                   Encode the test values for video range 16..235/255\n");
-	fprintf(stderr," -J                   Run instrument calibration first (used rarely)\n");
+	fprintf(stderr," -K                   Run instrument calibration first (used rarely)\n");
 	fprintf(stderr," -N                   Disable initial calibration of instrument if possible\n");
 	fprintf(stderr," -H                   Use high resolution spectrum mode (if available)\n");
 //	fprintf(stderr," -V                   Use adaptive measurement mode (if available)\n");
@@ -1675,6 +1675,7 @@ int main(int argc, char *argv[]) {
 	disppath *disp = NULL;				/* Display being used */
 	double hpatscale = 1.0, vpatscale = 1.0;	/* scale factor for test patch size */
 	double ho = 0.0, vo = 0.0;			/* Test window offsets, -1.0 to 1.0 */
+	double icalmax = 1.0;				/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc = 0;					/* 1 to use RGB Video Level encoding */
 	int fullscreen = 0;            		/* NZ if whole screen should be filled with black */
 	int verb = 0;
@@ -1686,6 +1687,7 @@ int main(int argc, char *argv[]) {
 										/* 2 = Report the current calibrated display response */
 	int docontrols = 1;					/* Do adjustment of the display controls */
 	int doprofile = 0;					/* Create/update ICC profile */
+	icmTV iccver = ICMTV_DEFAULT;		/* ICC profile version to create */
 	char *profDesc = NULL;				/* Created profile description string */
 	char *copyright = NULL;				/* Copyright string */
 	char *deviceMfgDesc = NULL;			/* Device manufacturer string */
@@ -1804,6 +1806,7 @@ int main(int argc, char *argv[]) {
 	printf("!!!!!! Debug turned on !!!!!!\n");
 #endif
 
+
 	if (argc <= 1)
 		usage(0,"Too few arguments");
 
@@ -1869,7 +1872,7 @@ int main(int argc, char *argv[]) {
 					madvrdisp = 1;
 					fa = nfa;
 #endif
-				} else if (na != NULL && strncmp(na,"dummy",5) == 0
+				} else if ((na != NULL && strncmp(na,"dummy",5) == 0)
 				 || strncmp(na,"DUMMY",5) == 0) {
 					dummydisp = 1;
 					fa = nfa;
@@ -1917,7 +1920,7 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'E') {
 				out_tvenc = 1;
 
-			} else if (argv[fa][1] == 'J') {
+			} else if (argv[fa][1] == 'K') {
 				docalib = 1;
 
 			} else if (argv[fa][1] == 'N') {
@@ -2089,6 +2092,7 @@ int main(int argc, char *argv[]) {
 				fa = nfa;
 				if (na == NULL) usage(0,"Expect argument to profile description flag -O");
 				profDesc = na;
+
 
 			/* Update calibration and (optionally) profile */
 			} else if (argv[fa][1] == 'u') {
@@ -2266,6 +2270,7 @@ int main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	if (bkhack && bkbright > 0.0) {
 		error("Can't use -b black point hack and set target black brightness");
 	}
@@ -2363,7 +2368,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 			                         madvrdisp,
 #endif
-			                         dummydisp, out_tvenc, fullscreen, override,
+			                         dummydisp, icalmax, out_tvenc, fullscreen, override,
 			                         100.0 * hpatscale, 100.0 * vpatscale,
 			                         ho, vo, g_log)) != 0) {
 			error("docalibration failed with return value %d\n",rv);
@@ -2402,7 +2407,7 @@ int main(int argc, char *argv[]) {
 	/* Get ready to do some readings */
 	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, nocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, NULL, 0,
-		                 disp, out_tvenc, fullscreen, override, webdisp, ccid,
+		                 disp, icalmax, out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT
 		                 madvrdisp,
 #endif
@@ -2668,7 +2673,7 @@ int main(int argc, char *argv[]) {
 		
 		if (icg->read_name(icg, outname)) {
 			dr->del(dr);
-			error("Can't update '%s' - read error : %s",outname, icg->err);
+			error("Can't update '%s' - read error : %s",outname, icg->e.m);
 		}
 
 		if (icg->ntables == 0
@@ -2922,22 +2927,23 @@ int main(int argc, char *argv[]) {
 	if (verify != 2 && doupdate && doprofile) {
 		icmFile *ic_fp;
 		icc *icco;
+		icmErr err = { 0, { '\000'} };
 
-		if ((icco = new_icc()) == NULL) {
+		if ((icco = new_icc(&err)) == NULL) {
 			dr->del(dr);
-			error("Creation of ICC object to read profile '%s' failed",iccoutname);
+			error("Creation of ICC object to read profile '%s' failed (0x%x, '%s')",iccoutname,err.c,err.m);
 		}
 
 		/* Open up the profile for reading */
-		if ((ic_fp = new_icmFileStd_name(iccoutname,"r")) == NULL) {
+		if ((ic_fp = new_icmFileStd_name(&err, iccoutname,"r")) == NULL) {
 			dr->del(dr);
-			error("Can't open file '%s'",iccoutname);
+			error("Can't open file '%s' (0x%x, '%s')",iccoutname,err.c,err.m);
 		}
 
 		/* Read header etc. */
 		if ((rv = icco->read(icco,ic_fp,0)) != 0) {
 			dr->del(dr);
-			error("Reading profile '%s' failed with %d, %s",iccoutname, rv,icco->err);
+			error("Reading profile '%s' failed with %d, %s",iccoutname, rv,icco->e.m);
 		}
 
 		ic_fp->del(ic_fp);
@@ -2945,7 +2951,7 @@ int main(int argc, char *argv[]) {
 		if (icco->find_tag(icco, icSigVideoCardGammaTag) != 0) {
 			dr->del(dr);
 			error("Can't find VideoCardGamma tag in file '%s': %d, %s",
-			      iccoutname, icco->errc,icco->err);
+			      iccoutname, icco->e.c,icco->e.m);
 		}
 		icco->del(icco);
 	}
@@ -5443,7 +5449,7 @@ int main(int argc, char *argv[]) {
 		free(setel);
 
 		if (ocg->write_name(ocg, outname))
-			error("Write error : %s",ocg->err);
+			error("Write error : %s",ocg->e.m);
 
 		if (verb)
 			printf("Written calibration file '%s'\n",outname);
@@ -5456,23 +5462,24 @@ int main(int argc, char *argv[]) {
 	if (verify != 2 && doupdate && doprofile) {
 		icmFile *ic_fp;
 		icc *icco;
+		icmErr err = { 0, { '\000'} };
 		int j, i;
 		icmVideoCardGamma *wo;
 
-		if ((icco = new_icc()) == NULL)
-			error("Creation of ICC object to read profile '%s' failed",iccoutname);
-
+		if ((icco = new_icc(&err)) == NULL)
+			error("Creation of ICC object to read profile '%s' failed (0x%x, '%s')",
+			                                                iccoutname,err.c,err.m);
 		/* Open up the profile for reading */
-		if ((ic_fp = new_icmFileStd_name(iccoutname,"r")) == NULL)
-			error("Can't open file '%s'",iccoutname);
+		if ((ic_fp = new_icmFileStd_name(&err, iccoutname,"r")) == NULL)
+			error("Can't open file '%s' (0x%x, '%s')",iccoutname,err.c,err.m);
 
 		/* Read header etc. */
 		if ((rv = icco->read(icco,ic_fp,0)) != 0)
-			error("Reading profile '%s' failed with %d, %s",iccoutname, rv,icco->err);
+			error("Reading profile '%s' failed with %d, %s",iccoutname, rv,icco->e.m);
 
 		/* Read every tag */
 		if (icco->read_all_tags(icco) != 0) {
-			error("Unable to read all tags from '%s': %d, %s",iccoutname, icco->errc,icco->err);
+			error("Unable to read all tags from '%s': %d, %s",iccoutname, icco->e.c,icco->e.m);
 		}
 
 		ic_fp->del(ic_fp);
@@ -5480,13 +5487,13 @@ int main(int argc, char *argv[]) {
 		wo = (icmVideoCardGamma *)icco->read_tag(icco, icSigVideoCardGammaTag);
 		if (wo == NULL)
 			error("Can't find VideoCardGamma tag in file '%s': %d, %s",
-			      iccoutname, icco->errc,icco->err);
+			      iccoutname, icco->e.c,icco->e.m);
 
-		wo->tagType = icmVideoCardGammaTableType;
+		wo->tagType = icVideoCardGammaTable;
 		wo->u.table.channels = 3;			/* rgb */
 		wo->u.table.entryCount = CAL_RES;	/* full lut */
 		wo->u.table.entrySize = 2;			/* 16 bits */
-		wo->allocate((icmBase*)wo);
+		wo->allocate(wo);
 		for (j = 0; j < 3; j++) {
 			for (i = 0; i < CAL_RES; i++) {
 				double cc, vv;
@@ -5508,19 +5515,19 @@ int main(int argc, char *argv[]) {
 					/* rather than scaling, so we need to scale the fp value to account for this. */
 					/* We assume the precision is the vcgt table size = 16 */
 					/* ~~99 ideally we should tag the fact that this is video encoded, so that */
-					/* the vcgt loaded can adjust for a different bit precision ~~~~ */
+					/* the vcgt loader can adjust for a different bit precision ~~~~ */
 					cc = (cc * 255 * (1 << (16 - 8)))/((1 << 16) - 1.0); 	
 				}
-				((unsigned short*)wo->u.table.data)[CAL_RES * j + i] = (int)(cc * 65535.0 + 0.5);
+				wo->u.table.data[j][i] = cc;
 			}
 		}
 
 		/* Open up the profile again writing */
-		if ((ic_fp = new_icmFileStd_name(iccoutname,"w")) == NULL)
-			error("Can't open file '%s' for writing",iccoutname);
+		if ((ic_fp = new_icmFileStd_name(&err, iccoutname,"w")) == NULL)
+			error("Can't open file '%s' for writing (0x%x, '%s')",iccoutname,err.c,err.m);
 
 		if ((rv = icco->write(icco,ic_fp,0)) != 0)
-			error("Write to file '%s' failed: %d, %s",iccoutname, rv,icco->err);
+			error("Write to file '%s' failed: %d, %s",iccoutname, rv,icco->e.m);
 
 		if (verb)
 			printf("Updated profile '%s'\n",iccoutname);
@@ -5543,6 +5550,7 @@ int main(int argc, char *argv[]) {
 	} else if (verify != 2 && doprofile) {
 		icmFile *wr_fp;
 		icc *wr_icco;
+		icmErr err = { 0, { '\000'} };
 		double uwp[3];		/* Absolute Uncalibrated White point in XYZ */
 		double wp[3];		/* Absolute White point in XYZ */
 		double bp[3];		/* Absolute Black point in XYZ */
@@ -5551,11 +5559,14 @@ int main(int argc, char *argv[]) {
 		double clrgb[3];	/* 1.0 through calibration and linearization */
 
 		/* Open up the file for writing */
-		if ((wr_fp = new_icmFileStd_name(iccoutname,"w")) == NULL)
-			error("Write: Can't open file '%s'",iccoutname);
+		if ((wr_fp = new_icmFileStd_name(&err, iccoutname,"w")) == NULL)
+			error("Write: Can't open file '%s' (0x%x, '%s')",iccoutname,err.c,err.m);
 
-		if ((wr_icco = new_icc()) == NULL)
-			error("Write: Creation of ICC object failed");
+		if ((wr_icco = new_icc(&err)) == NULL)
+			error("Write: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
+
+		if (wr_icco->set_version(wr_icco, iccver) != 0)
+			error("set_version %d failed: %d, %s",iccver,wr_icco->e.c,wr_icco->e.m);
 
 		/* Set the header: */
 		{
@@ -5718,7 +5729,7 @@ int main(int argc, char *argv[]) {
 
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst, dstm[200];			/* description */
 
 			if (profDesc != NULL)
@@ -5727,17 +5738,17 @@ int main(int argc, char *argv[]) {
 				dst = iccoutname;
 			}
 
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt;
 
 			if (copyright != NULL)
@@ -5745,38 +5756,38 @@ int main(int argc, char *argv[]) {
 			else
 				crt = "Copyright, the creator of this profile";
 
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
+			wo->allocate(wo);/* Allocate space */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* Device Manufacturers Description Tag: */
 		if (deviceMfgDesc != NULL) {
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = deviceMfgDesc;
 
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigDeviceMfgDescTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigDeviceMfgDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Model Description Tag: */
 		if (modelDesc != NULL) {
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = modelDesc;
 
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigDeviceModelDescTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigDeviceModelDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Luminance tag */
@@ -5785,11 +5796,11 @@ int main(int argc, char *argv[]) {
 	
 			if ((wo = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigLuminanceTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 			/* (Only Y is used according to the ICC spec.) */
-			wo->size = 1;
-			wo->allocate((icmBase *)wo);	/* Allocate space */
+			wo->count = 1;
+			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = 0.0;
 			wo->data[0].Y = dispLum * wp[1]/uwp[1];	/* Adjust for effect of calibration */
 			wo->data[0].Z = 0.0;
@@ -5803,10 +5814,10 @@ int main(int argc, char *argv[]) {
 			/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
 			if ((wo = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = 1;
-			wo->allocate((icmBase *)wo);	/* Allocate space */
+			wo->count = 1;
+			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = wp[0] * 1.0/wp[1];
 			wo->data[0].Y = wp[1] * 1.0/wp[1];
 			wo->data[0].Z = wp[2] * 1.0/wp[1];
@@ -5819,10 +5830,10 @@ int main(int argc, char *argv[]) {
 			icmXYZArray *wo;
 			if ((wo = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigMediaBlackPointTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = 1;
-			wo->allocate((icmBase *)wo);	/* Allocate space */
+			wo->count = 1;
+			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = bp[0] * 1.0/wp[1];
 			wo->data[0].Y = bp[1] * 1.0/wp[1];
 			wo->data[0].Z = bp[2] * 1.0/wp[1];
@@ -5838,13 +5849,13 @@ int main(int argc, char *argv[]) {
 			wo = (icmVideoCardGamma *)wr_icco->add_tag(wr_icco,
 			                           icSigVideoCardGammaTag, icSigVideoCardGammaType);
 			if (wo == NULL)
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->tagType = icmVideoCardGammaTableType;
+			wo->tagType = icVideoCardGammaTable;
 			wo->u.table.channels = 3;				/* rgb */
 			wo->u.table.entryCount = CAL_RES;		/* full lut */
 			wo->u.table.entrySize = 2;				/* 16 bits */
-			wo->allocate((icmBase*)wo);
+			wo->allocate(wo);
 			for (j = 0; j < 3; j++) {
 				for (i = 0; i < CAL_RES; i++) {
 					double cc, vv = i/(CAL_RES-1.0);
@@ -5859,10 +5870,10 @@ int main(int argc, char *argv[]) {
 						/* shifting rather than scaling, so we need to scale the fp value to */
 						/* account for this. We assume the precision is the vcgt table size = 16 */
 						/* ~~99 ideally we should tag the fact that this is video encoded, so */
-						/* that the vcgt loaded can adjust for a different bit precision ~~~~ */
+						/* that the vcgt loader can adjust for a different bit precision ~~~~ */
 						cc = (cc * 255 * (1 << (16 - 8)))/((1 << 16) - 1.0); 	
 					}
-					((unsigned short*)wo->u.table.data)[CAL_RES * j + i] = (int)(cc * 65535.0 + 0.5);
+					wo->u.table.data[j][i] = cc;
 				}
 			}
 		}
@@ -5872,18 +5883,18 @@ int main(int argc, char *argv[]) {
 			icmXYZArray *wor, *wog, *wob;
 			if ((wor = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigRedColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wog = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigGreenColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wob = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigBlueColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 
-			wor->size = wog->size = wob->size = 1;
-			wor->allocate((icmBase *)wor);	/* Allocate space */
-			wog->allocate((icmBase *)wog);
-			wob->allocate((icmBase *)wob);
+			wor->count = wog->count = wob->count = 1;
+			wor->allocate(wor);	/* Allocate space */
+			wog->allocate(wog);
+			wob->allocate(wob);
 
 			/* Make sure rounding doesn't wreck white point */
 			icmTranspose3x3(mat, mat);	/* Convert [XYZ][RGB] to [RGB][XYZ] */
@@ -5901,19 +5912,19 @@ int main(int argc, char *argv[]) {
 
 			if ((wor = (icmCurve *)wr_icco->add_tag(
 			           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wog = (icmCurve *)wr_icco->add_tag(
 			           wr_icco, icSigGreenTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wob = (icmCurve *)wr_icco->add_tag(
 			           wr_icco, icSigBlueTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 
-			wor->flag = wog->flag = wob->flag = icmCurveSpec; 
-			wor->size = wog->size = wob->size = 256;			/* Number of entries */
-			wor->allocate((icmBase *)wor);	/* Allocate space */
-			wog->allocate((icmBase *)wog);
-			wob->allocate((icmBase *)wob);
+			wor->ctype = wog->ctype = wob->ctype = icmCurveSpec; 
+			wor->count = wog->count = wob->count = 256;			/* Number of entries */
+			wor->allocate(wor);	/* Allocate space */
+			wog->allocate(wog);
+			wob->allocate(wob);
 	
 			/* For the HW calibrated case, we have lowered the matrix */
 			/* values to reflect the calibrated RGB through the native */
@@ -5922,14 +5933,14 @@ int main(int argc, char *argv[]) {
 			/* 1.0 in maps to 1.0 out. */
 			if (noramdac == 0) {
 
-				for (ui = 0; ui < wor->size; ui++) {
+				for (ui = 0; ui < wor->count; ui++) {
 					double in, rgb[3];
 		
 					for (j = 0; j < 3; j++) {
 #if defined(__APPLE__) && defined(__POWERPC__)
 						gcc_bug_fix(ui);
 #endif
-						in = (double)ui / (wor->size - 1.0);
+						in = (double)ui / (wor->count - 1.0);
 			
 						/* Transform through calibration curve */
 						in = x.rdac[j]->interp(x.rdac[j], in);
@@ -5951,7 +5962,7 @@ int main(int argc, char *argv[]) {
 						else if (in > 1.0)
 							in = 1.0;
 						rgb[j] = in;
-//printf("Step %d, Chan %d, %f -> %f\n",ui,j,(double)ui / (wor->size - 1.0),in);
+//printf("Step %d, Chan %d, %f -> %f\n",ui,j,(double)ui / (wor->count - 1.0),in);
 					}
 					wor->data[ui] = rgb[0];	/* Curve values 0.0 - 1.0 */
 					wog->data[ui] = rgb[1];
@@ -5967,14 +5978,14 @@ int main(int argc, char *argv[]) {
 			/* PCS white point. */
 			} else {
 
-				for (ui = 0; ui < wor->size; ui++) {
+				for (ui = 0; ui < wor->count; ui++) {
 					double in, rgb[3];
 		
 					for (j = 0; j < 3; j++) {
 #if defined(__APPLE__) && defined(__POWERPC__)
 						gcc_bug_fix(ui);
 #endif
-						in = (double)ui / (wor->size - 1.0);
+						in = (double)ui / (wor->count - 1.0);
 			
 						/* If within the inversion range, */
 						/* transform through the inverse calibration curve. */
@@ -6001,7 +6012,7 @@ int main(int argc, char *argv[]) {
 						else if (in > 1.0)
 							in = 1.0;
 						rgb[j] = in;
-//printf("Step %d, Chan %d, %f -> %f\n",ui,j,(double)ui / (wor->size - 1.0),in);
+//printf("Step %d, Chan %d, %f -> %f\n",ui,j,(double)ui / (wor->count - 1.0),in);
 					}
 					wor->data[ui] = rgb[0];	/* Curve values 0.0 - 1.0 */
 					wog->data[ui] = rgb[1];
@@ -6012,7 +6023,7 @@ int main(int argc, char *argv[]) {
 
 		/* Write the file (including all tags) out */
 		if ((rv = wr_icco->write(wr_icco,wr_fp,0)) != 0) {
-			error("Write file: %d, %s",rv,wr_icco->err);
+			error("Write file: %d, %s",rv,wr_icco->e.m);
 		}
 
 		if (verb)

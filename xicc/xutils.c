@@ -18,6 +18,7 @@
  * but is independent of other modules.
  */
 
+#include <stdarg.h>
 #include <sys/types.h>
 #include <string.h>
 #include <ctype.h>
@@ -111,24 +112,25 @@ icc *read_embedded_icc(char *file_name) {
 	void *tag, *buf;
 	icmAlloc *al;
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 	TIFFErrorHandler olderrh, oldwarnh;
 	TIFFErrorHandlerExt olderrhx, oldwarnhx;
 	int rv;
 
 	/* First see if the file can be opened as an ICC profile */
-	if ((fp = new_icmFileStd_name(file_name,"r")) == NULL) {
-		debug2((errout,"Can't open file '%s'\n",file_name));
+	if ((fp = new_icmFileStd_name(&err, file_name,"r")) == NULL) {
+		debug2((errout,"Can't open file '%s' (0x%x, '%s')\n",file_name,err.c,err.m));
 		return NULL;
 	}
 
-	if ((icco = new_icc()) == NULL) {
-		debug("Creation of ICC object failed\n");
+	if ((icco = new_icc(&err)) == NULL) {
+		debug2(("Creation of ICC object failed (0x%x, '%s')\n",err.c,err.m));
 		fp->del(fp);
 		return NULL;
 	}
 
-	if ((rv = icco->read_x(icco,fp,0,1)) == 0) {
+	if ((rv = icco->read(icco,fp,0)) == 0) {
 		debug2((errout,"Opened '%s' as an icc profile\n",file_name));
 		return icco;
 	}
@@ -156,8 +158,8 @@ icc *read_embedded_icc(char *file_name) {
 		}
 
 		/* Make a copy of the profile to a memory buffer */
-		if ((al = new_icmAllocStd()) == NULL) {
-			debug("new_icmAllocStd failed\n");
+		if ((al = new_icmAllocStd(&err)) == NULL) {
+			debug2(("new_icmAllocStd failed (0x%x, '%s')\n",err.c,err.m));
 			TIFFClose(rh);
 		    return NULL;
 		}
@@ -228,8 +230,8 @@ icc *read_embedded_icc(char *file_name) {
 
 		/* Make a copy of the profile to a memory buffer */
 		/* (icmAllocStd may not be the same as malloc ?) */
-		if ((al = new_icmAllocStd()) == NULL) {
-			debug("new_icmAllocStd failed\n");
+		if ((al = new_icmAllocStd(&err)) == NULL) {
+			debug2(("new_icmAllocStd failed (0x%x, '%s')\n",err.c,err.m));
 		    return NULL;
 		}
 		if ((buf = al->malloc(al, plen)) == NULL) {
@@ -244,20 +246,20 @@ icc *read_embedded_icc(char *file_name) {
 	}
 
 	/* Memory File fp that will free the buffer when deleted: */
-	if ((fp = new_icmFileMem_ad(buf, size, al)) == NULL) {
-		debug("Creating memory file from CMProfileLocation failed");
+	if ((fp = new_icmFileMem_ad(&err, buf, size, al)) == NULL) {
+		debug2(("Creating memory file from CMProfileLocation failed (0x%x, '%s')",err.c,err.m));
 		al->free(al, buf);
 		al->del(al);
 		return NULL;
 	}
 
-	if ((icco = new_icc()) == NULL) {
-		debug("Creation of ICC object failed\n");
+	if ((icco = new_icc(&err)) == NULL) {
+		debug2(("Creation of ICC object failed (0x%x, '%s')\n",err.c,err.m));
 		fp->del(fp);	/* fp will delete al */
 		return NULL;
 	}
 
-	if ((rv = icco->read_x(icco,fp,0,1)) == 0) {
+	if ((rv = icco->read(icco,fp,0)) == 0) {
 		debug2((errout,"Opened '%s' embedded icc profile\n",file_name));
 		return icco;
 	}

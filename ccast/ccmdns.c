@@ -127,6 +127,7 @@ typedef int SOCKET;
 #endif
 
 #ifdef DEBUG
+# pragma message("######### ccmdns.c DEBUG enabled !!!!! ########")
 # define DBG(xxx) a1logd xxx ;
 # define DBG2(xxx) a1logd xxx ;
 # define DLEV 0
@@ -151,7 +152,7 @@ typedef int SOCKET;
 /* Various DNS defines */
 #define DNS_CLASS_IN 0x0001
 
-// DNS query type */
+/* DNS query type */
 #define DNS_TYPE_A	   1	/* Host IP address record			*/
 #define DNS_TYPE_PTR  12	/* Canonical domain name 			*/
 #define DNS_TYPE_TXT  16	/* Text String						*/
@@ -397,7 +398,7 @@ static int send_mDNS(SOCKET sock) {
 
 	/* Setup the FQDN data packet to send */
 	write_ORD16_be(achOutBuf + 0, 0);	/* ID */
-	write_ORD16_be(achOutBuf + 2, 0);	/* Flags */
+	write_ORD16_be(achOutBuf + 2, 0x8000);	/* Flags - query */
 	write_ORD16_be(achOutBuf + 4, 1);	/* QDCOUNT - one question */
 	write_ORD16_be(achOutBuf + 6, 0);	/* ANCOUNT */
 	write_ORD16_be(achOutBuf + 8, 0);	/* NSCOUNT */
@@ -408,7 +409,7 @@ static int send_mDNS(SOCKET sock) {
 	off = write_string(achOutBuf, off, "local");
 	write_ORD8(achOutBuf + off, 0);			/* null string */
 	off += 1;
-	write_ORD16_be(achOutBuf + off, 0x000c);	/* QCOUNT */
+	write_ORD16_be(achOutBuf + off, DNS_TYPE_PTR);	/* QTYPE */
 	off += 2;
 	/* Set top bit to get a unicast response (not for ChromeCast though) */
 	write_ORD16_be(achOutBuf + off, 0x0001);	/* QCLASS */
@@ -545,7 +546,8 @@ static int receive_mDNS(SOCKET sock, ccast_id ***ids, int *nids, int emsec) {
 /* Get a list of Video output capable Chromecasts. Return NULL on error */
 /* Last pointer in array is NULL */
 /* Takes 1.5 second to return */
-ccast_id **get_ccids() {
+ccast_id **get_ccids(
+) {
 	ccast_id **ids = NULL;
 	int nids = 0;
 	int i, j, k;
@@ -564,6 +566,7 @@ ccast_id **get_ccids() {
 		DBG2((g_log,0,"get_ccids: init_socket_mDNS() failed\n"))
 		return NULL;
 	}
+
 
 	smsec = msec_time();
 
@@ -811,12 +814,12 @@ int parse_query(ORD8 *buf, int off, int size) {
 
 /* Parse an mDNS reply, and set Friendly name (if known) + formal name + IP */
 /* Return updated off value or -1 on error */
-int parse_reply(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8 *buf, int off, int size) {
+int parse_reply(int rrix, char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8 *buf, int off, int size) {
 	char *sv;
 	int rtype, rclass, rdlength;
 	unsigned int ttl;
 
-	DBG((g_log,0,"Parsing reply at 0x%x:\n",off))
+	DBG((g_log,0,"Parsing reply rrix %s at 0x%x:\n", rrix == 0 ? "AN" : rrix == 1 ? "NS" : "AR", off))
 	if ((off = read_string(&sv, buf, off, size)) < 0)
 		return -1;
 
@@ -884,6 +887,7 @@ int parse_reply(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8 *buf
 		/*	Chromecast TXT DATA format:
 
 			Buffer is series of strings, each beginning with a byte length.
+			(This is from <https://datatracker.ietf.org/doc/html/rfc6763>
 			Each string is id=value, with the following known values:
 
 			id=c17a8e82ee7187d5013e2d12c61bbd40		uuidNoHyphens
@@ -1001,14 +1005,14 @@ int parse_reply(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8 *buf
 			free(sv);
 		}
 		sprintf(*pip, "%x:%x:%x:%x:%x:%x:%x:%x",
-		buf[off+0] * 245 + buf[off+1],
-		buf[off+2] * 245 + buf[off+3],
-		buf[off+4] * 245 + buf[off+5],
-		buf[off+6] * 245 + buf[off+7],
-		buf[off+8] * 245 + buf[off+9],
-		buf[off+10] * 245 + buf[off+11],
-		buf[off+12] * 245 + buf[off+13],
-		buf[off+14] * 245 + buf[off+15]);
+		buf[off+0] * 256 + buf[off+1],
+		buf[off+2] * 256 + buf[off+3],
+		buf[off+4] * 256 + buf[off+5],
+		buf[off+6] * 256 + buf[off+7],
+		buf[off+8] * 256 + buf[off+9],
+		buf[off+10] * 256 + buf[off+11],
+		buf[off+12] * 256 + buf[off+13],
+		buf[off+14] * 256 + buf[off+15]);
 		DBG((g_log,0," V6 address = %s\n",*pip))
 
 		off += rdlength;
@@ -1062,6 +1066,7 @@ static int parse_dns(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8
 
 	// Parse all the queries (QDCOUNT)
 	for (i = 0; i < qdcount; i++) {
+		DBG((g_log,0,"QD %d\n",i))
 		if ((off = parse_query(buf, off, size)) < 0) {
 			DBG((g_log,0," ### Parsing query failed ###\n"))
 			return 1;
@@ -1070,7 +1075,7 @@ static int parse_dns(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8
 
 	// Parse all the answers (ANCOUNT)
 	for (i = 0; i < ancount; i++) {
-		if ((off = parse_reply(pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
+		if ((off = parse_reply(0, pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
 			DBG((g_log,0," ### Parsing answer failed ###\n"))
 			return 1;
 		}
@@ -1078,7 +1083,7 @@ static int parse_dns(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8
 
 	// Parse all the NS records (NSCOUNT)
 	for (i = 0; i < nscount; i++) {
-		if ((off = parse_reply(pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
+		if ((off = parse_reply(1, pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
 			DBG((g_log,0," ### Parsing NS record failed ###\n"))
 			return 1;
 		}
@@ -1086,7 +1091,7 @@ static int parse_dns(char **pname, char **pip, cctype *ptyp, int *pcaflags, ORD8
 
 	// Parse all the addition RR answers (ARCOUNT)
 	for (i = 0; i < arcount; i++) {
-		if ((off = parse_reply(pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
+		if ((off = parse_reply(2, pname, pip, ptyp, pcaflags, buf, off, size)) < 0) {
 			DBG((g_log,0," ### Parsing additional records failed ###\n"))
 			return 1;
 		}

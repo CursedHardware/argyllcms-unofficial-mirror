@@ -143,6 +143,7 @@ int write_xspect(char *fname, inst_meas_type mt, inst_meas_cond mc, xspect *s);
 /* mt, mc may be NULL */
 int read_xspect(xspect *sp, inst_meas_type *mt, inst_meas_cond *mc, char *fname);
 
+/* Write an xspect in 'C' initialization form */
 int write_C_xspect(char *fname, xspect *s);
 
 #ifndef SALONEINSTLIB

@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	ocg->del(ocg);		/* Clean up */
 

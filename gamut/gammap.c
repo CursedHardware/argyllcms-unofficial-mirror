@@ -24,10 +24,10 @@
  *  that the profile colorimetric intent be not strictly minimum delta E,
  *  but that it correct neutral axis, luminence range and keep hue
  *  proportionality (i.e. clip with constant Hue and Luminance).
- *  Ideally there should be an intent that matches
- *  this, that can be selected for the colorimetric table (or perhaps be default).
- *  !! Maybe even the normal perceptual gamut mapping should use a !!
- *  !! Hue and Luminance preserving clipping ? Should this be the default !!
+ *  Ideally there should be an intent that matches this,
+ *  that can be selected for the colorimetric table (or perhaps be default).
+ *  !! Maybe even the normal perceptual gamut mapping should use !!
+ *  !! a Hue and Luminance preserving clipping ? Should this be the default !!
  *  !! for all inverse lookups ?? !!
  *
  *	It might be good to offer the black mapping method as an option (icx_BPmap),

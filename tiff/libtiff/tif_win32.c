@@ -56,6 +56,7 @@
 #include "tiffiop.h"
 
 #include <windows.h>
+#include <malloc.h>
 
 static tmsize_t
 _tiffReadProc(thandle_t fd, void* buf, tmsize_t size)
@@ -225,7 +226,7 @@ _tiffUnmapProc(thandle_t fd, void* base, toff_t size)
  * string, which forces the file to be opened unmapped.
  */
 TIFF*
-TIFFFdOpen(int ifd, const char* name, const char* mode)
+TIFFFdOpen(TIFF_INT64_T ifd, const char* name, const char* mode)
 {
 	TIFF* tif;
 	int fSuppressMap;
@@ -284,7 +285,7 @@ TIFFOpen(const char* name, const char* mode)
 		return ((TIFF *)0);
 	}
 
-	tif = TIFFFdOpen((int)fd, name, mode);   /* FIXME: WIN64 cast from pointer to int warning */
+	tif = TIFFFdOpen((TIFF_INT64_T)fd, name, mode);   /* FIXME: WIN64 cast from pointer to int warning */
 	if(!tif)
 		CloseHandle(fd);
 	return tif;
@@ -339,7 +340,7 @@ TIFFOpenW(const wchar_t* name, const char* mode)
 				    NULL, NULL);
 	}
 
-	tif = TIFFFdOpen((int)fd,    /* FIXME: WIN64 cast from pointer to int warning */
+	tif = TIFFFdOpen((TIFF_INT64_T)fd,    /* FIXME: WIN64 cast from pointer to int warning */
 			 (mbname != NULL) ? mbname : "<unknown>", mode);
 	if(!tif)
 		CloseHandle(fd);
@@ -375,7 +376,14 @@ _TIFFrealloc(void* p, tmsize_t s)
 void
 _TIFFmemset(void* p, int v, tmsize_t c)
 {
-	memset(p, v, (size_t) c);
+//	memset(p, v, (size_t) c);
+
+	tmsize_t i;
+	char *pp = (char *)p;
+
+	for (i = 0; i < c; i++) {
+		pp[i] = v;
+	}
 }
 
 void

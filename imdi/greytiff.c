@@ -193,6 +193,7 @@ main(int argc, char *argv[]) {
 	char out_name[100];
 
 	icmFile *p_fp;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 	xicc *xicco;
 	int verb = 0;
@@ -279,23 +280,23 @@ main(int argc, char *argv[]) {
 
 	/* - - - - - - - - - - - - - - - - */
 	/* Open up the profile for reading */
-	if ((p_fp = new_icmFileStd_name(prof_name,"r")) == NULL)
-		error ("Can't open file '%s'",prof_name);
+	if ((p_fp = new_icmFileStd_name(&err,prof_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",prof_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Wrap with an expanded icc */
 	if ((xicco = new_xicc(icco)) == NULL)
 		error ("Creation of xicc failed");
 
 	if ((rv = icco->read(icco,p_fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	if (verb) {
 		icmFile *op;
-		if ((op = new_icmFileStd_fp(stdout)) == NULL)
-			error ("Can't open stdout");
+		if ((op = new_icmFileStd_fp(&err,stdout)) == NULL)
+			error ("Can't open stdout (0x%x, '%s')",err.c,err.m);
 		icco->header->dump(icco->header, op, 1);
 		op->del(op);
 	}
@@ -309,7 +310,7 @@ main(int argc, char *argv[]) {
 
 	/* Get a expanded color conversion object */
 	if ((su.flu = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmFwd, icRelativeColorimetric, pcsor, icmLuOrdNorm, NULL, NULL)) == NULL)
-		error ("%d, %s",xicco->errc, xicco->err);
+		error ("%d, %s",xicco->e.c, xicco->e.m);
 
 	/* Get details of conversion (Arguments may be NULL if info not needed) */
 	su.flu->spaces(su.flu, &ins, &inn, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -319,7 +320,7 @@ main(int argc, char *argv[]) {
 
 	/* Get a bwd conversion object */
 	if ((su.blu = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmBwd, icRelativeColorimetric, pcsor, icmLuOrdNorm, NULL, NULL)) == NULL)
-		error ("%d, %s",xicco->errc, xicco->err);
+		error ("%d, %s",xicco->e.c, xicco->e.m);
 
 	/* - - - - - - - - - - - - - - - */
 	/* Open up input tiff file ready for reading */
@@ -338,15 +339,15 @@ main(int argc, char *argv[]) {
 	TIFFGetField(rh, TIFFTAG_PHOTOMETRIC, &photometric);
 	if  ((pmtc = ColorSpaceSignature2TiffPhotometric(ins)) == 0xffff)
 		error("ICC  input colorspace '%s' can't be handled by a TIFF file!",
-		      icm2str(icmColorSpaceSignature, ins));
+		      icm2str(icmColorSpaceSig, ins));
 	if (pmtc != photometric)
 		error("ICC  input colorspace '%s' doesn't match TIFF photometric '%s'!",
-		      icm2str(icmColorSpaceSignature, ins), Photometric2str(photometric));
+		      icm2str(icmColorSpaceSig, ins), Photometric2str(photometric));
 
 	TIFFGetField(rh, TIFFTAG_SAMPLESPERPIXEL, &samplesperpixel);
 	if (inn != samplesperpixel)
 		error ("TIFF Input file has %d input channels mismatched to colorspace '%s'",
-		       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+		       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 
 	TIFFGetField(rh, TIFFTAG_PLANARCONFIG, &pconfig);
 	if (pconfig != PLANARCONFIG_CONTIG)
@@ -368,7 +369,7 @@ main(int argc, char *argv[]) {
 	TIFFSetField(wh, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
 	if  ((pmtc = ColorSpaceSignature2TiffPhotometric(ins)) == 0xffff)
 		error("TIFF file can't handle output colorspace '%s'!",
-		      icm2str(icmColorSpaceSignature, ins));
+		      icm2str(icmColorSpaceSig, ins));
 	TIFFSetField(wh, TIFFTAG_PHOTOMETRIC, pmtc);
 	TIFFSetField(wh, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
 	if (resunits) {
@@ -443,12 +444,12 @@ main(int argc, char *argv[]) {
 						in[i] = ((unsigned short *)inbuf)[x * inn + i]/65535.0;
 					
 				if ((rv = su.flu->lookup(su.flu, Lab, in)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				Lab[1] = Lab[2] = 0.0;
 
 				if ((rv = su.blu->lookup(su.blu, out, Lab)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				if (bitspersample == 8)
 					for (i = 0; i < inn; i++)
@@ -498,12 +499,12 @@ main(int argc, char *argv[]) {
 					}
 					
 					if ((rv = su.flu->lookup(su.flu, Lab, in)) > 1)
-						error ("%d, %s",icco->errc,icco->err);
+						error ("%d, %s",icco->e.c,icco->e.m);
 	
 					Lab[1] = Lab[2] = 0.0;
 	
 					if ((rv = su.blu->lookup(su.blu, out, Lab)) > 1)
-						error ("%d, %s",icco->errc,icco->err);
+						error ("%d, %s",icco->e.c,icco->e.m);
 
 					for (i = 0; i < inn; i++) {
 						((unsigned char *)outbuf)[x * inn + i] = (int)(out[i] * 255.0 + 0.5);
@@ -530,12 +531,12 @@ main(int argc, char *argv[]) {
 					}
 					
 					if ((rv = su.flu->lookup(su.flu, Lab, in)) > 1)
-						error ("%d, %s",icco->errc,icco->err);
+						error ("%d, %s",icco->e.c,icco->e.m);
 	
 					Lab[1] = Lab[2] = 0.0;
 	
 					if ((rv = su.blu->lookup(su.blu, out, Lab)) > 1)
-						error ("%d, %s",icco->errc,icco->err);
+						error ("%d, %s",icco->e.c,icco->e.m);
 
 					for (i = 0; i < inn; i++) {
 						((unsigned short *)outbuf)[x * inn + i] = (int)(out[i] * 65535.0 + 0.5);

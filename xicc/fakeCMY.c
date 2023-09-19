@@ -119,6 +119,7 @@ main(
 	char out_name[100];
 	icmFile *rd_fp;
 	icc *rd_icco;
+	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 	xicc *xicco;
@@ -199,15 +200,15 @@ main(
 	strcpy(out_name,argv[fa++]);
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 
 	/* Wrap with an expanded icc */
@@ -238,7 +239,7 @@ main(
 
 	/* Get a Device to PCS conversion object */
 	if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
-		error ("%d, %s",rd_icco->errc, rd_icco->err);
+		error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
 	/* Get details of conversion */
 	luo->spaces(luo, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL);
@@ -307,7 +308,7 @@ main(
 	/* Convert CMY values into CMY0 Lab values */
 	for (i = 0; i < fxno; i++) {
 		if ((rv = luo->lookup(luo, fxlist[i].v, fxlist[i].p)) > 1)
-			error ("%d, %s",rd_icco->errc,rd_icco->err);
+			error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 //printf("~1 initial lookup %f %f %f -> %f %f %f\n", fxlist[i].p[0], fxlist[i].p[1], fxlist[i].p[2], fxlist[i].v[0], fxlist[i].v[1], fxlist[i].v[2]);
 	}
 
@@ -484,7 +485,7 @@ main(
 
 		free(setel);
 		if (ocg->write_name(ocg, out_name))
-			error("Write error : %s",ocg->err);
+			error("Write error : %s",ocg->e.m);
 		ocg->del(ocg);
 	}
 

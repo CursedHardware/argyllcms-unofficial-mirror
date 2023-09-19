@@ -56,7 +56,7 @@ usage(void) {
 	fprintf(stderr," -x                16 bit output\n");
 	fprintf(stderr," -4                CMYK output\n");
 	fprintf(stderr," -g prop           Percentage towards grey (default 0%%)\n");
-	fprintf(stderr," -P                Save as PNG file (deffault TIFF)\n");
+	fprintf(stderr," -P                Save as PNG file (default TIFF)\n");
 //	fprintf(stderr," -D	               Debug primitives plot */
 	fprintf(stderr," outfile.[tif|png] Output TIFF or PNG file\n");
 	exit(1);

@@ -37,6 +37,6 @@ LINKLIBS = ./libccast $(SSLLIB) ../yajl/libyajl ../numlib/libnum ../spectro/libc
 
 # Test harness
 #Main cctest : cctest.c ;
-Main filt : filt.c ;
-MainVariant dpat : dpat.c : : STANDALONE_TEST ;
+#Main filt : filt.c ;
+#MainVariant dpat : dpat.c : : STANDALONE_TEST ;
 

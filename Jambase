@@ -379,6 +379,11 @@ JAMBASEDATE = 2008.03.26 ;
 
 if $(NT)
 {
+	if ! [ GLOB $(PATH) : mt.exe ] {
+    	Echo "mt is NOT available!" ;
+    	WIN_UTF8 = false ;
+	}
+
 	MV				?= move /y ;
 	CP				?= copy ;
 	RM				?= del /f/q ;
@@ -414,7 +419,11 @@ if $(NT)
 		TPFX             = "" ;
 
 		if [ GLOB $(MINGW)/bin : x86_64-w64-mingw32-gcc.exe ] {
-			MINGW64 = $(MINGW) ;
+			if [ GLOB $(MINGW)/bin : gcc.exe ] {
+				MINGW64 = $(MINGW) ;
+			} else {
+				MINGW64o32 = $(MINGW) ;
+			}
         }
 		
 		# This doesn't work on a 32 bit system because we're cross
@@ -423,11 +432,16 @@ if $(NT)
 		# Will using -m32 for local exe's fix this ?
 		# What is multi-lib option ???
 		if $(MINGW64) {
-			ECHO "Compiler is MingW for 64 bit target" ;
+			ECHO "Compiler is native MingW 64 bit target" ;
+			TARGET64     = true ;
+			TPFX1        = "" ;	# Some tools
+			TPFX2        = "" ;	# Rest of tools
+		} else if $(MINGW64o32) {
+			ECHO "Compiler is MingW 64 bit target on 32 bit host" ;
 			TARGET64     = true ;
 			TPFX1        = x86_64-w64-mingw32- ;	# Some tools
 			TPFX2        = x86_64-w64-mingw32- ;	# Rest of tools
-			MINGW64_LIB32 = $(MINGW)/mingw/lib32 ;
+#			MINGW64_LIB32 = $(MINGW)/mingw/lib32 ;
 		} else {
 			ECHO "Compiler is MingW for 32 bit target" ;
 			TPFX1        = "" ;	# Some tools
@@ -439,7 +453,7 @@ if $(NT)
 		AS				?= $(TPFX2)as ;
 		CC				?= $(TPFX1)gcc ;
 echo "CC = " $(CC) ;
-		CCFLAGS			?= -DNT -mwin32 -pipe ;
+		CCFLAGS			?= -DNT -mwin32 -pipe ;			# -fwrapv ??
 		C++				?= $(CC) ;
 		C++FLAGS		?= $(CCFLAGS) ;
 
@@ -448,7 +462,7 @@ echo "CC = " $(CC) ;
 #		WINLIBS			?= -lwinspool -lwinmm -lshell32 -lcomctl32 -lctl3d32
 #						   -lodbc32 -ladvapi32 -lodbc32 -lwsock32 -lopengl32
 #		                   -lglu32 -lshlwapi -lsetupapi ;
-		WINLIBS			?= -lshlwapi -lsetupapi -lole32 -lws2_32 -lpsapi -lversion ;
+		WINLIBS			?= -lshlwapi -lsetupapi -lole32 -lws2_32 -lpsapi -liphlpapi -lversion ;
 		GUILIBS			?= -lgdi32 -lmscms ;
 
 		LINK			?= $(TPFX1)g++ ;		# In case we link to C++ files
@@ -676,6 +690,7 @@ echo "CC = " $(CC) ;
 						oleaut32.lib
 						ws2_32.lib
 						Wbemuuid.lib
+						iphlpapi.lib
 						Version.lib
 #						Winmm.lib
 						;
@@ -981,7 +996,7 @@ else if $(UNIX)
 
 	# UNIX defaults
 
-	CCFLAGS			?= -DUNIX -D_THREAD_SAFE -pipe ;
+	CCFLAGS			?= -DUNIX -D_THREAD_SAFE -pipe ;	# -fwrapv ??
 	CCOPTFLAG		?= -O2 ;		
 	CCDEBUGFLAG		?= -g ;		
 	CCPROFFLAG		?= ;		
@@ -2770,6 +2785,10 @@ rule GUIAPP
 {
 }
 
+rule UTF8APP
+{
+}
+
 # /HdrMacroFile
 #
 # this rule is specific to FT-Jam. It is used to indicate that a given file
@@ -3432,6 +3451,12 @@ rule MainFromObjects
 	if [ geton $(_t) : GUIAPP ] = "true" {
 		GUIAPP $(_t) ;
 	}
+
+	# On MSWin10 we may want to use UTF-8 for text
+	if $(WIN_UTF8) = true {
+		UTF8APP $(_t) ;
+	}
+
 #Echo "MainFromObjects done" ;
 }
 
@@ -4442,6 +4467,22 @@ if $(NT)
 	actions Install
 	{
 		$(CP) /b $(>) + nul $(<) > nul
+	}
+
+	# Allow MSWin10 apps to use UTF-8
+
+	actions UTF8APP
+	{
+	echo ^<?xml version="1.0" encoding="UTF-8" standalone="yes"?^>>$(<).tmp
+	echo ^<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1"^>>>$(<).tmp
+  	echo ^<assemblyIdentity type="win32" name="..." version="6.0.0.0"/^>>>$(<).tmp
+  	echo ^<application xmlns="urn:schemas-microsoft-com:asm.v3"^>>>$(<).tmp
+    	echo ^<windowsSettings^>>>$(<).tmp
+      	echo ^<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings"^>UTF-8^</activeCodePage^>>>$(<).tmp
+    	echo ^</windowsSettings^>>>$(<).tmp
+  	echo ^</application^>>>$(<).tmp
+	echo ^</assembly^>>>$(<).tmp
+		mt.exe -nologo -manifest $(<).tmp -outputresource:$(<);#1
 	}
 }
 

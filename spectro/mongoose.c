@@ -46,6 +46,9 @@
        </service>
 
 	added to /usr/lib/firewalld/services
+
+
+	GWG - IPV6 server support is not complete.
  */
 
 #if defined(_WIN32)
@@ -90,15 +93,17 @@
 #include <stdio.h>
 
 #if defined(_WIN32) && !defined(__SYMBIAN32__) // Windows specific
-#if _WIN32_WINNT < 0x0400
-# define _WIN32_WINNT 0x0400 // To make it link in VS2005
+#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
+# define _WIN32_WINNT 0x0501 
 #endif
 #ifndef WIN32
 # define WIN32
 #endif
 #include <winsock2.h>
-#include <windows.h>
+#include <iphlpapi.h>
 #include <ws2tcpip.h>
+#include <Ipifcons.h>
+#include <windows.h>		// Must include this after winsock2.h
 
 #ifndef PATH_MAX
 # define PATH_MAX MAX_PATH
@@ -4060,6 +4065,225 @@ static int set_ports_option(struct mg_context *ctx) {
   return success;
 }
 
+// Get the host name (GWG)
+// Return NULL on error. Free after use.
+char *mg_get_hostname() {
+  	char hostname[1024+1];
+	gethostname(hostname, 1024+1);
+	return strdup(hostname);
+}
+
+// Get the IPV4 address (GWG)
+// Return 4 bytes in a[] in network order
+// Return nz if not available (try ipv6)
+int mg_get_ipv4(unsigned char *a) {
+#if _WIN32
+	{
+	ULONG family = AF_INET;			// V4
+	ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST
+	            | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
+	PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+	PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
+	PIP_ADAPTER_UNICAST_ADDRESS pUnicast = NULL;
+	ULONG outBufLen = 15000;	// Try this buffer size first
+	ULONG Iterations = 0;
+	DWORD dwRetVal = 0;
+	struct sockaddr_in *saddr;
+	struct in_addr addr;
+
+	do {
+		if ((pAddresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen)) == NULL) {
+			// malloc fail
+			goto fail;
+		}
+
+		dwRetVal = GetAdaptersAddresses(family, flags, NULL, pAddresses, &outBufLen);
+
+		if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+			free(pAddresses);
+			pAddresses = NULL;
+		} else {
+			break;
+		}
+		Iterations++;
+
+		// Try 3 times to get big enough buffer
+	} while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < 3));
+
+	if (dwRetVal != NO_ERROR) {
+		free(pAddresses);
+		goto fail;
+	}
+
+	pCurrAddresses = pAddresses;
+	while (pCurrAddresses) {
+
+		if (pCurrAddresses->IfType == MIB_IF_TYPE_LOOPBACK)
+			goto nextif;
+
+		/* Use first unicast address */
+		if ((pUnicast = pCurrAddresses->FirstUnicastAddress) == NULL)
+			goto nextif;
+
+//		printf("OperStatus: %ld\n", pCurrAddresses->OperStatus);
+
+		saddr = ((struct sockaddr_in *)pUnicast->Address.lpSockaddr);
+		addr = saddr->sin_addr;
+		a[0] = addr.S_un.S_un_b.s_b1;
+		a[1] = addr.S_un.S_un_b.s_b2;
+		a[2] = addr.S_un.S_un_b.s_b3;
+		a[3] = addr.S_un.S_un_b.s_b4;
+		free(pAddresses);
+
+		return 0;
+
+	  nextif:;
+		pCurrAddresses = pCurrAddresses->Next;
+	}
+	free(pAddresses);
+
+	fail:;
+		memset(a, 0, 4);
+		return 1;
+	}
+#else
+	{
+		struct ifaddrs *ifAddrStruct = NULL;
+		struct ifaddrs *ifa = NULL;
+		struct in_addr addr;
+		char buf[100];
+	
+		getifaddrs(&ifAddrStruct);
+	
+		/* Look first for the first IPV4 address */
+		for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+#ifdef AF_INET6
+			if (ifa->ifa_addr->sa_family==AF_INET) { /* IP4 ? */
+#endif
+				if (strncmp(ifa->ifa_name, "lo",2) == 0)
+					continue;		/* Skip local */
+				addr = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+				/* sin_addr is in network order */
+				memcpy(a, &addr.s_addr, 4);
+
+			    if (ifAddrStruct != NULL)
+    				freeifaddrs(ifAddrStruct);
+				return 0;
+			}
+		}
+
+	    if (ifAddrStruct != NULL)
+			freeifaddrs(ifAddrStruct);
+		memset(a, 0, 4);
+		return 1;
+	}
+#endif /* !_WIN32 */
+}
+
+// Get the IPV6 address (GWG)
+// Return 16 bytes in a[] in network order
+// Return nz if not available (try ipv4)
+int mg_get_ipv6(unsigned char *a) {
+#if _WIN32
+	{
+	ULONG family = AF_INET6;		// V6
+	ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST
+	            | GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_FRIENDLY_NAME;
+	PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+	PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
+	PIP_ADAPTER_UNICAST_ADDRESS pUnicast = NULL;
+	ULONG outBufLen = 15000;	// Try this buffer size first
+	ULONG Iterations = 0;
+	DWORD dwRetVal = 0;
+	struct sockaddr_in6 *saddr;
+	struct in6_addr addr;
+
+	do {
+		if ((pAddresses = (IP_ADAPTER_ADDRESSES *)malloc(outBufLen)) == NULL) {
+			// malloc fail
+			goto fail;
+		}
+
+		dwRetVal = GetAdaptersAddresses(family, flags, NULL, pAddresses, &outBufLen);
+
+		if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+			free(pAddresses);
+			pAddresses = NULL;
+		} else {
+			break;
+		}
+		Iterations++;
+
+		// Try 3 times to get big enough buffer
+	} while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < 3));
+
+	if (dwRetVal != NO_ERROR) {
+		free(pAddresses);
+		goto fail;
+	}
+
+	pCurrAddresses = pAddresses;
+	while (pCurrAddresses) {
+
+		if (pCurrAddresses->IfType == MIB_IF_TYPE_LOOPBACK)
+			goto nextif;
+
+		/* Use first unicast address */
+		if ((pUnicast = pCurrAddresses->FirstUnicastAddress) == NULL)
+			goto nextif;
+
+//		printf("OperStatus: %ld\n", pCurrAddresses->OperStatus);
+
+		saddr = ((struct sockaddr_in6 *)pUnicast->Address.lpSockaddr);
+		addr = saddr->sin6_addr;
+		memcpy(a, addr.s6_addr, 16);
+		free(pAddresses);
+		return 0;
+
+	  nextif:;
+		pCurrAddresses = pCurrAddresses->Next;
+	}
+	free(pAddresses);
+
+	fail:;
+		memset(a, 0, 16);
+		return 1;
+	}
+#else
+	{
+		struct ifaddrs *ifAddrStruct = NULL;
+		struct ifaddrs *ifa = NULL;
+		struct in6_addr addr;
+		char buf[100];
+	
+		getifaddrs(&ifAddrStruct);
+	
+		/* Look first for the first IPV4 address */
+#ifdef AF_INET6
+		for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr->sa_family==AF_INET6) { /* IP6 ? */
+				if (strncmp(ifa->ifa_name, "lo",2) == 0)
+					continue;		/* Skip local */
+
+				addr = ((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+				/* sin_addr is in network order */
+				memcpy(a, addr.s6_addr, 16);
+			    if (ifAddrStruct != NULL)
+    				freeifaddrs(ifAddrStruct);
+				return 0;
+			}
+		}
+#endif
+	    if (ifAddrStruct != NULL)
+			freeifaddrs(ifAddrStruct);
+		memset(a, 0, 16);
+		return 1;
+	}
+#endif /* !_WIN32 */
+return 1;
+}
+
+
 // Get the allocated port number of the first port 0 listener,
 // or the last non-0 port listener.
 // Return 0 on error
@@ -4080,84 +4304,77 @@ int mg_get_listening_port(struct mg_context *ctx) {
   return rv;
 }
 
-// Get a URL for accessing the server. */
+// Get a the server IP and port number. (GWG)
+// Return NULL on error. Free after use.
+char *mg_get_ip_port(struct mg_context *ctx) {
+	int is6 = 0;
+	unsigned char v4[4];
+	unsigned char v6[16];
+	char buf[200];
+	int portno = mg_get_listening_port(ctx);
+	char *rv = NULL;
+
+	if (portno == 0)
+	return NULL;
+
+	/* Create a suitable URL for accessing the server */
+	if (!mg_get_ipv4(v4)) {
+#if _WIN32
+		struct in_addr addr;
+		char *abuf;
+		addr.S_un.S_un_b.s_b1 = v4[0];
+		addr.S_un.S_un_b.s_b2 = v4[1];
+		addr.S_un.S_un_b.s_b3 = v4[2];
+		addr.S_un.S_un_b.s_b4 = v4[3];
+		abuf = inet_ntoa(addr);
+#else
+  		char abuf[INET_ADDRSTRLEN] = "";
+		inet_ntop(AF_INET, v4, abuf, INET_ADDRSTRLEN);
+#endif
+		sprintf(buf,"%s:%d/",abuf,portno);
+
+	} else if (!mg_get_ipv6(v6)) {
+#if _WIN32
+		char abuf6[100], *p = abuf6;
+		int i, pz = 0;
+		for (i = 0; i < 8; i++) {
+			if (v6[i * 2 + 1] != 0 || v6[i * 2 + 0] != 0) {
+				p += sprintf(p, "%x", v6[i * 2 + 0] * 256 + v6[i * 2 + 1]);
+				pz = 0;
+			} else {
+				pz = 1;
+			}
+			if (i == 0 || i == 6 || (i < 7 && !pz))
+				*p++ = ':';
+		}
+		*p++ = '\000';
+#else
+  		char abuf6[INET6_ADDRSTRLEN] = "";
+		inet_ntop(AF_INET6, v6, abuf6, INET6_ADDRSTRLEN);
+#endif
+		sprintf(buf,"[%s]:%d/",abuf6,portno);
+
+	} else {
+		return NULL;
+	}
+
+	rv = strdup(buf);
+
+	return rv;
+}
+
+// Get a URL for accessing the server.
 // Return NULL on error. Free after use.
 char *mg_get_url(struct mg_context *ctx) {
-  int portno = mg_get_listening_port(ctx);
-  char *rv = NULL;
+	char buf[200];
+	char *cp;
 
-  if (portno == 0)
+	if ((cp = mg_get_ip_port(ctx)) == NULL)
 		return NULL;
-
-  /* Create a suitable URL for accessing the server */
-#if _WIN32
-  {
-  	char szHostName[255];
-  	struct hostent *host_entry;
-  	char *localIP;
-  	char buf[100];
-
-  	/* We assume WinSock has been started by mongoose */
-
-  	// Get the local hostname
-  	gethostname(szHostName, 255);
-  	host_entry = gethostbyname(szHostName);
-  	/* Get first entry */
-  	localIP = inet_ntoa(*(struct in_addr *)*host_entry->h_addr_list);
-
-  	sprintf(buf,"http://%s:%d/",localIP,portno);
-  	rv = strdup(buf);
-  }
-#else
-  {
-  	struct ifaddrs *ifAddrStruct = NULL;
-  	struct ifaddrs *ifa = NULL;
-  	void *tmpAddrPtr = NULL;
-  	char abuf[INET_ADDRSTRLEN] = "";
-#ifdef AF_INET6
-  	char abuf6[INET6_ADDRSTRLEN] = "";
-#endif
-  	char buf[100];
-  
-  	getifaddrs(&ifAddrStruct);
-  
-  	/* Look first for the first IPV4 address */
-  	for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-#ifdef AF_INET6
-      if (ifa->ifa_addr->sa_family==AF_INET) { /* IP4 ? */
-#endif
-        if (strncmp(ifa->ifa_name, "lo",2) == 0 || abuf[0] != '\000')
-  		  continue;		/* Skip local */
-  		tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-  		inet_ntop(AF_INET, tmpAddrPtr, abuf, INET_ADDRSTRLEN);
-		sprintf(buf,"http://%s:%d/",abuf,portno);
-		break;
-      }
-  	}
-
-#ifdef AF_INET6
-  	/* If that didn't work, look for IPV6 address */
-	if (ifa == NULL) {
-  	  for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-  	    if (ifa->ifa_addr->sa_family==AF_INET6) { /* IP6 ? */
-  	  	  if (strncmp(ifa->ifa_name, "lo",2) == 0 || abuf6[0] != '\000')
-  	  	    continue;		/* Skip local */
-  	  	  tmpAddrPtr = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
-  	  	  inet_ntop(AF_INET6, tmpAddrPtr, abuf6, INET6_ADDRSTRLEN);
-		  sprintf(buf,"http://[%s]:%d/",abuf6,portno);
-	  	  break;
-  	    }
-      }
-	}
-#endif
-    if (ifAddrStruct != NULL)
-    	freeifaddrs(ifAddrStruct);
-
-    rv = strdup(buf);
-  }
-#endif /* _WIN32 */
-
-  return rv;
+	
+	sprintf(buf,"http://%s",cp);
+	free(cp);
+	return strdup(buf);
 }
 
 

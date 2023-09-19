@@ -28,6 +28,7 @@ int native,						/* X0 = use current per channel calibration curve */
 								/* 1X = disable color management cLUT (MadVR) */
 int *noramdac,					/* Return nz if no ramdac access. native is set to X0 */
 int *nocm,						/* Return nz if no CM cLUT access. native is set to 0X */
+double icalmax,					/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,					/* 1 = use RGB Video Level encoding */
 int fullscreen,					/* NZ if whole screen should be filled with black */
 int verb,						/* NZ for verbose prompts */

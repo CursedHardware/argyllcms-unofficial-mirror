@@ -450,7 +450,7 @@ a1log *log			/* verb, debug & error log */
 					}
 					if (cs->read_ccss(cs,ccxxname)) {
 						printf("\nReading CCMX/CCSS File '%s' failed with error %d:'%s'\n",
-					     	       ccxxname, cs->errc, cs->err);
+					     	       ccxxname, cs->e.c, cs->e.m);
 						cs->del(cs);
 						it->del(it);
 						return -1;
@@ -2564,7 +2564,7 @@ int main(int argc, char *argv[]) {
 	icg->add_other(icg, "CAL");		/* There may be a calibration too */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI2 format file");
@@ -2851,7 +2851,7 @@ int main(int argc, char *argv[]) {
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read(cal, calname)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 	}
 
 	/* If the user hasn't overridden it, get any calibration in the .ti2 */
@@ -2870,7 +2870,7 @@ int main(int argc, char *argv[]) {
 				error("new_xcal failed");
 			}
 			if (cal->read_cgats(cal, icg, tab, inname) != 0)  {
-				error("%s",cal->err);
+				error("%s",cal->e.m);
 			}
 		}
 	}
@@ -2878,7 +2878,7 @@ int main(int argc, char *argv[]) {
 	/* If there is calibration information, write it to the .ti3 */
 	if (cal != NULL) {			/* No user supplied calibration info */
 		if (cal->write_cgats(cal, ocg) != 0) {
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 		}
 		cal->del(cal);
 		cal = NULL;
@@ -2941,7 +2941,7 @@ int main(int argc, char *argv[]) {
 		rcg->add_other(rcg, "CAL"); 	/* our special device Calibration state */
 	
 		if (rcg->read_name(rcg, outname))
-			error("Unable to read chart being resumed '%s' : %s",outname, rcg->err);
+			error("Unable to read chart being resumed '%s' : %s",outname, rcg->e.m);
 	
 		if (rcg->ntables == 0 || rcg->t[0].tt != tt_other || rcg->t[0].oi != 0)
 			error ("Resumed file '%s' isn't a CTI3 format file",outname);
@@ -3210,7 +3210,7 @@ int main(int argc, char *argv[]) {
 		free(setel);
 
 		if (ocg->write_name(ocg, outname))
-			error("Write error : %s",ocg->err);
+			error("Write error : %s",ocg->e.m);
 	}
 
 	free(scols);

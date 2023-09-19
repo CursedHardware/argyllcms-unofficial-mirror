@@ -211,7 +211,7 @@ static BOOL CALLBACK MonitorEnumProc(
 	MONITORINFOEX pmi;
 	int ndisps = 0;
 	
-	debugrr2((errout, "MonitorEnumProc() called with hMonitor = 0x%x\n",hMonitor));
+	debugrr2((errout, "MonitorEnumProc() called with hMonitor = %p\n",hMonitor));
 
 	/* Get some more information */
 	pmi.cbSize = sizeof(MONITORINFOEX);
@@ -268,6 +268,16 @@ static BOOL CALLBACK MonitorEnumProc(
 	return TRUE;
 }
 
+/* It appears that windows is rather dumb in the way it declares new API's - */
+/* it only declares them if the code says it wants them by defining WINVER etc., */
+/* but if WINVER is declaed to be bigger than the SDK, the build will fail. */
+/* So there seems no way that code can automatically take advantage of new */
+/* API declarations to dynamically link them, while still compiling on */
+/* SDK's that don't know about them. Instead we have to assume the minimum */
+/* SDK that we can use, and declare all the new API's ourselves. Except */
+/* that some SDK's make newer API declarations anyway, and we have to detect */
+/* this somehow :-( */
+
 /* Dynamically linked function support */
 
 #if !defined(WINAPI_FAMILY_PARTITION) && (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
@@ -280,6 +290,10 @@ static BOOL CALLBACK MonitorEnumProc(
 # endif
 #endif
 
+/* Native MingW64 headers if _WIN32_ WINNT < 0x600 ... */
+#if defined(__MINGW64__) && !defined(WcsOpenColorProfile)
+# define DECLARE_WCS_SCOPE
+#endif
 
 #ifdef DECLARE_WCS_SCOPE
 
@@ -292,11 +306,8 @@ typedef enum {
 
 BOOL (WINAPI* pEnumDisplayDevices)(PVOID,DWORD,PVOID,DWORD) = NULL;
 
-#if (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
-
 BOOL (WINAPI* pWcsAssociateColorProfileWithDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
 BOOL (WINAPI* pWcsDisassociateColorProfileFromDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
-#endif  /* NTDDI_VERSION < NTDDI_LONGHORN */
 
 /* See if we can get the wanted function calls */
 /* return nz if OK */
@@ -1975,6 +1986,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 		CFURLRef url;
 		char *tpath;				/* Temporary profiles/original profiles path */
 		char *ppath;				/* Current/renamed profiles path */
+		icmErr err = { 0, { '\000'} };
 		icmFile *rd_fp, *wr_fp;
 		icc *icco;
 		CFUUIDRef dispuuid;
@@ -2002,7 +2014,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 		/* (Hmm. I think icclib will cope with V4 OK) */
 
 		/* Open up the profile for reading */
-		if ((rd_fp = new_icmFileStd_name(tpath,"r")) == NULL) {
+		if ((rd_fp = new_icmFileStd_name(&err, tpath,"r")) == NULL) {
 			debugr2((errout,"Failed to open profile '%s'\n",tpath));
 			free(tpath);
 			CFRelease(id);
@@ -2010,7 +2022,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 			return 1;
 		}
 	
-		if ((icco = new_icc()) == NULL) {
+		if ((icco = new_icc(&err)) == NULL) {
 			debugr2((errout,"Creation of ICC object failed\n"));
 			rd_fp->del(rd_fp);
 			free(tpath);
@@ -2021,7 +2033,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	
 		/* Read header etc. */
 		if ((rv = icco->read(icco,rd_fp,0)) != 0) {
-			debugr2((errout,"%d, %s",rv,icco->err));
+			debugr2((errout,"%d, %s",rv,icco->e.m));
 			icco->del(icco);
 			rd_fp->del(rd_fp);
 			free(tpath);
@@ -2031,7 +2043,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 		}
 		/* Read every tag */
 		if (icco->read_all_tags(icco) != 0) {
-			debugr2((errout,"Unable to read all tags: %d, %s",icco->errc,icco->err));
+			debugr2((errout,"Unable to read all tags: %d, %s",icco->e.c,icco->e.m));
 			icco->del(icco);
 			rd_fp->del(rd_fp);
 			free(tpath);
@@ -2044,12 +2056,12 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	
 		/* Replace the description */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "Dispwin Temp";
 
 			if (icco->find_tag(icco, icSigProfileDescriptionTag) == 0) {
 				if (icco->delete_tag(icco, icSigProfileDescriptionTag) != 0) {
-					debugr2((errout,"Unable to delete Description tag: %d, %s",icco->errc,icco->err));
+					debugr2((errout,"Unable to delete Description tag: %d, %s",icco->e.c,icco->e.m));
 					icco->del(icco);
 					free(tpath);
 					CFRelease(id);
@@ -2058,9 +2070,9 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 				}
 			}
 	
-			if ((wo = (icmTextDescription *)icco->add_tag(
-			           icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) { 
-				debugr2((errout,"Unable to add Description tag: %d, %s",icco->errc,icco->err));
+			if ((wo = (icmCommonTextDescription *)icco->add_tag(
+			           icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) { 
+				debugr2((errout,"Unable to add Description tag: %d, %s",icco->e.c,icco->e.m));
 				icco->del(icco);
 				free(tpath);
 				CFRelease(id);
@@ -2068,8 +2080,8 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 				return 1;
 			}
 	
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);			/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Replace the vcgt */
@@ -2079,7 +2091,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 
 			if (icco->find_tag(icco, icSigVideoCardGammaTag) == 0) {
 				if (icco->delete_tag(icco, icSigVideoCardGammaTag) != 0) {
-					debugr2((errout,"Unable to delete VideoCardGamma tag: %d, %s",icco->errc,icco->err));
+					debugr2((errout,"Unable to delete VideoCardGamma tag: %d, %s",icco->e.c,icco->e.m));
 					icco->del(icco);
 					free(tpath);
 					CFRelease(id);
@@ -2090,7 +2102,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 	
 			if ((wo = (icmVideoCardGamma *)icco->add_tag(icco, icSigVideoCardGammaTag,
 			                                        icSigVideoCardGammaType)) == NULL) {
-				debugr2((errout,"Unable to add VideoCardGamma tag: %d, %s",icco->errc,icco->err));
+				debugr2((errout,"Unable to add VideoCardGamma tag: %d, %s",icco->e.c,icco->e.m));
 				icco->del(icco);
 				free(tpath);
 				CFRelease(id);
@@ -2098,11 +2110,11 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 				return 1;
 			}
 	
-			wo->tagType = icmVideoCardGammaTableType;
+			wo->tagType = icSigVideoCardGammaType;
 			wo->u.table.channels = 3;			/* rgb */
 			wo->u.table.entryCount = r->nent;	/* number of calibration entries */
 			wo->u.table.entrySize = 2;			/* 16 bits */
-			wo->allocate((icmBase*)wo);
+			wo->allocate(wo);
 
 			for (i = 0; i < r->nent; i++) {
 				for (j = 0; j < 3; j++) {
@@ -2147,7 +2159,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 		debugr2((errout,"Renamed current profile '%s' to '%s'\n",tpath,ppath));
 
 		/* Save the modified profile to the original profile name */
-		if ((wr_fp = new_icmFileStd_name(tpath,"w")) == NULL) {
+		if ((wr_fp = new_icmFileStd_name(&err, tpath,"w")) == NULL) {
 			debugr2((errout,"Failed to open '%s' for writing\n",tpath));
 			free(ppath);
 			icco->del(icco);
@@ -2158,7 +2170,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 		}
 	
 		if ((rv = icco->write(icco,wr_fp,0)) != 0) {
-			debugr2((errout,"Write file: %d, %s",rv,icco->err));
+			debugr2((errout,"Write file: %d, %s",rv,icco->e.m));
 			free(ppath);
 			wr_fp->del(wr_fp);
 			icco->del(icco);
@@ -2770,9 +2782,14 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 		}
 
 		debugr2((errout,"Associating '%s' with '%s'\n",fullpath,p->monid));
+
+		/* This API does not support "advanced color" profiles for HDR monitors. */
+		/* We would need to use ColorProfileAddDisplayAssociation() if we were */
+		/* dealing with "advanced color profiles" */
+
 		if (pWcsAssociateColorProfileWithDevice != NULL) {
 			debugr("Using Vista Associate\n");
-			if ((*pWcsAssociateColorProfileWithDevice)(wcssc, wpath, wmonid) == 0) {
+			if ((*pWcsAssociateColorProfileWithDevice)(wcssc, wbname, wmonid) == 0) {
 				debugr2((errout,"WcsAssociateColorProfileWithDevice() failed for file '%s' with error %d\n",fullpath,GetLastError()));
 				free(wmonid);
 				free(wbname);
@@ -2781,7 +2798,7 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 				return 1;
 			}
 		} else {
-			if (AssociateColorProfileWithDevice(NULL, fullpath, p->monid) == 0) {
+			if (AssociateColorProfileWithDevice(NULL, basename, p->monid) == 0) {
 				debugr2((errout,"AssociateColorProfileWithDevice() failed for file '%s' with error %d\n",fullpath,GetLastError()));
 				free(wmonid);
 				free(wbname);
@@ -3346,6 +3363,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 	{
 		char buf[MAX_PATH];
 		DWORD blen = MAX_PATH;
+		icmErr err = { 0, { '\000'} };
 
 		if (GetICMProfile(p->hdc, &blen, buf) == 0) {
 			debugr2((errout, "GetICMProfile failed, lasterr = %d\n",GetLastError()));
@@ -3353,8 +3371,8 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		}
 
 		debugr2((errout,"Loading default profile '%s'\n",buf));
-		if ((rd_fp = new_icmFileStd_name(buf,"r")) == NULL)
-			debugr2((errout,"Can't open file '%s'",buf));
+		if ((rd_fp = new_icmFileStd_name(&err, buf,"r")) == NULL)
+			debugr2((errout,"Can't open file '%s' (0x%x, '%s')",buf,err.c,err.m));
 
 		return rd_fp;
 	}
@@ -3365,6 +3383,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 	{
 		char *dpath; 			/* Read file path */
 		struct stat sbuf;
+		icmErr err = { 0, { '\000'} };
 		icmAlloc *al;
 		void *buf;
 		FILE *fp;
@@ -3381,7 +3400,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 			return NULL;
 		}
 
-		if ((al = new_icmAllocStd()) == NULL) {
+		if ((al = new_icmAllocStd(&err)) == NULL) {
 			debugr("new_icmAllocStd failed\n");
 			free(dpath);
 		    return NULL;
@@ -3409,7 +3428,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		free(dpath); dpath = NULL;
 
 		/* Memory File fp that will free the buffer when deleted: */
-		if ((rd_fp = new_icmFileMem_ad(buf, sbuf.st_size, al)) == NULL) {
+		if ((rd_fp = new_icmFileMem_ad(&err, buf, sbuf.st_size, al)) == NULL) {
 			debugr("Creating memory file profile failed");
 			al->free(al, buf);
 			al->del(al);
@@ -3431,6 +3450,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		CMProfileLocation dploc;		/* Destinaion profile location */
 		CMAppleProfileHeader hdr;
 		icmAlloc *al;
+		icmErr err = { 0, { '\000'} };
 
 #ifdef NEVER
 		/* Get the current display profile */
@@ -3469,7 +3489,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		/* Make a copy of the profile to a memory buffer */
 		dploc.locType = cmBufferBasedProfile;
 		dploc.u.bufferLoc.size = hdr.cm1.size;
-		if ((al = new_icmAllocStd()) == NULL) {
+		if ((al = new_icmAllocStd(&err)) == NULL) {
 			debugr("new_icmAllocStd failed\n");
 		    return NULL;
 		}
@@ -3484,7 +3504,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		}
 
 		/* Memory File fp that will free the buffer when deleted: */
-		if ((rd_fp = new_icmFileMem_ad((void *)dploc.u.bufferLoc.buffer, dploc.u.bufferLoc.size, al)) == NULL) {
+		if ((rd_fp = new_icmFileMem_ad(&err, (void *)dploc.u.bufferLoc.buffer, dploc.u.bufferLoc.size, al)) == NULL) {
 			debugr("Creating memory file from CMProfileLocation failed");
 			al->free(al, dploc.u.bufferLoc.buffer);
 			al->del(al);
@@ -3509,6 +3529,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	/* Try and get the currently installed profile from ucmm */
 	{
+		icmErr err = { 0, { '\000'} };
 		ucmm_error ev;
 		char *profile = NULL;
 
@@ -3530,7 +3551,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 			}
 
 			debugr2((errout,"Loading current profile '%s'\n",profile));
-			if ((rd_fp = new_icmFileStd_name(profile,"r")) == NULL) {
+			if ((rd_fp = new_icmFileStd_name(&err, profile,"r")) == NULL) {
 				debugr2((errout,"Can't open file '%s'",profile));
 				free(profile);
 				return NULL;
@@ -3559,6 +3580,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		char aname[30];
 		unsigned char *atomv = NULL;	/* Profile loaded from/to atom */
 		unsigned char *buf;
+		icmErr err = { 0, { '\000'} };
 		icmAlloc *al;
 
 		atomv = NULL;
@@ -3600,7 +3622,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		/* This is a bit of a fiddle to keep the memory allocations */
 		/* straight. (We can't assume that X11 and icc are using the */
 		/* same allocators) */
-		if ((al = new_icmAllocStd()) == NULL) {
+		if ((al = new_icmAllocStd(&err)) == NULL) {
 			debugr("new_icmAllocStd failed\n");
 		    return NULL;
 		}
@@ -3612,7 +3634,7 @@ icmFile *dispwin_get_profile(dispwin *p, char *name, int mxlen) {
 		XFree(atomv);
 
 		/* Memory File fp that will free the buffer when deleted: */
-		if ((rd_fp = new_icmFileMem_ad((void *)buf, ret_len, al)) == NULL) {
+		if ((rd_fp = new_icmFileMem_ad(&err, (void *)buf, ret_len, al)) == NULL) {
 			debugr("Creating memory file from X11 atom failed");
 			al->free(al, buf);
 			al->del(al);
@@ -4866,6 +4888,7 @@ int native,						/* X0 = use current per channel calibration curve */
 								/* 1X = disable color management cLUT (MadVR) */
 int *noramdac,					/* Return nz if no ramdac access. native is set to X0 */
 int *nocm,						/* Return nz if no CM cLUT access. native is set to 0X */
+double icalmax,					/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,					/* 1 = use RGB Video Level encoding */
 int fullscreen,					/* NZ if whole screen should be filled with black */
 int override,					/* NZ if override_redirect is to be used on X11 */
@@ -4888,6 +4911,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->height = height;
 	p->nowin = nowin;
 	p->native = native;
+	p->icalmax = icalmax;
 	p->out_tvenc = out_tvenc;
 	p->fullscreen = fullscreen;
 	p->ddebug = ddebug;
@@ -4904,7 +4928,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->set_callout         = dispwin_set_callout;
 	p->del                 = dispwin_del;
 
-	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5;	/* Set Grey as the initial test color */
+	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5 * icalmax;	/* Set Grey as the initial test color */
 
 #if defined(UNIX_X11) && defined(USE_UCMM)
 	dispwin_checkfor_colord(p);		/* Make colord functions available */
@@ -6023,6 +6047,7 @@ int x11_load_all(disppath *disp, int verb, int ddebug) {
 		dispwin *dw;
 		char calname[MAXNAMEL+1] = "\000";	/* Calibration file name */
 		icmFile *rd_fp = NULL;
+		icmErr err = { 0, { '\000'} };
 		icc *icco = NULL;
 		icmVideoCardGamma *wo;
 		double iv;
@@ -6032,7 +6057,7 @@ int x11_load_all(disppath *disp, int verb, int ddebug) {
 				break;
 			if (verb) printf("Updating display %d = '%s'\n",i+1,dp[i]->description);
 
-			if ((dw = new_dispwin(dp[i], 0.0, 0.0, 0.0, 0.0, 1, 0, NULL, NULL, 0, 0, 0, ddebug)) == NULL) {
+			if ((dw = new_dispwin(dp[i], 0.0, 0.0, 0.0, 0.0, 1, 0, NULL, NULL, 1.0, 0, 0, 0, ddebug)) == NULL) {
 				if (verb) printf("Failed to access screen %d of display '%s'\n",i+1,dnbuf);
 				continue;
 			}
@@ -6051,7 +6076,7 @@ int x11_load_all(disppath *disp, int verb, int ddebug) {
 				continue;
 			}
 
-			if ((icco = new_icc()) == NULL) {
+			if ((icco = new_icc(&err)) == NULL) {
 				if (verb) printf("Failed to create profile object for screen %d for display '%s'\n",i+1,dnbuf);
 				rd_fp->del(rd_fp);
 				r->del(r);
@@ -6251,6 +6276,7 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 					dispwin *dw;
 					char calname[MAXNAMEL+1] = "\000";	/* Calibration file name */
 					icmFile *rd_fp = NULL;
+					icmErr err = { 0, { '\000'} };
 					icc *icco = NULL;
 					icmVideoCardGamma *wo;
 					double iv;
@@ -6260,7 +6286,7 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 							break;
 						if (verb) printf("Updating display %d = '%s'\n",i+1,dp[i]->description);
 		
-						if ((dw = new_dispwin(dp[i], 0.0, 0.0, 0.0, 0.0, 1, 0, NULL, NULL, 0, 0, 0, ddebug)) == NULL) {
+						if ((dw = new_dispwin(dp[i], 0.0, 0.0, 0.0, 0.0, 1, 0, NULL, NULL, 1.0, 0, 0, 0, ddebug)) == NULL) {
 							if (verb) printf("Failed to access screen %d of display '%s'\n",i+1,dnbuf);
 							continue;
 						}
@@ -6278,7 +6304,7 @@ int x11_daemon_mode(disppath *disp, int verb, int ddebug) {
 							continue;
 						}
 
-						if ((icco = new_icc()) == NULL) {
+						if ((icco = new_icc(&err)) == NULL) {
 							if (verb) printf("Failed to create profile object for screen %d for display '%s'\n",i+1,dnbuf);
 							rd_fp->del(rd_fp);
 							r->del(r);
@@ -6464,6 +6490,7 @@ static void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -G filename          Display RGB colors from CGATS (ie .ti1) file\n");
 	fprintf(stderr," -C r.rr,g.gg,b.bb    Add this RGB color to list to be displayed\n");
 	fprintf(stderr," -m                   Manually cycle through values\n");
+	fprintf(stderr," -Y msec              patch delay in msec (default 2000)\n");
 	fprintf(stderr," -f                   Test grey ramp fade\n");
 	fprintf(stderr," -r                   Test just Video LUT loading & Beeps\n");
 	fprintf(stderr," -n                   Test native output (rather than through Video LUT and C.M.)\n");
@@ -6505,6 +6532,7 @@ main(int argc, char *argv[]) {
 	disppath *disp = NULL;		/* Display being used */
 	double hpatscale = 1.0, vpatscale = 1.0;	/* scale factor for test patch size */
 	double ho = 0.0, vo = 0.0;	/* Test window offsets, -1.0 to 1.0 */
+	double icalmax = 1.0;		/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc = 0;			/* 1 to use RGB Video Level encoding */
 	int fullscreen = 0;       		/* NZ if whole screen should be filled with black */
 	int nowin = 0;				/* Don't create test window */
@@ -6520,6 +6548,7 @@ main(int argc, char *argv[]) {
 	char pcname[MAXNAMEL+1] = "\000";	/* CGATS patch color name */
 	int nmrgb = 0;				/* Number of manual RGB values */
 	double mrgb[10][3];			/* Manual RGB values */
+	int patchms = 2000;			/* Patch display delay in msec */
 	int clear = 0;				/* Clear any display calibration (any calname is ignored) */
 	char sname[MAXNAMEL+1] = "\000";	/* Current cal save name */
 	int verify = 0;				/* Verify that calname is currently loaded */
@@ -6710,6 +6739,15 @@ main(int argc, char *argv[]) {
 					usage(0,"-C parameters %f %f %f are out of range 0.0 - 1.0",mrgb[nmrgb][0],mrgb[nmrgb][1],mrgb[nmrgb][2]);
 				nmrgb++;
 			}
+
+			else if (argv[fa][1] == 'Y') {
+				if (na == NULL) usage(0,"-Y parameter is missing");
+				patchms = atoi(na);
+				if (patchms < 0)
+					patchms = 0;
+				fa = nfa;
+			}
+
 			else if (argv[fa][1] == 'f')
 				fade = 1;
 
@@ -6830,7 +6868,7 @@ main(int argc, char *argv[]) {
 
 	if (webdisp != 0) {
 		if ((dw = new_webwin(webdisp, 100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,
-			                        &noramdac, &nocm, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
+			                        &noramdac, &nocm, icalmax, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
 			printf("Error - new_webwin failed!\n");
 			return -1;
 		}
@@ -6853,7 +6891,7 @@ main(int argc, char *argv[]) {
 		}
 		
 		if ((dw = new_ccwin(ids[ccdisp-1], 100.0 * hpatscale, 100.0 * vpatscale,
-			                   ho, vo, nowin, native, &noramdac, &nocm, out_tvenc,
+			                   ho, vo, nowin, native, &noramdac, &nocm, icalmax, out_tvenc,
 			                   fullscreen, 0, verb, ddebug)) == NULL) {
 			printf("Error - new_ccwin failed!\n");
 			free_ccids(ids);
@@ -6869,21 +6907,21 @@ main(int argc, char *argv[]) {
 		}
 			
 		if ((dw = new_madvrwin(100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,
-			                   &noramdac, &nocm, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
+			                   &noramdac, &nocm, icalmax, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
 			printf("Error - new_madvrwin failed! (Is it running and up to date?)\n");
 			return -1;
 		}
 #endif
 	} else if (dummydisp != 0) {
 		if ((dw = new_dummywin(100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,
-			                   &noramdac, &nocm, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
+			                   &noramdac, &nocm, icalmax, out_tvenc, fullscreen, verb, ddebug)) == NULL) {
 			printf("Error - new_dummywin failed!\n");
 			return -1;
 		}
 	} else {
 		if (verb) printf("About to open dispwin object on the display\n");
 		if ((dw = new_dispwin(disp, 100.0 * hpatscale, 100.0 * vpatscale, ho, vo, nowin, native,
-			                         &noramdac, &nocm, out_tvenc, fullscreen, 1, ddebug)) == NULL) {
+			                         &noramdac, &nocm, 1.0, out_tvenc, fullscreen, 1, ddebug)) == NULL) {
 			printf("Error - new_dispwin failed!\n");
 			return -1;
 		}
@@ -6947,7 +6985,7 @@ main(int argc, char *argv[]) {
 		free(setel);
 
 		if (ocg->write_name(ocg, sname))
-			error("Write error to '%s' : %s",sname,ocg->err);
+			error("Write error to '%s' : %s",sname,ocg->e.m);
 
 		ocg->del(ocg);		/* Clean up */
 
@@ -6998,6 +7036,7 @@ main(int argc, char *argv[]) {
 	/* and put it in dw->or */
 	if (loadfile != 0 || verify != 0 || loadprofile != 0 || installprofile == 1) {
 		icmFile *rd_fp = NULL;
+		icmErr err = { 0, { '\000'} };
 		icc *icco = NULL;
 		cgats *ccg = NULL;			/* calibration cgats structure */
 		
@@ -7017,12 +7056,12 @@ main(int argc, char *argv[]) {
 		} else {
 			/* Open up the profile for reading */
 			debug2((errout,"Loading calibration from file '%s'\n",calname));
-			if ((rd_fp = new_icmFileStd_name(calname,"r")) == NULL)
-				error("Can't open file '%s'",calname);
+			if ((rd_fp = new_icmFileStd_name(&err,calname,"r")) == NULL)
+				error("Can't open file '%s' (0x%x, '%s')",calname,err.c,err.m);
 		}
 
-		if ((icco = new_icc()) == NULL)
-			error("Creation of ICC object failed");
+		if ((icco = new_icc(&err)) == NULL)
+			error("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 		/* Read header etc. */
 		if (icco->read(icco, rd_fp,0) == 0) {		/* Read ICC OK */
@@ -7274,7 +7313,7 @@ main(int argc, char *argv[]) {
 				icg->add_other(icg, "");		/* Allow any signature file */
 
 				if (icg->read_name(icg, pcname))
-					error("File '%s' read error : %s",pcname, icg->err);
+					error("File '%s' read error : %s",pcname, icg->e.m);
 
 				if (icg->ntables < 1)		/* We don't use second table at the moment */
 					error ("Input file '%s' doesn't contain at least one table",pcname);
@@ -7325,8 +7364,9 @@ main(int argc, char *argv[]) {
 					if (inf == 2) {
 						if (getchar() == 'q')
 							goto do_exit;
-					} else
-						sleep(2);
+					} else {
+						msec_sleep(patchms);
+					}
 				}
 				icg->del(icg);
 
@@ -7359,7 +7399,7 @@ main(int argc, char *argv[]) {
 						if (getchar() == 'q')
 							goto do_exit;
 					} else
-						sleep(2);
+						msec_sleep(patchms);
 				}
 
 			/* Preset and random patch colors */
@@ -7375,7 +7415,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 75%% Grey\n");
 				dw->set_color(dw, 0.75, 0.75, 0.75);	/* Grey */
@@ -7384,7 +7424,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 50%% Grey\n");
 				dw->set_color(dw, 0.5, 0.5, 0.5);	/* Grey */
@@ -7393,7 +7433,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 25%% Grey\n");
 				dw->set_color(dw, 0.25, 0.25, 0.25);	/* Grey */
@@ -7402,7 +7442,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 12.5%% Grey\n");
 				dw->set_color(dw, 0.125, 0.125, 0.125);	/* Grey */
@@ -7411,7 +7451,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Black\n");
 				dw->set_color(dw, 0.0, 0.0, 0.0);
@@ -7420,7 +7460,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Red\n");
 				dw->set_color(dw, 1.0, 0.0, 0.0);	/* Red */
@@ -7429,7 +7469,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Green\n");
 				dw->set_color(dw, 0.0, 1.0,  0.0);	/* Green */
@@ -7438,7 +7478,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Blue\n");
 				dw->set_color(dw, 0.0, 0.0, 1.0);	/* Blue */
@@ -7447,7 +7487,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Cyan\n");
 				dw->set_color(dw, 0.0, 1.0, 1.0);	/* Cyan */
@@ -7456,7 +7496,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Magenta\n");
 				dw->set_color(dw, 1.0, 0.0,  1.0);	/* Magenta */
@@ -7465,7 +7505,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting Yellow\n");
 				dw->set_color(dw, 1.0, 1.0, 0.0);	/* Yellow */
@@ -7474,7 +7514,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 50%% Red\n");
 				dw->set_color(dw, 0.5, 0.0, 0.0);	/* Red */
@@ -7483,7 +7523,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 50%% Green\n");
 				dw->set_color(dw, 0.0, 0.5,  0.0);	/* Green */
@@ -7492,7 +7532,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				printf("Setting 50%% Blue\n");
 				dw->set_color(dw, 0.0, 0.0, 0.5);	/* Blue */
@@ -7501,7 +7541,7 @@ main(int argc, char *argv[]) {
 					if (getchar() == 'q')
 						goto do_exit;
 				} else
-					sleep(2);
+					msec_sleep(patchms);
 
 				if (inf == 1) {
 					for (;inf != 0;) {
@@ -7519,7 +7559,7 @@ main(int argc, char *argv[]) {
 							if (getchar() == 'q')
 								goto do_exit;
 						} else
-							sleep(2);
+							msec_sleep(patchms);
 	
 					}
 				}

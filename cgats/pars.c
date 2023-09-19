@@ -85,8 +85,8 @@ cgatsFile *fp		/* File to read from */
 	p->token = 0;
 	p->ltflag = 0;
 	p->q = 0;
-	p->errc = 0;
-	p->err[0] = '\000';
+	p->e.c = 0;
+	p->e.m[0] = '\000';
 
 	/* Reset the parsing delimiters */
 	reset_del(p);
@@ -275,15 +275,17 @@ const char *format,
 
 	/* We have to use the available printf functions to resize the buffer if needed. */
 	for (;rv != 0;) {
+		int nlen;
+
 		/* vsnprintf() either returns -1 if it doesn't fit, or */
 		/* returns the size-1 needed in order to fit. */
-		len = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
+		nlen = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
 
-		if (len > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
+		if (nlen > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
 			break;
 
-		if (len > -1)				/* vsnprintf returned needed size-1 */
-			len = len+2;			/* (In case vsnprintf returned 1 less than it needs) */
+		if (nlen > -1)				/* vsnprintf returned needed size-1 */
+			len = nlen+2;			/* (In case vsnprintf returned 1 less than it needs) */
 		else
 			len *= 2;				/* We just have to guess */
 
@@ -426,8 +428,8 @@ read_line(parse *p) {
 	int c;
 	p->bo = 0;			/* Reset pointer to the start of the line buffer */
 	p->q = 0;			/* Reset quoted flag */
-	p->errc = 0;		/* Reset error status */
-	p->err[0] = '\000';
+	p->e.c = 0;		/* Reset error status */
+	p->e.m[0] = '\000';
 	do {
 		if ((c = p->fp->getch(p->fp)) == EOF) {
 			if (p->bo == 0) {	/* If there is nothing in the buffer */
@@ -484,8 +486,8 @@ read_line(parse *p) {
 		if (p->bo == p->bs) {				/* Run out of buffer space */
 			p->bs = (p->bs + 100) * 2;	/* Expand line buffer size */
 			if ((p->b = (char *) p->al->realloc(p->al, p->b, p->bs)) == NULL) {
-				sprintf(p->err,"parse.read_line(), realloc failed!");
-				return (p->errc = -1);
+				sprintf(p->e.m,"parse.read_line(), realloc failed!");
+				return (p->e.c = -1);
 			}
 		}
 		p->b[p->bo++] = c;		/* Stash character away */
@@ -534,15 +536,15 @@ add_del(
 /* Using the current token delimiter table and the current line, */
 /* parse it from the current location and return a pointer to the */
 /* null terminated token. Return NULL if there is no token found */
-/* set the parse err and errc to non-zero if there was some other error */
+/* set the parse err and e.c to non-zero if there was some other error */
 static char *
 get_token(parse *p) {
 	int tbo = 0;	/* Token buffer offset */
 	int term = 0;	/* flag to trigger token termination */
 	char c;
 
-	p->errc = 0;		/* Reset error status */
-	p->err[0] = '\000';
+	p->e.c = 0;		/* Reset error status */
+	p->e.m[0] = '\000';
 	if (p->b == NULL) {
 #ifdef DEBUG
 		printf("pars: read_token() NULL buffe\n");
@@ -568,8 +570,8 @@ get_token(parse *p) {
 		if (tbo == p->tbs) {				/* Run out of buffer space */
 			p->tbs = (p->tbs + 100) * 2;	/* Expand token buffer size */
 			if ((p->tb = (char *) p->al->realloc(p->al, p->tb, p->tbs)) == NULL) {
-				sprintf(p->err,"parse.get_token(), realloc failed!");
-				p->errc = -1;
+				sprintf(p->e.m,"parse.get_token(), realloc failed!");
+				p->e.c = -1;
 				return NULL;
 			}
 		}
@@ -621,14 +623,14 @@ main() {
 	for (;;) {
 		char *tp;
 		if ((rc = pp->read_line(pp)) == -1)
-			error("%s",pp->err);
+			error("%s",pp->e.m);
 		if (rc == 0)
 			break;
 		printf("Line %d = '%s'\n",pp->line,pp->b);
 		do {
 			tp = pp->get_token(pp);
-			if (pp->errc != 0)
-				error("%s",pp->err);
+			if (pp->e.c != 0)
+				error("%s",pp->e.m);
 			if (tp != NULL)
 				printf("Token %d = '%s'\n",pp->token,tp);
 			} while (tp != NULL);

@@ -51,6 +51,7 @@ main(
 	char *argv[]
 ) {
 	int fa,nfa;				/* argument we're looking at */
+	icmErr e = { 0, { '\000'} };
 	int verb = 0;
 	int cchan = -1;			/* default all */
 	int dovrml = 0;
@@ -136,21 +137,23 @@ main(
 		xl = out_name + strlen(out_name);
 	xl[0] = '\000';			/* Remove extension */
 
-	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	icm_err_clear_e(&e);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	/* Open up the file for reading */
+	if ((rd_fp = new_icmFileStd_name(&e, in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s', failed with 0x%x, '%s'",in_name, e.c, e.m);
+
+	if ((rd_icco = new_icc(&e)) == NULL)
+		error ("Read: Creation of ICC object failed with 0x%x, '%s'", e.c, e.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Get a Device to PCS conversion object */
 	if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
 		if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-			error ("%d, %s",rd_icco->errc, rd_icco->err);
+			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
 	/* Get details of conversion */
 	luo->spaces(luo, &ins, &inn, &outs, NULL, &alg, NULL, NULL, NULL, NULL);
@@ -234,7 +237,7 @@ main(
 
 						/* Device to PCS */
 						if ((rv = luluto->clut(luluto, pcs[ck], dev[ck])) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 //						if (dovrml)
 //							wrl->add_vertex(wrl, 0, pcs[ck]);

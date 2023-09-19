@@ -34,7 +34,7 @@
 #include "rspl.h"
 #include "xicc.h"
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 #undef DBG
@@ -43,6 +43,9 @@
 #undef DBG
 #define DBG(xxx) 
 #endif
+
+
+typedef icmLut1 icmLut;			/* Will only work for icSigLut16Type & icSigLut8Type */
 
 void usage(char *diag, ...) {
 	int i;
@@ -83,6 +86,7 @@ main(int argc, char *argv[]) {
 	char out_name[MAXNAMEL+1];
 	xcal *cal = NULL;			/* Calibration to apply */
 	icmFile *rd_fp = NULL, *wr_fp = NULL;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 	int apply = 1;
 	int remove = 0;
@@ -163,23 +167,23 @@ main(int argc, char *argv[]) {
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read(cal, cal_name)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 	}
 
 	/* Open up the profile for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read header etc. */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	/* Read every tag */
 	if (icco->read_all_tags(icco) != 0) {
-		error("Unable to read all tags: %d, %s",icco->errc,icco->err);
+		error("Unable to read all tags: %d, %s",icco->e.c,icco->e.m);
 	}
 
 	rd_fp->del(rd_fp);
@@ -256,8 +260,8 @@ main(int argc, char *argv[]) {
 				/* Check colorspace is compatible */
 				if (cal->colspace != icco->header->colorSpace)
 					error("Calibration space %s doesn't match profile %s",
-					             icm2str(icmColorSpaceSignature, cal->colspace),
-					             icm2str(icmColorSpaceSignature, icco->header->colorSpace));
+					             icm2str(icmColorSpaceSig, cal->colspace),
+					             icm2str(icmColorSpaceSig, icco->header->colorSpace));
 
 				ssigp = sigs;
 				/* Note the cal direction */
@@ -272,8 +276,8 @@ main(int argc, char *argv[]) {
 				/* Check colorspace is compatible */
 				if (cal->colspace != icco->header->pcs)
 					error("Calibration space %s doesn't match profile %s",
-					             icm2str(icmColorSpaceSignature, cal->colspace),
-					             icm2str(icmColorSpaceSignature, icco->header->pcs));
+					             icm2str(icmColorSpaceSig, cal->colspace),
+					             icm2str(icmColorSpaceSig, icco->header->pcs));
 				ssigp = linksigs;
 				/* Note the cal direction */
 				if (cal->devclass == icSigInputClass)
@@ -282,7 +286,7 @@ main(int argc, char *argv[]) {
 					inp = 0;
 			} else {
 				error("Can't apply calibration to profile of class %s",
-				      icm2str(icmProfileClassSignature, icco->header->deviceClass));
+				      icm2str(icmProfileClassSig, icco->header->deviceClass));
 			}
 			DBG(("input calibration = %d\n",inp));
 
@@ -290,7 +294,7 @@ main(int argc, char *argv[]) {
 			for (sigp = ssigp; sigp->prim != 0; sigp++) { /* Process each tag */
 				icmBase *primt;
 
-				DBG(("looking for tag '%s'\n",icm2str(icmTagSignature, sigp->prim)));
+				DBG(("looking for tag '%s'\n",icm2str(icmTagSig, sigp->prim)));
 				if ((primt = icco->read_tag(icco, sigp->prim)) == NULL) {
 					if (sigp->prim == icSigProfileDescriptionTag)
 						error("Can't find icSigProfileDescriptionTag in profile"); 
@@ -309,23 +313,23 @@ main(int argc, char *argv[]) {
 							DBG(("tag is shared, so separate it\n"));
 							if ((wo = (icmCurve *)icco->add_tag(
 							           icco, sigp->back, icSigCurveType)) == NULL) 
-								error("Failed to create tag '%s'\n", icm2str(icmTagSignature, sigp->back));
-							wo->flag = ro->flag;
-							wo->size = ro->size;
-							wo->allocate((icmBase *)wo);	/* Allocate space */
-							for (i = 0; i < wo->size; i++)	/* Copy the curve */
+								error("Failed to create tag '%s'\n", icm2str(icmTagSig, sigp->back));
+							wo->ctype = ro->ctype;
+							wo->count = ro->count;
+							wo->allocate(wo);	/* Allocate space */
+							for (i = 0; i < wo->count; i++)	/* Copy the curve */
 								wo->data[i] = ro->data[i];
 
 							if (icco->delete_tag(icco, sigp->prim))
-								error("Failed to delete tag '%s'",icm2str(icmTagSignature, sigp->prim));
+								error("Failed to delete tag '%s'",icm2str(icmTagSig, sigp->prim));
 							if (icco->rename_tag(icco, sigp->back, sigp->prim))
 								error("Failed to rename tag '%s' to '%s'",
-								          icm2str(icmTagSignature, sigp->back),
-								          icm2str(icmTagSignature, sigp->prim));
+								          icm2str(icmTagSig, sigp->back),
+								          icm2str(icmTagSig, sigp->prim));
 						}
 					} else {
 						if (ro->refcount > 1)
-							error("Found tag %s has backup, but is shared",icm2str(icmTagSignature,sigp->prim));
+							error("Found tag %s has backup, but is shared",icm2str(icmTagSig,sigp->prim));
 					}
 				}
 			}
@@ -334,7 +338,7 @@ main(int argc, char *argv[]) {
 			for (sigp = ssigp; sigp->prim != 0; sigp++) { /* Process each tag */
 				icmBase *primt;
 
-				DBG(("looking for tag '%s'\n",icm2str(icmTagSignature, sigp->prim)));
+				DBG(("looking for tag '%s'\n",icm2str(icmTagSig, sigp->prim)));
 				if ((primt = icco->read_tag(icco, sigp->prim)) == NULL) {
 					if (sigp->prim == icSigProfileDescriptionTag)
 						error("Can't find icSigProfileDescriptionTag in profile"); 
@@ -342,8 +346,8 @@ main(int argc, char *argv[]) {
 				}
 
 				/* icSigProfileDescriptionTag type */
-				if (primt->ttype == icSigTextDescriptionType) {
-					icmTextDescription *wo, *ro = (icmTextDescription *)primt;
+				if (ISCOMMONTEXT(primt->ttype)) {
+					icmCommonTextDescription *wo, *ro = (icmCommonTextDescription *)primt;
 					char *extra = NULL;
 
 					/* See if we've done this tag before due to links */
@@ -360,18 +364,18 @@ main(int argc, char *argv[]) {
 					dtags[ntags++] = primt;		/* Remember this one */
 
 					DBG(("ProfileDescriptionTag\n"));
-					DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, sigp->back)));
+					DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, sigp->back)));
 
 					/* See if we have a backup */
-					if ((wo = (icmTextDescription *)icco->read_tag(icco, sigp->back)) == NULL) {
+					if ((wo = (icmCommonTextDescription *)icco->read_tag(icco, sigp->back)) == NULL) {
 						DBG(("No backup, creating one\n"));
 						/* No, so create one */
-						if ((wo = (icmTextDescription *)icco->add_tag(
-						           icco, sigp->back, icSigTextDescriptionType)) == NULL) 
-							error("Failed to create tag '%s'\n", icm2str(icmTagSignature, sigp->back));
+						if ((wo = (icmCommonTextDescription *)icco->add_tag(
+						           icco, sigp->back, icmSigCommonTextDescriptionType)) == NULL) 
+							error("Failed to create tag '%s' type '%s'\n", icm2str(icmTagSig, sigp->back),icm2str(icmTypeSig,icmSigCommonTextDescriptionType));
 
-						wo->size = ro->size;
-						wo->allocate((icmBase *)wo);	/* Allocate space */
+						wo->count = ro->count;
+						wo->allocate(wo);	/* Allocate space */
 						strcpy(wo->desc, ro->desc);		/* Copy the string in */
 						/* Hmm. what should we do with Unicode and script ? */
 					} else {
@@ -383,14 +387,14 @@ main(int argc, char *argv[]) {
 					else
 						extra = cal_name;
 
-					ro->size = strlen(wo->desc) + 3 + strlen(extra) + 3;
-					ro->allocate((icmBase *)ro);	/* Allocate space */
+					ro->count = strlen(wo->desc) + 3 + strlen(extra) + 3;
+					ro->allocate(ro);	/* Allocate space */
 					strcpy(ro->desc, wo->desc);
 					strcat(ro->desc, " [ ");
 					strcat(ro->desc, extra);
 					strcat(ro->desc, " ]");
 
-					DBG(("Set tag contents to '%s' len %ld size %d\n",ro->desc,strlen(ro->desc)+1,ro->size));
+					DBG(("Set tag contents to '%s' len %" PFSTPREC "d size %d\n",ro->desc,strlen(ro->desc)+1,ro->count));
 
 				/* icSigAToBXTag or icSigBToAXTag */
 				} else if (primt->ttype == icSigLut8Type
@@ -421,7 +425,7 @@ main(int argc, char *argv[]) {
 							/* Create a tag per channel */
 							bsig += j; 
 
-							DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, bsig)));
+							DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, bsig)));
 
 							/* See if we have a backup */
 							if ((wo = (icmCurve *)icco->read_tag(icco, bsig)) == NULL) {
@@ -429,12 +433,12 @@ main(int argc, char *argv[]) {
 								/* No, so create one */
 								if ((wo = (icmCurve *)icco->add_tag(
 								           icco, bsig, icSigCurveType)) == NULL) 
-									error("Failed to create tag '%s'\n", icm2str(icmTagSignature, bsig));
-								wo->flag = icmCurveSpec; 		/* Specified version */
-								wo->size = ro->inputEnt;
-								wo->allocate((icmBase *)wo);	/* Allocate space */
-								for (i = 0; i < wo->size; i++)	/* Copy the curve */
-									wo->data[i] = ro->inputTable[j * ro->inputEnt + i];
+									error("Failed to create tag '%s'\n", icm2str(icmTagSig, bsig));
+								wo->ctype = icmCurveSpec; 		/* Specified version */
+								wo->count = ro->inputEnt;
+								wo->allocate(wo);	/* Allocate space */
+								for (i = 0; i < wo->count; i++)	/* Copy the curve */
+									wo->data[i] = ro->pe_ic[j]->data[i];
 							} else {
 								DBG(("Found backup\n"));
 							}
@@ -448,7 +452,7 @@ main(int argc, char *argv[]) {
 								else
 									val = cal->inv_interp_ch(cal, j, val);	/* Undo calibration */
 								wo->lookup_fwd(wo, &val, &val);		/* Original curve */
-								ro->inputTable[j * ro->inputEnt + i] = val;
+								ro->pe_ic[j]->data[i] = val;
 							}
 							DBG(("Created calibrated input curve\n"));
 						}
@@ -461,20 +465,20 @@ main(int argc, char *argv[]) {
 							/* Create a tag per channel */
 							bsig += j; 
 
-							DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, bsig)));
+							DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, bsig)));
 							/* See if we have a backup */
 							if ((wo = (icmCurve *)icco->read_tag(icco, bsig)) == NULL) {
 								DBG(("No backup, creating one\n"));
 								/* No, so create one */
 								if ((wo = (icmCurve *)icco->add_tag(
 								           icco, bsig, icSigCurveType)) == NULL) 
-									error("Failed to create tag '%s'\n", icm2str(icmTagSignature, bsig));
+									error("Failed to create tag '%s'\n", icm2str(icmTagSig, bsig));
 						
-								wo->flag = icmCurveSpec; 		/* Specified version */
-								wo->size = ro->outputEnt;
-								wo->allocate((icmBase *)wo);	/* Allocate space */
-								for (i = 0; i < wo->size; i++)	/* Copy the curve */
-									wo->data[i] = ro->outputTable[j * ro->outputEnt + i];
+								wo->ctype = icmCurveSpec; 		/* Specified version */
+								wo->count = ro->outputEnt;
+								wo->allocate(wo);	/* Allocate space */
+								for (i = 0; i < wo->count; i++)	/* Copy the curve */
+									wo->data[i] = ro->pe_oc[j]->data[i];
 							} else {
 								DBG(("Found backup\n"));
 							}
@@ -488,7 +492,7 @@ main(int argc, char *argv[]) {
 									val = cal->interp_ch(cal, j, val);		/* Undo calibration */
 								else
 									val = cal->interp_ch(cal, j, val);		/* Do calibration */
-								ro->outputTable[j * ro->outputEnt + i] = val;
+								ro->pe_oc[j]->data[i] = val;
 							}
 							DBG(("Created calibrated output curve\n"));
 						}
@@ -500,7 +504,7 @@ main(int argc, char *argv[]) {
 
 					DBG(("CurveType\n"));
 
-					DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, sigp->back)));
+					DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, sigp->back)));
 
 					/* See if we have a backup */
 					if ((wo = (icmCurve *)icco->read_tag(icco, sigp->back)) == NULL) {
@@ -509,19 +513,19 @@ main(int argc, char *argv[]) {
 						/* No, so create one */
 						if ((wo = (icmCurve *)icco->add_tag(
 						           icco, sigp->back, icSigCurveType)) == NULL) 
-							error("Failed to create tag '%s'\n", icm2str(icmTagSignature, sigp->back));
+							error("Failed to create tag '%s'\n", icm2str(icmTagSig, sigp->back));
 				
-						wo->flag = ro->flag;
-						wo->size = ro->size;
-						wo->allocate((icmBase *)wo);	/* Allocate space */
-						for (i = 0; i < wo->size; i++)	/* Copy the curve */
+						wo->ctype = ro->ctype;
+						wo->count = ro->count;
+						wo->allocate(wo);	/* Allocate space */
+						for (i = 0; i < wo->count; i++)	/* Copy the curve */
 							wo->data[i] = ro->data[i];
 
 						/* Change type & size of ro if necessary */
-						if (ro->flag != icmCurveSpec || wo->size < 256) {
-							ro->flag = icmCurveSpec;
-							ro->size = 256;
-							ro->allocate((icmBase *)ro);	/* Allocate space */
+						if (ro->ctype != icmCurveSpec || wo->count < 256) {
+							ro->ctype = icmCurveSpec;
+							ro->count = 256;
+							ro->allocate(ro);	/* Allocate space */
 						} 
 					} else {
 						DBG(("Found backup\n"));
@@ -529,9 +533,9 @@ main(int argc, char *argv[]) {
 
 					/* Create new forward direction curve from cal + orginal curve */
 					j = sigp->chan;
-					for (i = 0; i < ro->size; i++) {
+					for (i = 0; i < ro->count; i++) {
 						double val;
-						val = i/(ro->size-1.0);
+						val = i/(ro->count-1.0);
 						val = cal->inv_interp_ch(cal, j, val);	/* Inverse output calibration */
 						wo->lookup_fwd(wo, &val, &val);			/* Original curve */
 						ro->data[i] = val;
@@ -539,8 +543,8 @@ main(int argc, char *argv[]) {
 					DBG(("Created calibrated %s curve for chan %d\n",inp ? "input" : "output",j));
 				} else {
 					error("Tag %s is type %s we don't know how to handle",
-					      icm2str(icmTagSignature, sigp->prim),
-					      icm2str(icmTypeSignature, primt->ttype));
+					      icm2str(icmTagSig, sigp->prim),
+					      icm2str(icmTypeSig, primt->ttype));
 				}
 			}
 
@@ -556,33 +560,33 @@ main(int argc, char *argv[]) {
 				for (sigp = ssigp; sigp->prim != 0; sigp++) { /* Process each tag */
 					icmBase *backt, *primt;
 
-					DBG(("Looking for baclup tag '%s'\n",icm2str(icmTagSignature, sigp->back)));
+					DBG(("Looking for baclup tag '%s'\n",icm2str(icmTagSig, sigp->back)));
 					if ((backt = icco->read_tag(icco, sigp->back)) == NULL)
 						continue;		/* Don't have this backup tag */
 					
-					DBG(("Looking for primary tag '%s'\n",icm2str(icmTagSignature, sigp->prim)));
+					DBG(("Looking for primary tag '%s'\n",icm2str(icmTagSig, sigp->prim)));
 					if ((primt = icco->read_tag(icco, sigp->prim)) == NULL) {
 						error("Can't find primary tag %s for backup %s",
-						                  icm2str(icmTagSignature, sigp->prim),
-						                  icm2str(icmTagSignature, sigp->back));
+						                  icm2str(icmTagSig, sigp->prim),
+						                  icm2str(icmTagSig, sigp->back));
 					}
 
 					/* icSigProfileDescriptionTag type */
-					if (primt->ttype == icSigTextDescriptionType) {
-						icmTextDescription *wo, *ro = (icmTextDescription *)primt;
+					if (ISCOMMONTEXT(primt->ttype)) {
+						icmCommonTextDescription *wo, *ro = (icmCommonTextDescription *)primt;
 
 						DBG(("ProfileDescriptionTag\n"));
 
-						wo = (icmTextDescription *)backt;
+						wo = (icmCommonTextDescription *)backt;
 
 						/* Restore primary table */
-						ro->size = wo->size;
-						ro->allocate((icmBase *)ro);	/* Reallocate space */
+						ro->count = wo->count;
+						ro->allocate(ro);	/* Reallocate space */
 						strcpy(ro->desc, wo->desc);		/* Restore description */
 
 						/* delete backup */
 						if (icco->delete_tag(icco, sigp->back))
-							error("Failed to delete tag '%s'",icm2str(icmTagSignature, sigp->prim));
+							error("Failed to delete tag '%s'",icm2str(icmTagSig, sigp->prim));
 						DBG(("Restored primary and deleted backup\n"));
 
 					/* icSigAToBXTag or icSigBToAXTag */
@@ -599,20 +603,20 @@ main(int argc, char *argv[]) {
 								/* Create a tag per channel */
 								bsig += j; 
 
-								DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, bsig)));
+								DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, bsig)));
 
 								/* See if we have a backup */
 								if ((wo = (icmCurve *)icco->read_tag(icco, bsig)) == NULL)
 									error("Can't find original table data in tag %s",
-									                 icm2str(icmTagSignature, sigp->back));
+									                 icm2str(icmTagSig, sigp->back));
 
 								/* Restore primary table */
-								for (i = 0; i < wo->size; i++)	/* Copy the curve */
-									ro->inputTable[j * ro->inputEnt + i] = wo->data[i];
+								for (i = 0; i < wo->count; i++)	/* Copy the curve */
+									ro->pe_ic[j]->data[i] = wo->data[i];
 			
 								/* delete backup */
 								if (icco->delete_tag(icco, bsig))
-									error("Failed to delete tag '%s'",icm2str(icmTagSignature, bsig));
+									error("Failed to delete tag '%s'",icm2str(icmTagSig, bsig));
 								DBG(("Restored primary and deleted backup\n"));
 							}
 						} else {
@@ -624,20 +628,20 @@ main(int argc, char *argv[]) {
 								/* Create a tag per channel */
 								bsig += j; 
 
-								DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, bsig)));
+								DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, bsig)));
 
 								/* See if we have a backup */
 								if ((wo = (icmCurve *)icco->read_tag(icco, bsig)) == NULL)
 									error("Can't find original table data in tag %s",
-									                 icm2str(icmTagSignature, sigp->back));
+									                 icm2str(icmTagSig, sigp->back));
 
 								/* Restore primary table */
-								for (i = 0; i < wo->size; i++)	/* Copy the curve */
-									ro->outputTable[j * ro->outputEnt + i] = wo->data[i];
+								for (i = 0; i < wo->count; i++)	/* Copy the curve */
+									ro->pe_oc[j]->data[i] = wo->data[i];
 			
 								/* delete backup */
 								if (icco->delete_tag(icco, bsig))
-									error("Failed to delete tag '%s'",icm2str(icmTagSignature, bsig));
+									error("Failed to delete tag '%s'",icm2str(icmTagSig, bsig));
 								DBG(("Restored primary and deleted backup\n"));
 							}
 						}
@@ -647,27 +651,27 @@ main(int argc, char *argv[]) {
 						icmCurve *wo, *ro = (icmCurve *)primt;
 
 						DBG(("CurveType\n"));
-						DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSignature, sigp->back)));
+						DBG(("Looking for backup tag '%s'\n",icm2str(icmTagSig, sigp->back)));
 
 						/* See if we have a backup */
 						wo = (icmCurve *)backt;
 
 						/* Restore primary table */
-						ro->flag = wo->flag;
-						ro->size = wo->size;
-						ro->allocate((icmBase *)ro);	/* Allocate space */
-						for (i = 0; i < wo->size; i++)	/* Copy the curve */
+						ro->ctype = wo->ctype;
+						ro->count = wo->count;
+						ro->allocate(ro);	/* Allocate space */
+						for (i = 0; i < wo->count; i++)	/* Copy the curve */
 							ro->data[i] = wo->data[i];
 
 						/* delete backup */
 						if (icco->delete_tag(icco, sigp->back))
-							error("Failed to delete tag '%s'",icm2str(icmTagSignature, sigp->back));
+							error("Failed to delete tag '%s'",icm2str(icmTagSig, sigp->back));
 						DBG(("Restored primary and deleted backup\n"));
 
 					} else {
 						error("Tag %s is type %s we don't know how to handle",
-						      icm2str(icmTagSignature, sigp->prim),
-						      icm2str(icmTypeSignature, primt->ttype));
+						      icm2str(icmTagSig, sigp->prim),
+						      icm2str(icmTypeSig, primt->ttype));
 					}
 				}
 			}
@@ -677,11 +681,11 @@ main(int argc, char *argv[]) {
 	
 	if (apply || remove) {
 		/* Open up the other profile for writing */
-		if ((wr_fp = new_icmFileStd_name(out_name,"w")) == NULL)
-			error ("Can't open file '%s'",out_name);
+		if ((wr_fp = new_icmFileStd_name(&err,out_name,"w")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",out_name,err.c,err.m);
 	
 		if ((rv = icco->write(icco,wr_fp,0)) != 0)
-			error ("Write file: %d, %s",rv,icco->err);
+			error ("Write file: %d, %s",rv,icco->e.m);
 		wr_fp->del(wr_fp);
 	}
 	

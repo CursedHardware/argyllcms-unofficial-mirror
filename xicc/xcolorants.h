@@ -76,15 +76,19 @@ typedef unsigned int inkmask;
 #define ICX_RED               0x00000020
 #define ICX_GREEN             0x00000040
 #define ICX_BLUE              0x00000080
-#define ICX_WHITE             0x00000100
+#define ICX_VIOLET            0x00000100
+#define ICX_WHITE             0x00000200
+
 #define ICX_LIGHT_CYAN        0x00010000
 #define ICX_LIGHT_MAGENTA     0x00020000
 #define ICX_LIGHT_YELLOW      0x00040000
 #define ICX_LIGHT_BLACK       0x00080000
+
 #define ICX_MEDIUM_CYAN       0x00100000
 #define ICX_MEDIUM_MAGENTA    0x00200000
 #define ICX_MEDIUM_YELLOW     0x00400000
 #define ICX_MEDIUM_BLACK      0x00800000
+
 #define ICX_LIGHT_LIGHT_BLACK 0x01000000
 
 /* Character representation */
@@ -96,6 +100,7 @@ typedef unsigned int inkmask;
 #define ICX_C_RED               "R"
 #define ICX_C_GREEN             "G"
 #define ICX_C_BLUE              "B"
+#define ICX_C_VIOLET            "V"
 #define ICX_C_WHITE             "W"
 #define ICX_C_LIGHT_CYAN        "c"
 #define ICX_C_LIGHT_MAGENTA     "m"
@@ -116,6 +121,7 @@ typedef unsigned int inkmask;
 #define ICX_S_RED               "Red"
 #define ICX_S_GREEN             "Green"
 #define ICX_S_BLUE              "Blue"
+#define ICX_S_VIOLET            "Violet"
 #define ICX_S_WHITE             "White"
 #define ICX_S_LIGHT_CYAN        "Light Cyan"
 #define ICX_S_LIGHT_MAGENTA     "Light Magenta"
@@ -136,6 +142,7 @@ typedef unsigned int inkmask;
 #define ICX_PS_RED               "Red"
 #define ICX_PS_GREEN             "Green"
 #define ICX_PS_BLUE              "Blue"
+#define ICX_PS_VIOLET            "Violet"
 #define ICX_PS_WHITE             "White"
 #define ICX_PS_LIGHT_CYAN        "LightCyan"
 #define ICX_PS_LIGHT_MAGENTA     "LightMagenta"
@@ -183,7 +190,11 @@ typedef unsigned int inkmask;
 	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
 	 | ICX_ORANGE | ICX_GREEN)
 
-#define ICX_CMYKOGB					/* A "hexachrome" _ Blue style extended gamut printer */ \
+#define ICX_CMYKOGV					/* A "hexachrome" + Violet style extended gamut printer */ \
+	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
+	 | ICX_ORANGE | ICX_GREEN | ICX_VIOLET)
+
+#define ICX_CMYKOGB					/* A "hexachrome" + Blue style extended gamut printer */ \
 	(  ICX_CYAN | ICX_MAGENTA | ICX_YELLOW | ICX_BLACK \
 	 | ICX_ORANGE | ICX_GREEN | ICX_BLUE)
 

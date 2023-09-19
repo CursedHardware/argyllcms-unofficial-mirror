@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #ifndef SALONEINSTLIB
@@ -67,10 +68,13 @@ static struct {
 	  { 0.40, 0.21, 0.05 } },	
 	{ ICX_GREEN,          ICX_C_GREEN,          ICX_S_GREEN,          ICX_PS_GREEN,
 	  { 0.357618, 0.715136, 0.119207 },
-	  { 0.11, 0.27, 0.21 } },	
+	  { 0.11,     0.27,     0.21 } },	
 	{ ICX_BLUE,           ICX_C_BLUE,           ICX_S_BLUE,           ICX_PS_BLUE,
 	  { 0.180511, 0.072193, 0.950770 },
-	  { 0.11, 0.27, 0.47 } },	
+	  { 0.11,     0.27,     0.47 } },	
+	{ ICX_VIOLET,         ICX_C_VIOLET,         ICX_S_VIOLET,         ICX_PS_VIOLET,
+	  { 0.0925,   0.0442,   0.244 },	
+	  { 0.0925,   0.0442,   0.244 } },	
 	{ ICX_WHITE,          ICX_C_WHITE,          ICX_S_WHITE,          ICX_PS_WHITE,
 	  { 0.950543, 1.0,  1.089303 },		/* D65 ? */
 	  { 0.9642,   1.00, 0.8249 } },		/* D50 */
@@ -135,6 +139,8 @@ static struct {
 	                                                    "CMYK + Orange + Green" },
 	{ ICX_CMYKRGB,    ICX_W,           icSig7colorData, icSigMch7Data,
 	                                                    "CMYK + Red + Green + Blue" },
+	{ ICX_CMYKOGV,    ICX_W,           icSig7colorData, icSigMch7Data,
+	                                                    "CMYK + Orange + Green + Violet" },
 	{ ICX_CMYKOGB,    ICX_W,           icSig7colorData, icSigMch7Data,
 	                                                    "CMYK + Orange + Green + Blue" },
 	{ ICX_CMYKcmk1k,  ICX_CMYK,        icSig8colorData, icSigMch8Data,
@@ -435,7 +441,6 @@ double cvals[][3]						/* Input L*a*b* colorant values */
     	case icSigYxyData:
     	case icSigHsvData:
     	case icSigHlsData:
-		case icSigNamedData:
 			return 0;
 
 		case icSigGrayData:

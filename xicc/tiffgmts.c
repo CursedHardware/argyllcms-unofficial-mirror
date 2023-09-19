@@ -287,6 +287,7 @@ main(int argc, char *argv[]) {
 	int rv = 0;
 
 	icc *icco = NULL;
+	icmErr err = { 0, { '\000'} };
 	xicc *xicco = NULL;
 	icxViewCond vc;				/* Viewing Condition for CIECAM */
 	int vc_e = -1;				/* Enumerated viewing condition */
@@ -546,8 +547,8 @@ main(int argc, char *argv[]) {
 	
 		if (verb) {
 			icmFile *op;
-			if ((op = new_icmFileStd_fp(stdout)) == NULL)
-				error ("Can't open stdout");
+			if ((op = new_icmFileStd_fp(&err, stdout)) == NULL)
+				error ("Can't open stdout (0x%x, '%s')",err.c,err.m);
 			icco->header->dump(icco->header, op, 1);
 			op->del(op);
 		}
@@ -565,11 +566,11 @@ main(int argc, char *argv[]) {
 	
 		/* Setup the default viewing conditions */
 		if (xicc_enum_viewcond(xicco, &vc, -1, NULL, 0, NULL) == -999)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	
 		if (vc_e != -1)
 			if (xicc_enum_viewcond(xicco, &vc, vc_e, NULL, 0, NULL) == -999)
-				error ("%d, %s",xicco->errc, xicco->err);
+				error ("%d, %s",xicco->e.c, xicco->e.m);
 		if (vc_s >= 0)
 			vc.Ev = vc_s;
 		if (vc_wXYZ[1] > 0.0) {
@@ -608,7 +609,7 @@ main(int argc, char *argv[]) {
 		/* Get a expanded color conversion object */
 		if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST
 		           , func, intent, pcsor, order, &vc, NULL)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	
 		luo->spaces(luo, &ins, &inn, &outs, &outn, &alg, NULL, NULL, NULL);
 	
@@ -662,7 +663,7 @@ main(int argc, char *argv[]) {
 
 	if (inn != (samplesperpixel-extrasamples))
 		error ("TIFF Input file has %d input chanels mismatched to colorspace '%s'",
-		       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+		       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 
 	if ((tcs = TiffPhotometric2ColorSpaceSignature(&cvt, &sign_mask, photometric,
 	                                     bitspersample, samplesperpixel, extrasamples)) == 0)
@@ -671,7 +672,7 @@ main(int argc, char *argv[]) {
 	if (tcs != ins) {
 		if (luo != NULL)
 			error("TIFF photometric '%s' doesn't match ICC input colorspace '%s' !",
-			      Photometric2str(photometric), icm2str(icmColorSpaceSignature,ins));
+			      Photometric2str(photometric), icm2str(icmColorSpaceSig,ins));
 		else
 			error("No profile provided and TIFF photometric '%s' isn't Lab !",
 			      Photometric2str(photometric));
@@ -687,7 +688,7 @@ main(int argc, char *argv[]) {
 
 	if (verb) {
 		printf("Input TIFF file '%s'\n",in_name);
-		printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+		printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 		printf("TIFF file photometric is %s\n",Photometric2str(photometric));
 		printf("\n");
 	}
@@ -734,7 +735,7 @@ main(int argc, char *argv[]) {
 			}
 			if (luo != NULL) {
 				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+					error ("%d, %s",icco->e.c,icco->e.m);
 				
 				if (outs == icSigXYZData)	/* Convert to Lab */
 					icmXYZ2Lab(&icco->header->illuminant, out, out);
@@ -1000,7 +1001,7 @@ printf("~1 itter %d, alen = %f, minl = %f, maxl = %f\n",j,alen,minl,maxl);
 			}
 
 			if (pp->write_name(pp, out_name))
-			    error("Write error : %s",pp->err);
+			    error("Write error : %s",pp->e.m);
 		}
 
 		/* Create the VRML/X3D file */

@@ -126,6 +126,7 @@
 #include <copyright.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <math.h>
 #include "icc.h"
 #include "xcam.h"
@@ -305,6 +306,7 @@ static int set_view(struct _cam02 *s, ViewingCondition Ev, double Wxyz[3],
 					int hk, double hkscale, double mtaf, double Wxyz2[3]);
 static int XYZ_to_cam(struct _cam02 *s, double *Jab, double *xyz);
 static int cam_to_XYZ(struct _cam02 *s, double *xyz, double *Jab);
+static void cam_dump(struct _cam02 *s);
 
 static double spow(double val, double pp) {
 	if (val < 0.0)
@@ -327,6 +329,7 @@ cam02 *new_cam02(void) {
 	s->set_view = set_view;
 	s->XYZ_to_cam = XYZ_to_cam;
 	s->cam_to_XYZ = cam_to_XYZ;
+	s->dump = cam_dump;
 
 	/* Initialise default parameters */
 	s->hkscale = 1.0;
@@ -723,6 +726,13 @@ double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 	s->lA = pow(s->jlimit, 1.0/(s->C * s->z)) * s->Aw;
 
 #ifdef DIAG1
+	s->dump(s);
+#endif
+	return 0;
+}
+
+/* Dump the viewing conditions to stdout */
+static void cam_dump(struct _cam02 *s) {
 	printf("Scene parameters:\n");
 	printf("Viewing condition Ev = %d\n",s->Ev);
 	printf("Ref white Wxyz = %f %f %f\n", s->Wxyz[0], s->Wxyz[1], s->Wxyz[2]);
@@ -757,8 +767,6 @@ double Wxyz2[3] /* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
 		printf("Mid tone partial adapation power = %f\n", s->mtap);
 	}
 	printf("\n");
-#endif
-	return 0;
 }
 
 /* Conversions. Return values are always 0 */

@@ -59,15 +59,16 @@ main(
 	char out_name[100], *xl;
 	icmFile *rd_fp;
 	icc *rd_icco;
-	int rv = 0;
+	icmErr err = { 0, { '\000'} };
+	int i, rv = 0;
 
 	/* Check variables */
-	icmLuBase *luof, *luob;		/* A2B and B2A table lookups */
-	icmLuLut *lluof, *lluob;	/* Lookup Lut type object */
-	int gres;					/* Grid resolution of B2A */
+	icmLuSpace *luof, *luob;		/* A2B and B2A table lookups */
+	icmPeClut *lluof, *lluob;		/* cLut Pe */
+	icmPeContainer *ltuof, *ltuob;	/* tail transforms after cluts */
+	int gres[MAX_CHAN];					/* Grid resolution of B2A */
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 	int inn;							/* Number of input chanels */
-	icmLuAlgType alg;
 	vrml *wrl = NULL;
 	
 	error_program = argv[0];
@@ -125,43 +126,50 @@ main(
 	xl[0] = '\000';				/* Remove extension */
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err, in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Get a Device to PCS conversion object */
-	if ((luof = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-		if ((luof = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-			error ("%d, %s",rd_icco->errc, rd_icco->err);
+	if ((luof = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+		if ((luof = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
 
 	/* Get a PCS to Device conversion object */
-	if ((luob = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-		if ((luob = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-			error ("%d, %s",rd_icco->errc, rd_icco->err);
+	if ((luob = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+		if ((luob = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
 
 	/* Get details of conversion (for B2A direction) */
-	luob->spaces(luob, &outs, NULL, &ins, &inn, &alg, NULL, NULL, NULL, NULL);
+	{
+		icmCSInfo ini, outi;
 
-	if (alg != icmLutType) {
-		error("Expecting Lut based profile");
+		luob->spaces(luob, &outi, &ini, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		outs = outi.sig;
+		ins = ini.sig;
+		inn = ini.nch;
 	}
 
 	if (outs != icSigLabData) {
 		error("Expecting Lab PCS");
 	}
 
-	lluof = (icmLuLut *)luof;	/* Lookup Lut type object */
-	lluob = (icmLuLut *)luob;	/* Lookup Lut type object */
+	if ((lluof = luof->get_lut(luof, &ltuof)) == NULL)
+		error("Forward transform doesn't contain cLut");
+	if ((lluob = luob->get_lut(luob, &ltuob)) == NULL)
+		error("Backwards transform doesn't contain cLut");
 
-	gres = lluob->lut->clutPoints;
+	for (i = 0; i < inn; i++)
+		gres[i] = lluob->clutPoints[i];
+
 
 	if (dovrml) {
 		wrl = new_vrml(out_name, doaxes, vrml_lab);
@@ -178,9 +186,9 @@ main(
 		int co[3];	/* PCS grid counter */
 
 		/* Itterate throught the PCS clut grid cells */
-		for (co[2] = 0; co[2] < (gres-1); co[2]++) {
-			for (co[1] = 0; co[1] < (gres-1); co[1]++) {
-				for (co[0] = 0; co[0] < (gres-1); co[0]++) {
+		for (co[2] = 0; co[2] < (gres[2]-1); co[2]++) {
+			for (co[1] = 0; co[1] < (gres[1]-1); co[1]++) {
+				for (co[0] = 0; co[0] < (gres[0]-1); co[0]++) {
 					int j, k, m;
 					int cc[3];				/* Cube corner offsets */
 					double pcs[8][3], wpcsd;
@@ -201,9 +209,9 @@ main(
 							for (cc[0] = 0; cc[0] < 2; cc[0]++, m++) {
 								double dev[MAX_CHAN];
 
-								pcs[m][0] = (co[0] + cc[0])/(gres - 1.0);
-								pcs[m][1] = (co[1] + cc[1])/(gres - 1.0);
-								pcs[m][2] = (co[2] + cc[2])/(gres - 1.0);
+								pcs[m][0] = (co[0] + cc[0])/(gres[0] - 1.0);
+								pcs[m][1] = (co[1] + cc[1])/(gres[1] - 1.0);
+								pcs[m][2] = (co[2] + cc[2])/(gres[2] - 1.0);
 
 								/* Match icclib settable() range */
 								pcs[m][0] = pcs[m][0] * 100.0;
@@ -213,12 +221,12 @@ main(
 //printf("Input PCS %f %f %f\n", pcs[m][0], pcs[m][1], pcs[m][2]);
 
 								/* PCS to (cliped) Device */
-								if ((rv = lluob->clut(lluob, dev, pcs[m])) > 1)
-									error ("%d, %s",rd_icco->errc,rd_icco->err);
+								if ((rv = lluob->lookup_fwd(lluob, dev, pcs[m])) & icmPe_lurv_err)
+									error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 								/* (clipped) Device to (clipped) PCS */
-								if ((rv = lluof->clut(lluof, pcs[m], dev)) > 1)
-									error ("%d, %s",rd_icco->errc,rd_icco->err);
+								if ((rv = lluof->lookup_fwd(lluof, pcs[m], dev)) & icmPe_lurv_err)
+									error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 								apcs[0] += pcs[m][0];
 								apcs[1] += pcs[m][1];
@@ -267,8 +275,8 @@ main(
 //apcs[0], apcs[1], apcs[2], adev[0], adev[1], adev[2], adev[3]);
 
 					/* Average Device to PCS */
-					if ((rv = lluof->clut(lluof, check, adev)) > 1)
-						error ("%d, %s",rd_icco->errc,rd_icco->err);
+					if ((rv = lluof->lookup_fwd(lluof, check, adev)) & icmPe_lurv_err)
+						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 //printf("Check PCS %f %f %f\n",
 //check[0], check[1], check[2]);

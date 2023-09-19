@@ -43,6 +43,7 @@ void usage(void) {
 int
 main(int argc, char *argv[]) {
 	int fa,nfa;				/* argument we're looking at */
+	icmErr e = { 0, { '\000'} };
 	char in_name[500];
 	char out_name[500];
 	icmFile *rd_fp, *wr_fp;
@@ -89,20 +90,22 @@ main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(out_name,argv[fa]);
 
-	/* Open up the profile for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Can't open file '%s'",in_name);
+	icm_err_clear_e(&e);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	/* Open up the profile for reading */
+	if ((rd_fp = new_icmFileStd_name(&e, in_name,"r")) == NULL)
+		error ("Can't open file '%s', failed with 0x%x, '%s'",in_name, e.c, e.m);
+
+	if ((icco = new_icc(&e)) == NULL)
+		error ("Creation of ICC object failed with 0x%x, '%s'", e.c, e.m);
 
 	/* Read header etc. */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
-		error ("%d, %s",rv,icco->err);
+		error ("%d, %s",rv,icco->e.m);
 
 	/* Read every tag */
 	if (icco->read_all_tags(icco) != 0) {
-		error("Unable to read all tags: %d, %s",icco->errc,icco->err);
+		error("Unable to read all tags: %d, %s",icco->e.c,icco->e.m);
 	}
 
 	rd_fp->del(rd_fp);
@@ -114,7 +117,7 @@ main(int argc, char *argv[]) {
 	/* Try deleting the black point tag */
 	{
 		if (icco->delete_tag(icco, icSigMediaBlackPointTag) != 0) {
-			error("Unable to delete blackpoint tag: %d, %s",icco->errc,icco->err);
+			error("Unable to delete blackpoint tag: %d, %s",icco->e.c,icco->e.m);
 		}
 	}
 
@@ -154,7 +157,7 @@ main(int argc, char *argv[]) {
 	{
 		if (icco->find_tag(icco, icSigVideoCardGammaTag) == 0)
 			if (icco->delete_tag(icco, icSigVideoCardGammaTag) != 0)
-				error("Unable to delete videocardgamma tag: %d, %s",icco->errc,icco->err);
+				error("Unable to delete videocardgamma tag: %d, %s",icco->e.c,icco->e.m);
 	}
 	/* Add a video card gamma table */
 	{
@@ -183,7 +186,7 @@ main(int argc, char *argv[]) {
 	{
 		if (icco->find_tag(icco, icSigMediaWhitePointTag) == 0)
 			if (icco->delete_tag(icco, icSigMediaWhitePointTag) != 0)
-				error("Unable to delete white point tag tag: %d, %s",icco->errc,icco->err);
+				error("Unable to delete white point tag tag: %d, %s",icco->e.c,icco->e.m);
 	}
 	/* Add a new white point tag */
 	{
@@ -192,7 +195,7 @@ main(int argc, char *argv[]) {
 		/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
 		if ((wo = (icmXYZArray *)icco->add_tag(
 		           icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
-			error("add_tag failed: %d, %s",icco->errc, icco->err);
+			error("add_tag failed: %d, %s",icco->e.c, icco->e.m);
 
 		wo->size = 1;
 		wo->allocate((icmBase *)wo);	/* Allocate space */
@@ -260,21 +263,23 @@ main(int argc, char *argv[]) {
 		for (i = 0; i < ro->inputChan; i++) {				/* Input tables */
 			double val;
 			j = MOD_A2B;
-			val = ro->inputTable[i * ro->inputEnt + j];
+			val = ro->pe_ic[i]->data[j];
 			val = pow(val, 2.0);
-			ro->inputTable[i * ro->inputEnt + j] = val;
+			ro->pe_ic[i]->data[j] = val;
 		}
 	}
 #endif /* MOD_A2B */
 
 	/* ======================================= */
 	
+	icm_err_clear_e(&e);
+
 	/* Open up the other profile for writing */
-	if ((wr_fp = new_icmFileStd_name(out_name,"w")) == NULL)
-		error ("Can't open file '%s'",out_name);
+	if ((wr_fp = new_icmFileStd_name(&e, out_name,"w")) == NULL)
+		error ("Can't open file '%s', failed with 0x%x, '%s'",out_name, e.c, e.m);
 
 	if ((rv = icco->write(icco,wr_fp,0)) != 0)
-		error ("Write file: %d, %s",rv,icco->err);
+		error ("Write file: %d, %s",rv,icco->e.m);
 
 	icco->del(icco);
 	wr_fp->del(wr_fp);

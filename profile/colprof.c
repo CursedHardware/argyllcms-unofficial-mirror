@@ -20,11 +20,16 @@
  * 
  * Preview profiles are not currently generated.
  * 
- * The gamut cLUT should be implemented with xicc/rspl
  */
 
 /*
  * TTBD:
+ *
+ *		See also ../gamut/gammap.c TTBD for notes on Colorimetric intent/black handling.
+ *
+ *		Would be nice to allow perceptual black point neutrality vs low L*
+ *		tradeoff to be tweaked by the user. (see xicc gmm_bendBP and brad value
+ *		for perceptual version)
  *
  *		Should add -ua option, to restore option to force input profile to be
  *      absolute intent for all ICC intents.
@@ -43,6 +48,8 @@
  *      Should allow creating profiles >4 channels by providing .MPP for input,
  *      dev link .icm for psudo-dev to device & .ti3 for Pseudo-dev to PCS.
  *		Note gamut should come from psudo-dev to PCS.
+ *
+ *		The gamut cLUT should be implemented with xicc/rspl
  */
 
 #undef DEBUG
@@ -72,7 +79,7 @@
   Flags used:
 
          ABCDEFGHIJKLMNOPQRSTUVWXYZ
-  upper  ....    . ... .. ....    .
+  upper  ....    ..... .. ... .   .
   lower  .... .. . .. .........    
 
 */
@@ -97,7 +104,6 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -C copyright    Copyright string\n");
 	fprintf(stderr," -Z tmnb         Attributes: Transparency, Matte, Negative, BlackAndWhite\n");
 	fprintf(stderr," -Z prsa         Default intent: Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric\n");
-
 	fprintf(stderr," -q lmhu         Quality - Low, Medium (def), High, Ultra\n");
 //	fprintf(stderr," -q fmsu         Speed - Fast, Medium (def), Slow, Ultra Slow\n");
 	fprintf(stderr," -b [lmhun]      Low quality B2A table - or specific B2A quality or none for input device\n");
@@ -106,6 +112,8 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -np             Don't create input (Device) grid position curves\n");
 	fprintf(stderr," -no             Don't create output (PCS) shaper curves\n");
 	fprintf(stderr," -nc             Don't put the input .ti3 data in the profile\n");
+//	fprintf(stderr," -nP             Don't use the source perceptual table for perceptual gamut\n");
+//	fprintf(stderr," -nS             Don't use the source saturation table for saturation gamut\n");
 	fprintf(stderr," -k zhxr         Black Ink generation target: z = zero K,\n");
 	fprintf(stderr,"                 h = 0.5 K, x = max K, r = ramp K (def.)\n");
 	fprintf(stderr," -k p stle stpo enpo enle shape\n");
@@ -122,15 +130,11 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"                 X = display XYZ cLUT + matrix, Y = display XYZ cLUT + debug matrix\n");
 	fprintf(stderr,"                 g = gamma+matrix, s = shaper+matrix, m = matrix only,\n");
 	fprintf(stderr,"                 G = single gamma+matrix, S = single shaper+matrix\n");
-//  Development - not supported
-//	fprintf(stderr," -I ver          Set ICC profile version > 2.2.0\n");
-//	fprintf(stderr,"                 ver = 4, Enable ICC V4 creation\n");
 	fprintf(stderr," -u              If input profile, auto scale WP to allow extrapolation\n");
 	fprintf(stderr," -ua             If input profile, force absolute intent\n");
 	fprintf(stderr," -uc             If input profile, clip cLUT values above WP\n");
-	fprintf(stderr," -U scale        If input profile, scale media white point by scale\n");
+	fprintf(stderr," -u scale        If input profile, scale media white point by scale\n");
 	fprintf(stderr," -R              Restrict white <= 1.0, black and primaries to be +ve\n");
-//	fprintf(stderr," -B X,Y,Z        Display Black Point override hack\n");
 	fprintf(stderr," -V demphasis    Degree of dark region cLUT grid emphasis 1.0-4.0 (default %.2f = none)\n",DEMPH_DEFAULT);
 	fprintf(stderr," -f [illum]      Use Fluorescent Whitening Agent compensation [opt. simulated inst. illum.:\n");
 	fprintf(stderr,"                  M0, M1, M2, A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp]\n");
@@ -197,7 +201,6 @@ int main(int argc, char *argv[]) {
 								/* 2 = Force absolute colorimetric */
 	int clipovwp = 0;			/* Clip cLUT values above WP */
 	int clipprims = 0;			/* Clip white, black and primaries */
-//	double bpo[3] = { -1,-1,-1 };	/* Black point override hack XYZ value */
 	double demph = 0.0;			/* Emphasise dark region grid resolution in cLUT */
 	double iwpscale = -1.0;		/* Input white point scale factor */
 	int doinextrap = 1;			/* Sythesize extra sample points for input device cLUT */
@@ -239,7 +242,7 @@ int main(int argc, char *argv[]) {
 	prof_atype ptype = prof_default;	/* Default for each type of device */
 	int mtxtoo = 0;				/* 1 if matrix tags should be created for Display XYZ cLUT */
 								/* 2 if debug matrix tags should be created for Display XYZ cLUT */
-	icmICCVersion iccver = icmVersionDefault;	/* ICC profile version to create */
+	icxTransformCreateType icctype = icxTCT_V2V2;	/* ICC profile version to create */
 	profxinf xpi;		/* Extra profile information */
 
 	
@@ -278,6 +281,7 @@ int main(int argc, char *argv[]) {
 
 	xicc_enum_gmapintent(&pgmi, icxPerceptualGMIntent, NULL);
 	xicc_enum_gmapintent(&sgmi, icxSaturationGMIntent, NULL);
+
 
 	if (argc <= 1)
 		usage("Too few arguments, got %d expect at least %d",argc-1,1);
@@ -451,7 +455,7 @@ int main(int argc, char *argv[]) {
 					oquality = 0;
 			}
 
-			/* Disable input or output luts */
+			/* Disable input or output luts, or other details */
 			else if (argv[fa][1] == 'n') {
 				if (na == NULL) {	/* Backwards compatible */
 					nooluts = 1;
@@ -485,31 +489,18 @@ int main(int argc, char *argv[]) {
 					clipovwp = 1;
 				} else if (argv[fa][2] != '\000') {
 					usage("Unknown flag '%c' after -u",argv[fa][2]);
+
+				} else if (na != NULL) {
+					fa = nfa;
+					iwpscale = atof(na);
+					if (iwpscale < 0.0 || iwpscale > 200.0)
+						usage("Argument '%s' to flag -u out of range",na);
 				}
-			}
-			else if (argv[fa][1] == 'U') {
-				if (na == NULL) usage("Expected argument to input white point scale flag -U");
-				fa = nfa;
-				iwpscale = atof(na);
-				if (iwpscale < 0.0 || iwpscale > 200.0)
-					usage("Argument '%s' to flag -U out of range",na);
 			}
 			/* Clip primaries */
 			else if (argv[fa][1] == 'R') {
 				clipprims = 1;
 			}
-
-#ifdef NEVER	/* Prototype - not used */
-			/* Black Point override hack */
-			else if (argv[fa][1] == 'B') {
-				if (na == NULL) usage("Expect X,Y,Z value after -B");
-				fa = nfa;
-				if (sscanf(na, " %lf , %lf , %lf ",&bpo[0],&bpo[1],&bpo[2]) != 3)
-					usage("Couldn't parse hack black point (-B) value '%s'",na);
-				if (bpo[0] < 0.0 || bpo[1] < 0.0 || bpo[1] < 0.0)
-					usage("Bad hack black point (-B) value '%s'",na);
-			}
-#endif
 
 			/* Degree of dark region emphasis */
 			else if (argv[fa][1] == 'V') {
@@ -625,18 +616,6 @@ int main(int argc, char *argv[]) {
 						break;
 					default:
 						usage("Unknown argument '%c' to algorithm flag -a",na[0] );
-				}
-			}
-			/* Profile version */
-			else if (argv[fa][1] == 'I') {
-				if (na == NULL) usage("Expect argument to version flag -I");
-				fa = nfa;
-    			switch (na[0]) {
-					case '4':
-						iccver = icmVersion4_1;
-						break;
-					default:
-						usage("Unknown argument '%c' to version flag -I",na[0] );
 				}
 			}
 
@@ -1036,7 +1015,7 @@ int main(int argc, char *argv[]) {
 	icg->add_other(icg, "CAL"); 	/* our special device Calibration state */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI3 format file");
@@ -1105,9 +1084,6 @@ int main(int argc, char *argv[]) {
 	/* check the device class, and call function to create profile. */
 	if (strcmp(icg->t[0].kdata[dti],"OUTPUT") == 0) {		/* i.e. printer */
 		icxInk ink;							/* Ink parameters */
-
-//		if (bpo[1] >= 0.0)
-//			error("-B option not valid for output profile");
 
 		if ((ti = icg->find_kword(icg, 0, "TOTAL_INK_LIMIT")) >= 0) {
 			int imax;
@@ -1218,10 +1194,9 @@ int main(int argc, char *argv[]) {
 		if (clipovwp)
 			error ("Input cLUT clipping above WP mode isn't applicable to an output device");
 
-		make_output_icc(ptype, 0, iccver, verb, iquality, oquality,
+		make_output_icc(ptype, 0, icctype, verb, iquality, oquality,
 		                noisluts, noipluts, nooluts, nocied, noptop, nostos,
 		                gamdiag, verify, clipprims, iwpscale,
-//		                NULL,		/* bpo */
 		                &ink, inname, outname, icg, 
 		                spec, tillum, &cust_tillum, illum, &cust_illum, obType, custObserver,
 						fwacomp, smooth, avgdev, 1.0,
@@ -1238,17 +1213,21 @@ int main(int argc, char *argv[]) {
 
 		int emis = strcmp(icg->t[0].kdata[dti],"EMISINPUT") == 0;
 
-//		if (bpo[1] >= 0.0)
-//			error("-B option not valid for input profile");
-
+		if (mtxtoo != 0) {
+			if (mtxtoo == 1)
+				warning("-aX not applicable to input profile, using -ax");
+			else
+				warning("-aY not applicable to input profile, using -ax");
+		}
+		
 		if (ptype == prof_default)
 			ptype = prof_clutLab;		/* For best possible quality */
 
 		if (clipovwp && ptype != prof_clutLab && ptype != prof_clutXYZ)
 			error ("Input cLUT clipping above WP mode isn't applicable to a matrix profile");
 
-		make_input_icc(ptype, iccver, verb, iquality, oquality, noisluts, noipluts, nooluts, nocied,
-		               verify, autowpsc, clipovwp, iwpscale, doinb2a, doinextrap, clipprims,
+		make_input_icc(ptype, icctype, verb, iquality, oquality, noisluts, noipluts, nooluts,
+		               nocied, verify, autowpsc, clipovwp, iwpscale, doinb2a, doinextrap, clipprims,
 		               inname, outname, icg, emis, spec, illum, &cust_illum, obType, custObserver,
 		               smooth, avgdev, &xpi);
 
@@ -1267,10 +1246,9 @@ int main(int argc, char *argv[]) {
 			ptype = prof_clutLab;		/* ?? or should it default to prof_shamat ?? */
 
 		/* If a source gamut is provided for a Display, then a V2.4.0 profile will be created */
-		make_output_icc(ptype, mtxtoo, iccver, verb, iquality, oquality,
+		make_output_icc(ptype, mtxtoo, icctype, verb, iquality, oquality,
 		                noisluts, noipluts, nooluts, nocied, noptop, nostos,
 		                gamdiag, verify, clipprims, iwpscale,
-//		                bpo[1] >= 0.0 ? bpo : NULL,
 		                NULL, inname, outname, icg,
 		                spec, icxIT_none, NULL, illum, &cust_illum, obType, custObserver,
 						0, smooth, avgdev, demph,

@@ -28,6 +28,7 @@ static int icx_set_view(icxcam *s, ViewingCondition Ev, double Wxyz[3],
 static int icx_XYZ_to_cam(struct _icxcam *s, double Jab[3], double XYZ[3]);
 static int icx_cam_to_XYZ(struct _icxcam *s, double XYZ[3], double Jab[3]);
 static void settrace(struct _icxcam *s, int tracev);
+static void icx_cam_dump(struct _icxcam *s);
 
 /* Return the default CAM */
 icxCAM icxcam_default(void)	{
@@ -66,6 +67,7 @@ icxcam *new_icxcam(icxCAM which) {
 	s->XYZ_to_cam = icx_XYZ_to_cam;
 	s->cam_to_XYZ = icx_cam_to_XYZ;
 	s->settrace   = settrace;
+	s->dump       = icx_cam_dump;
 
 	/* We set the default CAM here */
 	if (which == cam_default)
@@ -212,7 +214,19 @@ int tracev
 	}
 }
 
-
-
-
+/* Dump the viewing conditions to stdout */
+static void icx_cam_dump(struct _icxcam *s) {
+	switch(s->tag) {
+		case cam_CIECAM97s3: {
+			cam97s3 *pp = (cam97s3 *)s->p;
+//			pp->dump(pp);
+		}
+		case cam_CIECAM02: {
+			cam02 *pp = (cam02 *)s->p;
+			pp->dump(pp);
+		}
+		default:
+			break;
+	}
+}
 

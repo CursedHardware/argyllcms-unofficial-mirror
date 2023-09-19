@@ -32,13 +32,24 @@
 
 /* - - - - - - - - - - - - - - - - - - - - - */
 /* Individual components of Fwd conversion: */
+/* Because icm_lu4 sets up component conversions in the requested direction, */
+/* but icxLuMonox expects component conversions as if the the matrix is */
+/* fwd, we have if (dir) code to reverse things here. */
 static int
 icxLuMonoFwd_curve (
 icxLuMono *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMono *)p->plu)->fwd_curve((icmLuMono *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv =  p->plu->output_fmt_bwd(p->plu, out, in);	/* Should be NOP */
+		prv |= p->plu->output_pch_bwd(p->plu, out, out);
+	} else {
+		prv =  p->plu->input_fmt_fwd(p->plu, out, in);	/* Should be NOP */
+		prv |= p->plu->input_pch_fwd(p->plu, out, out);
+	}
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -47,7 +58,13 @@ icxLuMono *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMono *)p->plu)->fwd_map((icmLuMono *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->core5_bwd(p->plu, out, in);
+	} else {
+		prv = p->plu->core5_fwd(p->plu, out, in);
+	}
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -57,7 +74,15 @@ double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
 	int rv = 0;
-	rv |= ((icmLuMono *)p->plu)->fwd_abs((icmLuMono *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->input_pch_bwd(p->plu, out, in);		/* Should be NOP */
+		prv |= p->plu->input_fmt_bwd(p->plu, out, out);
+	} else {
+		prv = p->plu->output_pch_fwd(p->plu, out, in);		/* Should be NOP */
+		prv |= p->plu->output_fmt_fwd(p->plu, out, out);
+	}
+	rv = LUE2XLUE(prv);
 
 	if (p->pcs == icxSigJabData) {
 		p->cam->XYZ_to_cam(p->cam, out, out);
@@ -67,6 +92,9 @@ double *in			/* Vector of input values */
 
 
 /* Overall Fwd conversion routine */
+/* Note that the overall conversion is in the requested direction, */
+/* as the setup code swaps icxLuMonoxFwd_lookup/icxLuMonoxBwd_lookup */
+/* as needed. */
 static int
 icxLuMonoFwd_lookup (
 icxLuBase *pp,		/* This */
@@ -108,11 +136,11 @@ icxLuMono *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
+	icmPe_lurv prv;
 	int rv = 0;
 
 	if (p->pcs == icxSigJabData) {
 		p->cam->cam_to_XYZ(p->cam, out, in);
-		rv |= ((icmLuMono *)p->plu)->bwd_abs((icmLuMono *)p->plu, out, out);
 		/* Hack to prevent CAM02 weirdness being amplified by */
 		/* any later per channel clipping. */
 		/* Limit -Y to non-stupid values by scaling */
@@ -121,8 +149,23 @@ double *in			/* Vector of input values */
 			out[2] *= -0.1/out[1];
 			out[1] = -0.1;
 		}
+		if (p->dir) {
+			prv = p->plu->input_fmt_fwd(p->plu, out, out);
+			prv |= p->plu->input_pch_fwd(p->plu, out, out);	/* Should be NOP */
+		} else {
+			prv = p->plu->output_fmt_bwd(p->plu, out, out);
+			prv |= p->plu->output_pch_bwd(p->plu, out, out);	/* Should be NOP */
+		}
+		rv = LUE2XLUE(prv);
 	} else {
-		rv |= ((icmLuMono *)p->plu)->bwd_abs((icmLuMono *)p->plu, out, in);
+		if (p->dir) {
+			prv = p->plu->input_fmt_fwd(p->plu, out, in);
+			prv |= p->plu->input_pch_fwd(p->plu, out, out);	/* Should be NOP */
+		} else {
+			prv = p->plu->output_fmt_bwd(p->plu, out, in);
+			prv |= p->plu->output_pch_bwd(p->plu, out, out);	/* Should be NOP */
+		}
+		rv = LUE2XLUE(prv);
 	}
 	return rv;
 }
@@ -133,7 +176,13 @@ icxLuMono *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMono *)p->plu)->bwd_map((icmLuMono *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->core5_fwd(p->plu, out, in);
+	} else {
+		prv = p->plu->core5_bwd(p->plu, out, in);
+	}
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -142,10 +191,21 @@ icxLuMono *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMono *)p->plu)->bwd_curve((icmLuMono *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->output_pch_fwd(p->plu, out, in);
+		prv |= p->plu->output_fmt_fwd(p->plu, out, out);	/* Should be NOP */
+	} else {
+		prv = p->plu->input_pch_bwd(p->plu, out, in);
+		prv |= p->plu->input_fmt_bwd(p->plu, out, out);	/* Should be NOP */
+	}
+	return LUE2XLUE(prv);
 }
 
 /* Overall Bwd conversion routine */
+/* Note that the overall conversion is in the requested direction, */
+/* as the setup code swaps icxLuMonoxFwd_lookup/icxLuMonoxBwd_lookup */
+/* as needed. */
 static int
 icxLuMonoBwd_lookup (
 icxLuBase *pp,		/* This */
@@ -200,7 +260,7 @@ static icxLuBase *
 new_icxLuMono(
 xicc                  *xicp,
 int                   flags,		/* clip, merge flags */
-icmLuBase             *plu,			/* Pointer to Lu we are expanding */
+icmLuSpace            *plu,			/* Pointer to Lu we are expanding */
 icmLookupFunc         func,			/* Functionality requested */
 icRenderingIntent     intent,		/* Rendering intent */
 icColorSpaceSignature pcsor,		/* PCS override (0 = def) */
@@ -214,6 +274,7 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	if ((p = (icxLuMono *) calloc(1,sizeof(icxLuMono))) == NULL)
 		return NULL;
 
+	p->lutype            = icxLuMonoType;
 	p->pp                = xicp;
 	p->plu               = plu;
 	p->del               = icxLuMono_free;
@@ -228,19 +289,18 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	p->bwd_outpcs_relpcs = icxLuMono_bwd_outpcs_relpcs;
 	p->nearclip = 0;				/* Set flag defaults */
 	p->mergeclut = 0;
-	p->noisluts = 0;
-	p->noipluts = 0;
-	p->nooluts = 0;
 	p->intsep = 0;
+
+	p->dir = dir;
 
 	p->fwd_lookup = icxLuMonoFwd_lookup;
 	p->fwd_curve  = icxLuMonoFwd_curve;
 	p->fwd_map    = icxLuMonoFwd_map;
 	p->fwd_abs    = icxLuMonoFwd_abs;
 	p->bwd_lookup = icxLuMonoBwd_lookup;
-	p->bwd_abs    = icxLuMonoFwd_abs;
-	p->bwd_map    = icxLuMonoFwd_map;
-	p->bwd_curve  = icxLuMonoFwd_curve;
+	p->bwd_abs    = icxLuMonoBwd_abs;
+	p->bwd_map    = icxLuMonoBwd_map;
+	p->bwd_curve  = icxLuMonoBwd_curve;
 	if (dir) {
 		p->lookup     = icxLuMonoBwd_lookup;
 		p->inv_lookup = icxLuMonoFwd_lookup;
@@ -253,11 +313,38 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	p->flags = flags;
 	p->func = func;
 
-	/* Get details of internal, native color space */
-	plu->lutspaces(p->plu, &p->natis, NULL, &p->natos, NULL, &p->natpcs);
+	/* Remember the effective intent */
+	p->intent = intent;
 
-	/* Get other details of conversion */
-	p->plu->spaces(p->plu, NULL, &p->inputChan, NULL, &p->outputChan, NULL, NULL, NULL, NULL, NULL);
+	/* In general the native and effective space info of the icx will be the same as the */
+	/* underlying icm lookup object. */
+	{
+		icmCSInfo ini, outi, pcsi;
+
+		/* Get details of internal, native color space */
+		plu->native_spaces(p->plu, &ini, &outi, &pcsi);
+		p->natis = ini.sig;
+		p->natos = outi.sig;
+		p->natpcs = pcsi.sig;
+
+		icmCpyN(p->ninmin, ini.min, ini.nch);
+		icmCpyN(p->ninmax, ini.max, ini.nch);
+		icmCpyN(p->noutmin, outi.min, outi.nch);
+		icmCpyN(p->noutmax, outi.max, outi.nch);
+
+		/* Get details of external, effective color spaces */
+		plu->spaces(p->plu, &ini, &outi, &pcsi, NULL, NULL, NULL, NULL, NULL, NULL);
+		p->ins = ini.sig;
+		p->inputChan = ini.nch;
+		p->outs = outi.sig;
+		p->outputChan = outi.nch;
+		p->pcs = pcsi.sig;
+
+		icmCpyN(p->inmin, ini.min, ini.nch);
+		icmCpyN(p->inmax, ini.max, ini.nch);
+		icmCpyN(p->outmin, outi.min, outi.nch);
+		icmCpyN(p->outmax, outi.max, outi.nch);
+	}
 
 	/* Init the CAM model */
 	if (pcsor == icxSigJabData) {
@@ -268,12 +355,6 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	} else 
 		p->cam = NULL;
 
-	/* Remember the effective intent */
-	p->intent = intent;
-
-	/* Get the effective spaces */
-	plu->spaces(plu, &p->ins, NULL, &p->outs, NULL, NULL, NULL, NULL, &p->pcs, NULL);
-
 	/* Override with pcsor */
 	if (pcsor == icxSigJabData) {
 		p->pcs = pcsor;		
@@ -282,11 +363,6 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 		if (func == icmFwd || func == icmPreview)
 			p->outs = pcsor;
 	}
-
-	/* In general the native and effective ranges of the icx will be the same as the */
-	/* underlying icm lookup object. */
-	p->plu->get_lutranges(p->plu, p->ninmin, p->ninmax, p->noutmin, p->noutmax);
-	p->plu->get_ranges(p->plu, p->inmin,  p->inmax,  p->outmin,  p->outmax);
 
 	/* If we have a Jab PCS override, reflect this in the effective icx range. */
 	/* Note that the ab ranges are nominal. They will exceed this range */
@@ -306,9 +382,9 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 
 /* ============================================================= */
 
-/* Given an xicc lookup object, returm a gamut object. */
+/* Given an xicc lookup object, return a gamut object. */
 /* Note that the PCS must be Lab or Jab */
-/* Return NULL on error, check errc+err for reason */
+/* Return NULL on error, check e.c+e.m for reason */
 static gamut *icxLuMonoGamut(
 icxLuBase   *plu,		/* this */
 double       detail		/* gamut detail level, 0.0 = def */
@@ -316,8 +392,8 @@ double       detail		/* gamut detail level, 0.0 = def */
 	gamut *xgam;
 	xicc  *p = plu->pp;				/* parent xicc */
 
-	p->errc = 1;
-	sprintf(p->err,"Creating Mono gamut surface not supported yet.");
+	p->e.c = 1;
+	sprintf(p->e.m,"Creating Mono gamut surface not supported yet.");
 	plu->del(plu);
 	xgam = NULL;
 

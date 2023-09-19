@@ -319,7 +319,7 @@ main(int argc, char *argv[]) {
 		error ("Creation of MPP object failed");
 
 	if ((rv = mppo->read_mpp(mppo,prof_name)) != 0)
-		error ("%d, %s",rv,mppo->err);
+		error ("%d, %s",rv,mppo->e.m);
 
 	mppo->get_info(mppo, &imask, &devn, &dlimit, &spec_n, &spec_wl_short, &spec_wl_long, NULL, &display);
 	ident = icx_inkmask2char(imask, 1); 
@@ -414,7 +414,7 @@ main(int argc, char *argv[]) {
 					else
 						fprintf(stdout,"%f",out[j]);
 				}
-				printf(" [%s]\n", icm2str(icmColorSpaceSignature, pcss));
+				printf(" [%s]\n", icm2str(icmColorSpaceSig, pcss));
 
 				/* Print the derivatives */
 				for (i = 0; i < pcsn; i++) {
@@ -558,7 +558,7 @@ main(int argc, char *argv[]) {
 							fprintf(stdout,"%f",out[j]);
 					}
 
-					printf(" [%s]\n", icm2str(icmColorSpaceSignature, pcss));
+					printf(" [%s]\n", icm2str(icmColorSpaceSig, pcss));
 				}
 
 			} else {	/* Do a reverse lookup */
@@ -589,7 +589,7 @@ main(int argc, char *argv[]) {
 					else
 						fprintf(stdout,"%f",in[j]);
 				}
-				printf(" [%s] -> ", icm2str(icmColorSpaceSignature, pcss));
+				printf(" [%s] -> ", icm2str(icmColorSpaceSig, pcss));
 		
 				for (j = 0; j < devn; j++) {
 					if (j > 0)

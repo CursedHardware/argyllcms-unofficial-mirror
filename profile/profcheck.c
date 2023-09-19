@@ -115,9 +115,10 @@ int main(int argc, char *argv[])
 	cgats *icg;				/* input cgats structure */
 	char iccname[MAXNAMEL+1] = { 0 };	/* Input icc file base name */
 	icmFile *rd_fp;
+	icmErr err = { 0, { '\000'} };
 	icRenderingIntent intent = icAbsoluteColorimetric;
 	icc *rd_icco;
-	icmLuBase *luo;
+	icmLuSpace *luo;
 	char out_name[MAXNAMEL+1], *xl;		/* VRML/X3D name */
 	vrml *wrl = NULL;
 
@@ -432,7 +433,7 @@ int main(int argc, char *argv[])
 	icg->add_other(icg, "CTI3"); 	/* our special input type is Calibration Target Information 3 */
 
 	if (icg->read_name(icg, ti3name))
-		error("CGATS file read error on '%s': %s",ti3name,icg->err);
+		error("CGATS file read error on '%s': %s",ti3name,icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file '%s' isn't a CTI3 format file",ti3name);
@@ -944,27 +945,27 @@ int main(int argc, char *argv[])
 	/* Compute the delta E of each point against the profile value */
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(iccname,"r")) == NULL)
-		error("Read: Can't open file '%s'",iccname);
+	if ((rd_fp = new_icmFileStd_name(&err,iccname,"r")) == NULL)
+		error("Read: Can't open file '%s' (0x%x, '%s')",iccname,err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error("Read: %d, %s",rv,rd_icco->err);
+		error("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Get the Fwd table, absolute with Lab override */
-	if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent,
+	if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent,
 	                              icSigLabData, icmLuOrdNorm)) == NULL) {
-		error("%d, %s",rd_icco->errc, rd_icco->err);
+		error("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
 
 	for (i = 0; i < npat; i++) {
 
 		/* Lookup the patch value in the profile */
-		if (luo->lookup(luo, tpat[i].pv, tpat[i].p) > 1)
-			error("%d, %s",rd_icco->errc,rd_icco->err);
+		if (luo->lookup_fwd(luo, tpat[i].pv, tpat[i].p) & icmPe_lurv_err)
+			error("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 		if (cie2k)
 			tpat[i].de = icmCIE2K(tpat[i].v, tpat[i].pv);
@@ -1139,7 +1140,7 @@ int main(int argc, char *argv[])
 
 		/* Write out the file */
 		if (ocg->write_name(ocg, outname))
-			error("CGATS file '%s' write error : %s",outname,ocg->err);
+			error("CGATS file '%s' write error : %s",outname,ocg->e.m);
 	}
 
 	/* - - - - - - - - - - */
@@ -1157,7 +1158,13 @@ int main(int argc, char *argv[])
 		}
 
 		/* Get details of conversion (Arguments may be NULL if info not needed) */
-		luo->spaces(luo, NULL, &inn, NULL, &outn, NULL, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+			luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			inn = ini.nch;
+			outn = outi.nch;
+
+		}
 
 		for (i = 0; i < npat; i++) {
 			double de, *out;
@@ -1250,8 +1257,8 @@ int main(int argc, char *argv[])
 			double cieval[3];
 
 			/* Lookup the CIE value of the target */
-			if (luo->lookup(luo, cieval, devval) > 1)
-				error("%d, %s",rd_icco->errc,rd_icco->err);
+			if (luo->lookup_fwd(luo, cieval, devval) & icmPe_lurv_err)
+				error("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 			/* Compute deltas to target value. */
 			for (i = 0; i < npat; i++) {

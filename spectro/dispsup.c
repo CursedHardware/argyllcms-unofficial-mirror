@@ -60,9 +60,9 @@
 #undef SIMPLE_MODEL		/* Make fake device well behaved */
 						/* else has offsets, quantization, noise etc. */
 
-#define DRIFT_IPERIOD	40	/* Number of samples between drift interpolation measurements */
-#define DRIFT_EPERIOD	20	/* Number of samples between drift extrapolation measurements */
-#define DRIFT_MAXSECS	60	/* Number of seconds to time out previous drift value */
+#define DRIFT_IPERIOD	40	/* [40] Number of samples between drift interpolation measurements */
+#define DRIFT_EPERIOD	20	/* [20] Number of samples between drift extrapolation measurements */
+#define DRIFT_MAXSECS	200	/* [200] Number of seconds to time out previous drift value */
 //#define DRIFT_IPERIOD	6	/* Test values */
 //#define DRIFT_EPERIOD	3
 
@@ -115,14 +115,14 @@ inst_code setup_display_calibrate(
 			if (dwi->dw == NULL) {
 				if (dwi->webdisp != 0) {
 					if ((dwi->_dw = new_webwin(dwi->webdisp, dwi->hpatsize, dwi->vpatsize,
-						         dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+						         dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->icalmax, dwi->out_tvenc,
 						         dwi->fullscreen, p->log->verb, p->log->debug)) == NULL) {
 						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
 						return inst_other_error; 
 					}
 				} else if (dwi->ccid != NULL) {
 					if ((dwi->_dw = new_ccwin(dwi->ccid, dwi->hpatsize, dwi->vpatsize,
-						         dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+						         dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->icalmax, dwi->out_tvenc,
 						         dwi->fullscreen, 0, p->log->verb, p->log->debug)) == NULL) {
 						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
 						return inst_other_error; 
@@ -130,7 +130,7 @@ inst_code setup_display_calibrate(
 #ifdef NT
 				} else if (dwi->madvrdisp != 0) {
 					if ((dwi->_dw = new_madvrwin(dwi->hpatsize, dwi->vpatsize,
-					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->icalmax, dwi->out_tvenc,
 						         dwi->fullscreen, p->log->verb, p->log->debug)) == NULL) {
 						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
 						return inst_other_error; 
@@ -138,7 +138,7 @@ inst_code setup_display_calibrate(
 #endif /* NT */
 				} else if (dwi->dummydisp != 0) {{
 					if ((dwi->_dw = new_dummywin(dwi->hpatsize, dwi->vpatsize,
-					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->icalmax, dwi->out_tvenc,
 						         dwi->fullscreen, dwi->override, p->log->debug)) == NULL) {
 						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
 						return inst_other_error; 
@@ -146,7 +146,7 @@ inst_code setup_display_calibrate(
 				}
 				} else {
 					if ((dwi->_dw = new_dispwin(dwi->disp, dwi->hpatsize, dwi->vpatsize,
-					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->out_tvenc,
+					             dwi->ho, dwi->vo, 0, 0, NULL, NULL, dwi->icalmax, dwi->out_tvenc,
 						         dwi->fullscreen, dwi->override, p->log->debug)) == NULL) {
 						a1logd(p->log,1,"inst_handle_calibrate failed to create test window 0x%x\n",inst_other_error);
 						return inst_other_error; 
@@ -170,11 +170,15 @@ inst_code setup_display_calibrate(
 
 			if ((calc & inst_calc_cond_mask) == inst_calc_emis_white) {
 				p->cal_gy_level = 1.0;
-				dwi->_dw->set_color(dwi->_dw, 1.0, 1.0, 1.0);
+				dwi->_dw->set_color(dwi->_dw, p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax);
 
 			} else if ((calc & inst_calc_cond_mask) == inst_calc_emis_80pc) {
 				p->cal_gy_level = 0.8;
-				dwi->_dw->set_color(dwi->_dw, 0.8, 0.8, 0.8);
+				dwi->_dw->set_color(dwi->_dw, p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax);
 
 			} else  {
 				if ((calc & inst_calc_cond_mask) == inst_calc_emis_grey) {
@@ -194,7 +198,9 @@ inst_code setup_display_calibrate(
 					a1logd(p->log,1,"inst_handle_calibrate too many tries at setting grey level 0x%x\n",inst_internal_error);
 					return inst_internal_error; 
 				}
-				dwi->_dw->set_color(dwi->_dw, p->cal_gy_level, p->cal_gy_level, p->cal_gy_level);
+				dwi->_dw->set_color(dwi->_dw, p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax,
+				                              p->cal_gy_level * dwi->_dw->icalmax);
 			}
 			break;
 
@@ -228,6 +234,7 @@ ccast_id *ccid,	 		/* non-NULL for ChromeCast */
 int madvrdisp,			/* NZ for MadVR display */
 #endif
 int dummydisp,			/* NZ for dummy display */
+double icalmax,			/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 int out_tvenc,			/* 1 = use RGB Video Level encoding */
 int fullscreen,			/* NZ if whole screen should be filled with black */
 int override,			/* Override_redirect on X11 */
@@ -256,6 +263,7 @@ a1log *log				/* Verb, debug & error log */
 #endif
 	dwi.dummydisp = dummydisp; 
 	dwi.disp = disp; 
+	dwi.icalmax = icalmax;
 	dwi.out_tvenc = out_tvenc;
 	dwi.fullscreen = fullscreen;
 	dwi.override = override;
@@ -414,7 +422,7 @@ int del_set_white(void *cx) {
 	/* Start the patch change */
 	/* This function may return some time before or after */
 	/* the change actually arrives at the instrument. */
-	if ((rv = p->dw->set_color(p->dw, 1.0, 1.0, 1.0)) != 0) {
+	if ((rv = p->dw->set_color(p->dw, p->dw->icalmax, p->dw->icalmax, p->dw->icalmax)) != 0) {
 		a1logd(p->log,1,"set_color() returned %d\n",rv);
 		return 3;
 	}
@@ -551,7 +559,8 @@ static int disprd_read_imp(
 		inst_cal_cond calc = inst_calc_emis_80pc;
 
 		/* Hmm. Should really ask the instrument what sort of calc it needs !!! */
-		if ((rv = p->dw->set_color(p->dw, 0.8, 0.8, 0.8)) != 0) {
+		if ((rv = p->dw->set_color(p->dw, 0.8 * p->dw->icalmax, 0.8 * p->dw->icalmax,
+			                              0.8 * p->dw->icalmax)) != 0) {
 			a1logd(p->log,1,"set_color() returned %d\n",rv);
 			return 3;
 		}
@@ -568,7 +577,8 @@ static int disprd_read_imp(
 		inst_cal_type calt = inst_calt_emis_int_time;
 		inst_cal_cond calc = inst_calc_emis_white;
 
-		if ((rv = p->dw->set_color(p->dw, 1.0, 1.0, 1.0)) != 0) {
+		if ((rv = p->dw->set_color(p->dw, 1.0 * p->dw->icalmax, 1.0 * p->dw->icalmax,
+			                              1.0 * p->dw->icalmax)) != 0) {
 			a1logd(p->log,1,"set_color() returned %d\n",rv);
 			return 3;
 		}
@@ -1733,7 +1743,7 @@ static int disprd_fake_read_lu(
 			}
 		}
 
-		p->fake_lu->lookup(p->fake_lu, cols[patch].XYZ, rgb); 
+		p->fake_lu->lookup_fwd(p->fake_lu, cols[patch].XYZ, rgb); 
 		for (j = 0; j < 3; j++) 
 			cols[patch].XYZ[j] *= br;
 #ifdef FAKE_NOISE
@@ -2392,7 +2402,6 @@ static int config_inst_displ(disprd *p) {
 	       p->it->inst_interp_error(p->it, rv), p->it->interp_error(p->it, rv));
 		return 2;
 	}
-
 	/* Reset key meanings */
 	inst_reset_uih();
 
@@ -2427,6 +2436,7 @@ int *nocm,			/* Return nz if no CM cLUT access. native is set to 0X */
 double cal[3][MAX_CAL_ENT],	/* Calibration (cal == NULL or cal[0][0] < 0.0 if not valid) */
 int ncal,			/* Number of cal[] entries */
 disppath *disp,		/* Display to calibrate. NULL if fake and no dispwin */
+double icalmax,		/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,		/* 1 = use RGB Video Level encoding */
 int fullscreen,		/* NZ if whole screen should be filled with black */
 int override,		/* Override_redirect on X11 */
@@ -2538,6 +2548,8 @@ a1log *log      	/* Verb, debug & error log */
 
 	/* If non-real instrument */
 	if (ipath == &icomFakeDevice) {
+		icmErr err = { 0, { '\000'} };
+
 		p->fake = 1;
 
 		p->fake_fp = NULL;
@@ -2546,14 +2558,14 @@ a1log *log      	/* Verb, debug & error log */
 
 		/* See if there is a profile we should use as the fake device */
 		if (p->mcallout == NULL && p->xtern == 0 && p->fake_name != NULL
-		 && (p->fake_fp = new_icmFileStd_name(p->fake_name,"r")) != NULL) {
-			if ((p->fake_icc = new_icc()) != NULL) {
+		 && (p->fake_fp = new_icmFileStd_name(&err, p->fake_name,"r")) != NULL) {
+			if ((p->fake_icc = new_icc(&err)) != NULL) {
 				if (p->fake_icc->read(p->fake_icc,p->fake_fp,0) == 0) {
-					icColorSpaceSignature ins;
-					p->fake_lu = p->fake_icc->get_luobj(p->fake_icc, icmFwd, icAbsoluteColorimetric,
+					icmCSInfo ini;
+					p->fake_lu = (icmLuSpace *)p->fake_icc->get_luobj(p->fake_icc, icmFwd, icAbsoluteColorimetric,
 					                            icSigXYZData, icmLuOrdNorm);
-					p->fake_lu->spaces(p->fake_lu, &ins, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-					if (ins != icSigRgbData) {
+					p->fake_lu->spaces(p->fake_lu, &ini, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+					if (ini.sig != icSigRgbData) {
 						p->fake_lu->del(p->fake_lu);
 						p->fake_lu = NULL;
 					}
@@ -2637,7 +2649,7 @@ a1log *log      	/* Verb, debug & error log */
 	if (webdisp != 0) {
 		/* Open web display - no black bg since we assume window only */
 		if ((p->dw = new_webwin(webdisp, hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm,
-			                    uout_tvenc, 0, p->log->verb, p->log->debug)) == NULL) {
+			                    icalmax, uout_tvenc, 0, p->log->verb, p->log->debug)) == NULL) {
 			a1logd(log,1,"new_disprd failed because new_webwin failed\n");
 			p->del(p);
 			if (errc != NULL) *errc = 3;
@@ -2645,7 +2657,7 @@ a1log *log      	/* Verb, debug & error log */
 		}
 	} else if (ccid != NULL) {
 		if ((p->dw = new_ccwin(ccid, hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm,
-			                    uout_tvenc, 0, 0, p->log->verb, p->log->debug)) == NULL) {
+			                    icalmax, uout_tvenc, 0, 0, p->log->verb, p->log->debug)) == NULL) {
 			a1logd(log,1,"new_disprd failed because new_ccwin('%s') failed\n",ccid->name);
 			p->del(p);
 			if (errc != NULL) *errc = 3;
@@ -2660,7 +2672,7 @@ a1log *log      	/* Verb, debug & error log */
 			return NULL;
 		}
 			
-		if ((p->dw = new_madvrwin(hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm, out_tvenc,
+		if ((p->dw = new_madvrwin(hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm, icalmax, out_tvenc,
 			                                  0, p->log->verb, p->log->debug)) == NULL) {
 			a1logd(log,1,"new_disprd failed because new_madvrwin failed\n");
 			p->del(p);
@@ -2669,7 +2681,7 @@ a1log *log      	/* Verb, debug & error log */
 		}
 #endif
 	} else if (dummydisp != 0) {
-		if ((p->dw = new_dummywin(hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm, out_tvenc,
+		if ((p->dw = new_dummywin(hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm, icalmax, out_tvenc,
 			                                  0, p->log->verb, p->log->debug)) == NULL) {
 			a1logd(log,1,"new_disprd failed because new_dummywin failed\n");
 			p->del(p);
@@ -2684,7 +2696,7 @@ a1log *log      	/* Verb, debug & error log */
 
 		/* Open display window for positioning (no fullscreen) */
 		if ((p->dw = new_dispwin(disp, hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm,
-			                               uout_tvenc, 0, override, p->log->debug)) == NULL) {
+			                               icalmax, uout_tvenc, 0, override, p->log->debug)) == NULL) {
 			a1logd(log,1,"new_disprd failed because new_dispwin failed\n");
 			p->del(p);
 			if (errc != NULL) *errc = 3;
@@ -2816,7 +2828,7 @@ a1log *log      	/* Verb, debug & error log */
 
 			/* Open display window again for measurement */
 			if ((p->dw = new_dispwin(disp, hpatsize, vpatsize, ho, vo, 0, native, noramdac, nocm,
-				                     uout_tvenc, fullscreen, override, p->log->debug)) == NULL) {
+				                     icalmax, uout_tvenc, fullscreen, override, p->log->debug)) == NULL) {
 				a1logd(log,1,"new_disprd failed new_dispwin failed\n");
 				p->del(p);
 				if (errc != NULL) *errc = 3;

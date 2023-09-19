@@ -126,8 +126,8 @@ do the work.
 
 
 Implement MultiLocalizedUnicodeType as overload of icmTextDescription, or new tagtype ??
-
-
+[ Create common class having plain ASCII that TextDescription and MultiLocalizedUnicode
+  inheret from. ]
 
 - - - - - 
 Implement icSigLutAtoBType and icSigLutBtoAType as overloads of icmLut ??
@@ -178,7 +178,7 @@ ICC tags <- luo <- Set transform
 What impact does this have on memory usage though ?
 - Makes sure transform is completely independent of
   tags or profile after setting up, so that tags and/or
-  profile can be released.
+  profile can be released. [ Use reference counting ? ]
 
 - - - - - - 
 

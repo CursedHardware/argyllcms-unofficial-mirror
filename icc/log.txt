@@ -1,6 +1,127 @@
 
  Change History: (See ArgyllCMS log.txt too)
 
+ 3.0.0 
+
+	Added new combined icmLu object with API that differs from earlier versions.
+	Changed lu->spaces() arguments to compact each colorspace information,
+	and to eliminate get_ranges() and get_lutranges() methods.
+    Other lu->spaces() arguments also change.
+	Renamed lutspaces() -> native_spaces()
+	
+	Changed lu transform method names:
+
+      1 step:
+    	lookup -> lookup_fwd
+      3 step:
+    	lookup_in   -> input_fwd
+    	lookup_core -> core3_fwd
+    	lookup_out  -> output_fwd
+    	lookup_inv_in -> input_bwd
+    lu2mono:
+      1 step:
+    	fwd_lookup -> lookup_fwd
+    	bwd_lookup -> lookup_bwd
+      5 step:
+    	fwd_curve -> (input_fmt_fwd) + input_pch_fwd
+    	fwd_map   -> core5_fwd
+    	fwd_abs   -> (output_pch_fwd) + output_fmt_fwd
+    	bwd_abs   -> output_fmt_bwd + (output_pch_bwd)
+    	bwd_map   -> core5_bwd
+    	bwd_curve -> input_pch_bwd + (input_fmt_bwd);
+    lu2matrix:
+      1 step:
+    	fwd_lookup -> lookup_fwd
+    	bwd_lookup -> lookup_bwd
+      5 step:
+    	fwd_curve  -> (input_fmt_fwd) + input_pch_fwd
+    	fwd_matrix -> core5_fwd
+    	fwd_abs    -> (output_pch_fwd) + output_fmt_fwd
+    	bwd_abs    -> output_fmt_bwd = (output_pch_bwd)
+    	bwd_matrix -> core5_bwd
+    	bwd_curve  -> input_pch_bwd + (input_fmt_bwd);
+    lu2lut:
+      5 step:
+    	in_abs  -> input_fmt_fwd
+    	matrix  -> XXXXXXXXXXXXX		none. Combined with input & clut
+    	input   -> input_pch_fwd
+    	clut    -> core5_fwd
+    	output  -> output_pch_fwd
+    	out_abs -> output_fmt_fwd
+    	inv_out_abs -> output_fmt_bwd
+    	inv_output -> output_pch_bwd
+    	(clut)							 (clut not invertable)
+    	inv_input -> input_pch_bwd
+    	inv_matrix -> XXXXXXXXXXXXX        none. Combined with clut & input 
+    	inv_in_abs -> input_fmt_bwd
+
+	Split out less icc specific source code into icc_util.[ch] 
+
+	Add new TagType parsing code (icmSn*)
+	Old parsing code is laveled LEGACY
+	Switch header and main profile code to use new parsing code.
+
+	Changed implementation ICC version numbers to use icmTV
+
+	Added controls to format compatibility checking and warning (icmCompatFlags).
+	Added warding callback function to handle warnings.
+
+	Changed icclib API to use UTF-8 to communicate Unicode text.
+	icmTextDescription now uses *uc8Desc for string and uc8Count for its length.
+
+	Remove need to cast of tagtype object to icmBase
+	when invoking icmBase methods:
+		i.e. get_size(), read(), write(), del(), dump(), allocate()
+	
+	Most tagtype members called "size" have been renamed "count".
+
+	icmProfileSequenceDesc struct now has pointer to TextDescriptions rather than
+	being embeded, and these have been renamed: device -> mfgDesc, model -> modelDesc.
+
+	icmData now uses icBinaryData and icAsciiData as type value.
+
+	icmText elment data renamed to desc.
+
+	icmColorantTable now uses allocated name strings.
+
+	icmMeasurement flare is now icMeasurementFlare enum.
+
+	icmScreening flags is now icScreening screeningFlags
+
+	NamedColor prefix/suffix/root strings need to have count set and allocate().
+
+	icmVideoCardGamma now uses double array to store data, rather than
+	being tag details dependent. tagType is now icVideoCardGammaFormat.
+	Converted red/green/blue gamma/min/max to arrays.
+
+	icmCurve icmCurveStyel flag -> icmCurveType ctype
+
+	Changed to use icmErr error to hold error code & message.
+		icm.err[] -> icc.e.m[]
+  		icm.errc  -> icc.e.c
+
+	Some functions now have a new first argument of *icmErr.
+	Note that it is treated as "sticky" so that several
+	functions can be called before checking for errors.
+		new_icmAllocStd()
+		new_icmFileStd_name()
+		new_icmFileStd_fp()
+		new_icmFileStd_name_a()
+		new_icmFileStd_fp_a()
+		new_icmFileMem_a()
+		new_icmFileMem_ad()
+		new_icmFileMem()
+		new_icmFileMem_d()
+		new_icmMD5_a()
+		new_icmMD5()
+		new_icc_a()
+		new_icc()
+	
+
+	Renamed str2tag() -> icmstr2tag()
+
+	Renamed icmLuAlg -> icmTransformLookupAlgorithm
+
  2.21
 	Automatically repair icmTextDescription strings have an allocation that is longer
 	than their size.
@@ -12,7 +133,7 @@
      using the "ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP" env. variable,
      while maintaining ArgyllCMS compatibility using the 'arts' tag.
    + Implement proper absolute colorimetric intent for ICCV2 Display profiles
-     that use the ICCV4 style of have a media white od D50 and storing the
+     that use the ICCV4 style of have a media white of D50 and storing the
      media chromatic trasnform in the 'chad' tag.
    + Optionally create such ICCV4 style V2 Display profiles by using the
      "ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD" env. variable.

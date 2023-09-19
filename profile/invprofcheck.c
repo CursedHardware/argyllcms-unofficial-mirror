@@ -124,6 +124,7 @@ main(
 	char in_name[MAXNAMEL+1];
 	char out_name[MAXNAMEL+1], *xl;		/* VRML/X3D name */
 	icmFile *rd_fp;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 	int rv = 0;
 	int inv = 0;
@@ -272,15 +273,15 @@ main(
 	xl[0] = '\000';								/* Remove extension */
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,icco->err);
+		error ("Read: %d, %s",rv,icco->e.m);
 
 	/* Check the forward lookup against the bwd function */
 	{
@@ -288,24 +289,31 @@ main(
 		icColorSpaceSignature ins, outs;	/* Type of input and output spaces of fwd */
 		int inn, outn;						/* Channels of fwd conversion */
 		int kch;							/* Black channel, -1 if not known/applicable */
-		icmLuBase *luo1, *luo2;
+		icmLuSpace *luo1, *luo2;
 		double merr = 0.0;		/* Max */
 		double aerr = 0.0;		/* Avg */
 		double rerr = 0.0;		/* RMS */
 		double nsamps = 0.0;
 
 		/* Get a Device to PCS conversion object */
-		if ((luo1 = icco->get_luobj(icco, icmFwd, intent, icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo1 = icco->get_luobj(icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",icco->errc, icco->err);
+		if ((luo1 = (icmLuSpace *)icco->get_luobj(icco, icmFwd, intent, icSigLabData, icmLuOrdNorm)) == NULL) {
+			if ((luo1 = (icmLuSpace *)icco->get_luobj(icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+				error ("%d, %s",icco->e.c, icco->e.m);
 		}
 		/* Get details of conversion */
-		luo1->spaces(luo1, &ins, &inn, &outs, &outn, NULL, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+			luo1->spaces(luo1, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			ins = ini.sig;
+			inn = ini.nch;
+			outs = outi.sig;
+			outn = outi.nch;
+		}
 
 		/* Get a PCS to Device conversion object */
-		if ((luo2 = icco->get_luobj(icco, icmBwd, intent, icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo2 = icco->get_luobj(icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",icco->errc, icco->err);
+		if ((luo2 = (icmLuSpace *)icco->get_luobj(icco, icmBwd, intent, icSigLabData, icmLuOrdNorm)) == NULL) {
+			if ((luo2 = (icmLuSpace *)icco->get_luobj(icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+				error ("%d, %s",icco->e.c, icco->e.m);
 		}
 
 		if (dovrml) {
@@ -371,17 +379,17 @@ main(
 
 				/* Generate the in-gamut PCS test point */
 				/* by converting device to pcsin */
-				if ((rv1 = luo1->lookup(luo1, pcsin, dev)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+				if ((rv1 = luo1->lookup_fwd(luo1, pcsin, dev)) & icmPe_lurv_err)
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				/* Now do the check */
 				/* PCS -> Device */
-				if ((rv2 = luo2->lookup(luo2, devout, pcsin)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+				if ((rv2 = luo2->lookup_fwd(luo2, devout, pcsin)) & icmPe_lurv_err)
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				/* Device to PCS */
-				if ((rv2 = luo1->lookup(luo1, pcsout, devout)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+				if ((rv2 = luo1->lookup_fwd(luo1, pcsout, devout)) & icmPe_lurv_err)
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				/* Delta E */
 				if (dovrml) {
@@ -443,12 +451,12 @@ main(
 				pcsin[2] = (127.0 * 2.0 * co[2]/(tres-1.0)) - 127.0;
 
 				/* PCS -> Device */
-				if ((rv2 = luo2->lookup(luo2, devout, pcsin)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+				if ((rv2 = luo2->lookup_fwd(luo2, devout, pcsin)) & icmPe_lurv_err)
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				/* Device to PCS */
-				if ((rv2 = luo1->lookup(luo1, pcsout, devout)) > 1)
-					error ("%d, %s",icco->errc,icco->err);
+				if ((rv2 = luo1->lookup_fwd(luo1, pcsout, devout)) & icmPe_lurv_err)
+					error ("%d, %s",icco->e.c,icco->e.m);
 
 				/* Delta E */
 				if (dovrml) {

@@ -51,7 +51,7 @@ usage(char *mes) {
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	if (mes != NULL)
 		fprintf(stderr,"Error '%s'\n",mes);
-	fprintf(stderr,"usage: synthread [-v] [-s] [separation.icm] profile.[icc|mpp|ti3] outfile\n");
+	fprintf(stderr,"usage: synthread [-v] [-s] [separation.icm] filebase\n");
 	fprintf(stderr," -v                Verbose mode\n");
 	fprintf(stderr," -p                Use separation profile\n");
 	fprintf(stderr," -l                Construct and output in Lab rather than XYZ\n");
@@ -63,8 +63,7 @@ usage(char *mes) {
 	fprintf(stderr," -u                Make random deviations have uniform distributions rather than normal\n");
 	fprintf(stderr," -b L,a,b          Scale black point to target Lab value\n");
 	fprintf(stderr," [separation.icm]  Device link separation profile\n");
-	fprintf(stderr," profile.[icc|mpp|ti3] ICC, MPP profile or TI3 to use\n");
-	fprintf(stderr," outfile           Base name for input[ti1]/output[ti3] file\n");
+	fprintf(stderr," filebase          Base name for input[ti1]/output[ti3] file\n");
 	exit(1);
 	}
 
@@ -149,8 +148,9 @@ int main(int argc, char *argv[])
 
 	/* ICC separation device link profile  */
 	icmFile *sep_fp = NULL;		/* Color profile file */
+	icmErr err = { 0, { '\000'} };
 	icc *sep_icco = NULL;		/* Profile object */
-	icmLuBase *sep_luo = NULL;	/* Conversion object */
+	icmLuSpace *sep_luo = NULL;	/* Conversion object */
 	icColorSpaceSignature sep_ins, sep_outs;	/* Type of input and output spaces */
 	int sep_inn;				/* Number of input channels to separation */
 	inkmask sep_nmask = 0;		/* Colorant mask for separation input */
@@ -387,26 +387,30 @@ printf("~1 Scaled primary %f %f %f\n", val[0], val[1], val[2]);
 				md.omax[i] += md.col[i][j];
 		}
 	}
-printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
+//printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 
 	/* Deal with separation */
 	if (dosep) {
-		if ((sep_fp = new_icmFileStd_name(sepname,"r")) == NULL)
-			error ("Can't open file '%s'",sepname);
+		if ((sep_fp = new_icmFileStd_name(&err, sepname,"r")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",sepname,err.c,err.m);
 	
-		if ((sep_icco = new_icc()) == NULL)
-			error ("Creation of ICC object failed");
+		if ((sep_icco = new_icc(&err)) == NULL)
+			error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 		/* Deal with ICC separation */
 		if ((rv = sep_icco->read(sep_icco,sep_fp,0)) == 0) {
+			icmCSInfo ini, outi;
 	
 			/* Get a conversion object */
-			if ((sep_luo = sep_icco->get_luobj(sep_icco, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm)) == NULL) {
-					error ("%d, %s",sep_icco->errc, sep_icco->err);
+			if ((sep_luo = (icmLuSpace *)sep_icco->get_luobj(sep_icco, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm)) == NULL) {
+					error ("%d, %s",sep_icco->e.c, sep_icco->e.m);
 			}
 	
 			/* Get details of conversion */
-			sep_luo->spaces(sep_luo, &sep_ins, &sep_inn, &sep_outs, NULL, NULL, NULL, NULL, NULL, NULL);
+			sep_luo->spaces(sep_luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			sep_ins = ini.sig;
+			sep_inn = ini.nch;
+			sep_outs = outi.sig;
 			sep_nmask = icx_icc_to_colorant_comb(sep_ins, sep_icco->header->deviceClass);
 		}
 	}
@@ -416,7 +420,7 @@ printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 	icg->add_other(icg, "CTI1"); 	/* our special input type is Calibration Target Information 1 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI1 format file");
@@ -488,15 +492,15 @@ printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 				gfudge = 2;
 			else if (icx_colorant_comb_match_icc(nmask, sep_ins) == 0) {
 				error("Separation ICC device space '%s' dosen't match TI1 '%s'",
-				       icm2str(icmColorSpaceSignature, sep_ins),
+				       icm2str(icmColorSpaceSig, sep_ins),
 				       ident);	/* Should free(). */
 			}
 
 			/* Check if separation ICC output is compatible with ICC/MPP/TI3 conversion */ 
 			if (sep_outs != ins)
 				error("Synthetic device space '%s' dosen't match Separation ICC '%s'",
-				       icm2str(icmColorSpaceSignature, ins),
-				       icm2str(icmColorSpaceSignature, sep_outs));
+				       icm2str(icmColorSpaceSig, ins),
+				       icm2str(icmColorSpaceSig, sep_outs));
 		} else {
 			/* Check if synthetic device is compatible with .ti1 */
 			if (nmask == ICX_W && ins == icSigRgbData)
@@ -505,7 +509,7 @@ printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 				gfudge = 2;		/* Should allow for other colorant combo's that include black */
 			else if (icx_colorant_comb_match_icc(nmask, ins) == 0) {
 				error("Synthetic device space '%s' dosen't match TI1 '%s'",
-				       icm2str(icmColorSpaceSignature, ins),
+				       icm2str(icmColorSpaceSig, ins),
 				       ident);	// Should free().
 			}
 		}
@@ -600,8 +604,9 @@ printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 			}
 
 			if (dosep)
-				if (sep_luo->lookup(sep_luo, sep, dev) > 1)
-					error ("%d, %s",sep_icco->errc,sep_icco->err);
+
+				if (sep_luo->lookup_fwd(sep_luo, sep, dev) & icmPe_lurv_err)
+					error ("%d, %s",sep_icco->e.c,sep_icco->e.m);
 
 			/* Add randomness and non-linearity (rdlevel is avg. dev.) */
 			/* Note dev/sep is 0-1.0 at this stage */
@@ -683,7 +688,7 @@ printf("~1 omax = %f %f %f\n", md.omax[0], md.omax[1], md.omax[2]);
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	ocg->del(ocg);		/* Clean up */
 	icg->del(icg);		/* Clean up */

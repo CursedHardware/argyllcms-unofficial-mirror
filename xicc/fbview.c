@@ -65,6 +65,7 @@ void usage(void) {
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: fbtest [-v] infile\n");
 	fprintf(stderr," -v        verbose\n");
+	fprintf(stderr," [[ output is infile.wrl ]]\n");
 	exit(1);
 }
 
@@ -80,6 +81,7 @@ main(
 	char *xl, out_name[100];
 	icmFile *rd_fp;
 	icc *rd_icco;
+	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 
@@ -131,15 +133,15 @@ main(
 	xl[0] = '\000';			/* Remove extension */
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Run the target Lab values through the bwd and fwd tables, */
 	/* to compute the overall error. */
@@ -148,30 +150,35 @@ main(
 		double merr = 0.0;
 		double aerr = 0.0;
 		double nsamps = 0.0;
-		icmLuBase *luo1, *luo2;
+		icmLuSpace *luo1, *luo2;
 		int doaxes = 1;
 		vrml *wrl;
 		int i, j;
 	
 
 		/* Get a Device to PCS conversion object */
-		if ((luo1 = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo1 = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->errc, rd_icco->err);
+		if ((luo1 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+			if ((luo1 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
 		/* Get details of conversion */
-		luo1->spaces(luo1, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+			luo1->spaces(luo1, &ini, NULL, &outi, NULL, NULL, NULL, NULL, NULL, NULL);
+			ins = ini.sig;
+			outs = outi.sig;
+		}
 
 		if (ins != icSigCmykData) {
 			error("Expecting CMYK device");
 		}
 		
 		/* Get a PCS to Device conversion object */
-		if ((luo2 = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric,
+		if ((luo2 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric,
 		                               icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo2 = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent,
+			if ((luo2 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent,
 			                               icSigLabData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->errc, rd_icco->err);
+				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
 
 		if ((wrl = new_vrml(out_name, doaxes, vrml_lab)) == NULL) {
@@ -198,12 +205,12 @@ main(
 
 
 					/* PCS -> Device */
-					if ((rv2 = luo2->lookup(luo2, out, in)) > 1)
-						error ("%d, %s",rd_icco->errc,rd_icco->err);
+					if ((rv2 = luo2->lookup_fwd(luo2, out, in)) & icmPe_lurv_err)
+						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 	
 					/* Device -> PCS */
-					if ((rv1 = luo1->lookup(luo1, check, out)) > 1)
-						error ("%d, %s",rd_icco->errc,rd_icco->err);
+					if ((rv1 = luo1->lookup_fwd(luo1, check, out)) & icmPe_lurv_err)
+						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 	
 					if (verb) {
 						printf("%f %f %f -> %f %f %f %f -> %f %f %f [%f]\n",

@@ -38,10 +38,14 @@ LINKLIBS = libicc ;
 # All utils are made from a single source file 
 MainsFromSources icctest.c lutest.c iccdump.c icclu.c iccrw.c ;
 
+if [ GLOB [ NormPaths . ] : petest.c ] {
+	MainsFromSources petest.c ;
+}
+
 # This is an example program for making a matrix display profile
 MainsFromSources mkDispProf.c ;
 
-#MainsFromSources t2.c ;
+#MainsFromSources t.c ;
 
 if $(BUILD_JUNK) {
 
@@ -49,7 +53,7 @@ if $(BUILD_JUNK) {
 	LINKLIBS += ../plot/libvrml ;
 
 	#Monotonic behaviour checker
-	MainsFromSources mcheck.c ;
+#	MainsFromSources mcheck.c ;
 
 #	MainsFromSources tt.c ;
 

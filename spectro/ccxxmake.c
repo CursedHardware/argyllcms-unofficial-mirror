@@ -16,10 +16,9 @@
 
 /* This program uses display measurements from a colorimeter and */
 /* a spectrometer to create a correction matrix for a particular */
-/* colorimeter/display combination,. */
-/* or */
-/* It uses display measurements from a spectrometer to create */
-/* calibration samples that can be used with a Colorimeter that */
+/* colorimeter/display combination. */
+/* It can aslso be used to make display measurements from a spectrometer to create */
+/* spectral calibration samples that can be used with a Colorimeter that */
 /* knowns its own spectral sensitivity curves (ie. X-Rite i1d3, Spyder 4). */
 
 /* Based on spotread.c, illumread.c, dispcal.c */
@@ -27,10 +26,13 @@
 /* 
 	TTBD:
 
+		Should change -s to generate more neutral colors as well
+		as saturated ones.
+
 		Would be nice to have a way of not changing the target
 		instruments absolute calibration.
 
-		Would be nice to have a veryify option that produces
+		Would be nice to have a verify option that produces
 		a fit report of a matrix vs. the input files.
 
 		Would be nice to have the option of procssing a Spyder 3 correction.txt file.
@@ -242,6 +244,7 @@ int main(int argc, char *argv[]) {
 	int tele = 0;						/* NZ if telephoto mode */
 	int ambient = 0;					/* NZ if ambient mode */
 	int noinitcal = 0;					/* Disable initial calibration */
+	double icalmax = 1.0;				/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int webdisp = 0;					/* NZ for web display, == port number */
 	int ccdisp = 0;			 			/* NZ for ChromeCast, == list index */
 	ccast_id **ccids = NULL;
@@ -651,7 +654,7 @@ int main(int argc, char *argv[]) {
 		cgf->add_other(cgf, ""); 	/* Allow any signature file */
 	
 		if (cgf->read_name(cgf, innames[0]))
-			error("CGATS file '%s' read error : %s",innames[0],cgf->err);
+			error("CGATS file '%s' read error : %s",innames[0],cgf->e.m);
 	
 		if (cgf->ntables < 1)
 			error ("Input file '%s' doesn't contain at least one table",innames[0]);
@@ -746,10 +749,10 @@ int main(int argc, char *argv[]) {
 
 		if (cc->set_ccss(cc, "Argyll ccxxmake", NULL, description, displayname,
 		                 dtinfo->dtech, refrmode, uisel, refname, 0, samples, npat)) {
-			error("set_ccss failed with '%s'\n",cc->err);
+			error("set_ccss failed with '%s'\n",cc->e.m);
 		}
 		if(cc->write_ccss(cc, outname))
-			printf("\nWriting CCSS file '%s' failed with '%s\n",outname, cc->err);
+			printf("\nWriting CCSS file '%s' failed with '%s\n",outname, cc->e.m);
 		else
 			printf("\nWriting CCSS file '%s' succeeded\n",outname);
 		cc->del(cc);
@@ -788,7 +791,7 @@ int main(int argc, char *argv[]) {
 			cgf->add_other(cgf, ""); 	/* Allow any signature file */
 		
 			if (cgf->read_name(cgf, innames[n]))
-				error("CGATS file '%s' read error : %s",innames[n],cgf->err);
+				error("CGATS file '%s' read error : %s",innames[n],cgf->e.m);
 		
 			if (cgf->ntables < 1)
 				error ("Input file '%s' doesn't contain at least one table",innames[n]);
@@ -1012,7 +1015,7 @@ int main(int argc, char *argv[]) {
 
 		if (cc->create_ccmx(cc, description, colname, displayname, dtinfo->dtech,
 			                     refrmode, cbid, uisel, refname, 0, npat, refs, cols)) {
-			error("create_ccmx failed with '%s'\n",cc->err);
+			error("create_ccmx failed with '%s'\n",cc->e.m);
 		}
 		if (verb) {
 			printf("Fit error is max %f, avg %f DE94\n",cc->mx_err,cc->av_err);
@@ -1023,7 +1026,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		if(cc->write_ccmx(cc, outname))
-			printf("\nWriting CCMX file '%s' failed with '%s'\n",outname,cc->err);
+			printf("\nWriting CCMX file '%s' failed with '%s'\n",outname,cc->e.m);
 		else
 			printf("\nWriting CCMX file '%s' succeeded\n",outname);
 		cc->del(cc);
@@ -1294,7 +1297,7 @@ int main(int argc, char *argv[]) {
 				if ((dr = new_disprd(&errc, icmps->get_path(icmps, comno),
 				                     fc, ditype, sditype, 1, tele, ambient, nadaptive,
 				                     noinitcal, 0, highres, refrate, 3, NULL, NULL,
-					                 NULL, 0, disp, 0, fullscreen,
+					                 NULL, 0, disp, icalmax, 0, fullscreen,
 				                     override, webdisp, ccid,
 #ifdef NT
 					                 madvrdisp,
@@ -1445,10 +1448,10 @@ int main(int argc, char *argv[]) {
 	
 					if (cc->set_ccss(cc, "Argyll ccxxmake", NULL, description, displayname,
 					                 dtinfo->dtech, refrmode, NULL, refname, 0, samples, npat)) {
-						error("set_ccss failed with '%s'\n",cc->err);
+						error("set_ccss failed with '%s'\n",cc->e.m);
 					}
 					if(cc->write_ccss(cc, outname))
-						printf("\nWriting CCSS file '%s' failed with '%s'\n",outname,cc->err);
+						printf("\nWriting CCSS file '%s' failed with '%s'\n",outname,cc->e.m);
 					else
 						printf("\nWriting CCSS file '%s' succeeded\n",outname);
 					cc->del(cc);
@@ -1501,7 +1504,7 @@ int main(int argc, char *argv[]) {
 	
 					if (cc->create_ccmx(cc, description, colname, displayname, dtinfo->dtech,
 					                    refrmode, cbid, uisel, refname, 0, npat, refs, cols)) {
-						error("create_ccmx failed with '%s'\n",cc->err);
+						error("create_ccmx failed with '%s'\n",cc->e.m);
 					}
 					if (verb) {
 						printf("Fit error is avg %f, max %f DE94\n",cc->av_err,cc->mx_err);
@@ -1512,7 +1515,7 @@ int main(int argc, char *argv[]) {
 					}
 	
 					if(cc->write_ccmx(cc, outname))
-						printf("\nWriting CCMX file '%s' failed with '%s'\n",outname,cc->err);
+						printf("\nWriting CCMX file '%s' failed with '%s'\n",outname,cc->e.m);
 					else
 						printf("\nWriting CCMX file '%s' succeeded\n",outname);
 					cc->del(cc);

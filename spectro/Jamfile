@@ -1,7 +1,7 @@
 
 
-PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
-#PREF_CCFLAGS    += $(CCDEBUGFLAG) ;		# Debugging flags
+#PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
+PREF_CCFLAGS    += $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS    += $(CCHEAPDEBUG) ;     # Heap Debugging & Debugging flags
 PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;
 
@@ -192,16 +192,6 @@ Library libconv : xdg_bds.c aglob.c conv.c base64.c $(CONVFILE) : : : $(LibWinH)
 # Command line application instrument related convenience functions
 Library libinstapp : instappsup.c ;
 
-#if [ GLOB [ NormPaths . ] : mdnslib.c ]  {
-#	echo "Found mdnslib.c !" ;
-#
-#	# One-shot mDNS client & server library
-#	Library libmdns : mdnslib.c ;
-#
-#	# Individual stand alone test of mdnslib library
-#	MainVariant mdnstest : mdnslib.c : : STANDALONE_TEST : : : mdnslib ;
-#}
-
 # Support file
 #Object alphix : ../target/alphix.c ;
 
@@ -210,7 +200,7 @@ LINKLIBS = libinst libinstapp
            ../gamut/libgamut
            ../rspl/librspl ../cgats/libcgats
            ../icc/libicc ../plot/libplot ../plot/libvrml
-		   ../ccast/libccast $(SSLLIB) ../yajl/libyajl ../render/librender
+		   ../ccast/libccast $(SSLLIB) ../yajl/libyajl
            $(TIFFLIB) $(JPEGLIB) $(PNGLIB) $(ZLIB)
            ../numlib/libui libconv ../numlib/libnum
            $(CMMLIBS) ;
@@ -239,7 +229,7 @@ echo "HOME = " $(HOME) ;
 echo "PWD = " $(PWD) ;
 
 # CCMX and CCSStool
-Main ccxxmake : ccxxmake.c : : : : : libdisp ;
+Main ccxxmake : ccxxmake.c : : : : : libdisp ../render/librender ;
 
 # Gretag Spectroscan/T filmstrip reader
 #Main filmread : filmread.c : : : : : ;
@@ -248,14 +238,19 @@ Main ccxxmake : ccxxmake.c : : : : : libdisp ;
 Main synthcal : synthcal.c ;
 
 # Display calibration program
-Main dispcal : dispcal.c : : : ../target : : libdisp ;
+Main dispcal : dispcal.c : : : ../target : : libdisp ../render/librender ;
 
 # Display tester program
-Main dispread : dispread.c : : : : : libdisp ;
+Main dispread : dispread.c : : : : : libdisp ../render/librender ;
 
 if $(USE_CMFM) = true && [ GLOB [ NormPaths . ] : 1501_cal.c ] {
 	echo "Compiling LedCool support" ;
 	Main 1501_cal : 1501_cal.c ;
+}
+
+if [ GLOB [ NormPaths . ] : setoem.c ] {
+	echo "Compiling OEM setcode support" ;
+	Main setoem : setoem.c ;
 }
 
 # Misc. test code
@@ -269,7 +264,7 @@ if [ GLOB [ NormPaths . ] : i1d3test2.c ]  {
 #display test window test/Lut loader utility
 # [ Could avoid need for libinst libusb etc.
 #   by separating system dependent utils to a separate library .] 
-MainVariant dispwin : dispwin.c webwin.c ccwin.c dummywin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : $(LibWin) ;
+MainVariant dispwin : dispwin.c webwin.c ccwin.c dummywin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : ../render/librender $(LibWin) ;
 
 LINKLIBS = libinsttypes libdisptechs ../xicc/libxicc ../gamut/libgamut ../rspl/librspl
            ../cgats/libcgats ../icc/libicc ../plot/libplot libconv ../numlib/libnum
@@ -340,10 +335,20 @@ if [ GLOB [ NormPaths . ] : cubecal.c ]  {
 	Main cubecal : cubecal.c ;
 }
 
+if [ GLOB [ NormPaths . ] : mdnslib.c ]  {
+	echo "Found mdnslib.c !" ;
+
+	# One-shot mDNS client & server library
+	Library libmdns : mdnslib.c ;
+
+	# Individual stand alone test of mdnslib library
+	MainVariant mdnstest : mdnslib.c : : STANDALONE_TEST : : : libmdns ../numlib/libnum ;
+}
+
 # ColorMeter utility
 if [ GLOB [ NormPaths . ] : oemdnld.c ]  {
 	echo "Found oemdnld.c !" ;
-	Main oemdnld : oemdnld.c : : : : oemarch vinflate inflate LzmaDec mongoose : libconv ;
+	Main oemdnld : oemdnld.c : : : : oemarch vinflate inflate LzmaDec mongoose : libconv libmdns ;
 }
 
 # Test code

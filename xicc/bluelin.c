@@ -22,6 +22,7 @@
 
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <math.h>
 #include "aconfig.h"
 #include "icc.h"
@@ -172,7 +173,7 @@ main(void) {
 				maxde = de;
 
 			if (de > 0.01) {
-				printf("%f %f %f -> %f %f %f de %f\n", in[0], in[1], in[2], out[0], out[1], out[2]);
+				printf("%f %f %f -> %f %f %f de %f\n", in[0], in[1], in[2], out[0], out[1], out[2], de);
 			}
 		}
 	}

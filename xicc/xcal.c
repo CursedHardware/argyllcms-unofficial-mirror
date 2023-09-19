@@ -73,19 +73,19 @@ static int xcal_read_cgats(xcal *p, cgats *tcg, int table, char *filename) {
 	char buf[100];
 
 	if ((oi = tcg->get_oi(tcg, "CAL")) < 0) {
-		sprintf(p->err, "Input file '%s' can't be a CAL format file", filename);
-		return p->errc = 1;
+		sprintf(p->e.m, "Input file '%s' can't be a CAL format file", filename);
+		return p->e.c = 1;
 	}
 
 	if (tcg->t[table].tt != tt_other || tcg->t[table].oi != oi) {
-		sprintf(p->err, "Input file '%s' isn't a CAL format file", filename);
-		return p->errc = 1;
+		sprintf(p->e.m, "Input file '%s' isn't a CAL format file", filename);
+		return p->e.c = 1;
 	}
 
 	/* See what sort of device type this calibration is for */
 	if ((ti = tcg->find_kword(tcg, table, "DEVICE_CLASS")) < 0) {
-		sprintf(p->err, "Calibration file '%s'doesn't contain keyword DEVICE_CLASS",filename);
-		return p->errc = 1;
+		sprintf(p->e.m, "Calibration file '%s'doesn't contain keyword DEVICE_CLASS",filename);
+		return p->e.c = 1;
 	}
 	if (strcmp(tcg->t[table].kdata[ti],"INPUT") == 0) {
 		p->devclass = icSigInputClass;
@@ -94,28 +94,28 @@ static int xcal_read_cgats(xcal *p, cgats *tcg, int table, char *filename) {
 	} else if (strcmp(tcg->t[table].kdata[ti],"DISPLAY") == 0) {
 		p->devclass = icSigDisplayClass;
 	} else {
-		sprintf(p->err,"Calibration file '%s' contain unknown DEVICE_CLASS '%s'",
+		sprintf(p->e.m,"Calibration file '%s' contain unknown DEVICE_CLASS '%s'",
 		                                            filename,tcg->t[table].kdata[ti]);
-		return p->errc = 1;
+		return p->e.c = 1;
 	}
 
 	if ((ti = tcg->find_kword(tcg, table, "COLOR_REP")) < 0) {
 		/* Be backwards compatible with V1.0.4 display calibration files */
 		if (p->devclass != icSigDisplayClass) {
-			sprintf(p->err, "Calibration file '%s'doesn't contain keyword COLOR_REP",filename);
-			return p->errc = 1;
+			sprintf(p->e.m, "Calibration file '%s'doesn't contain keyword COLOR_REP",filename);
+			return p->e.c = 1;
 		} 
 		warning("\n    *** Calibration file '%s'doesn't contain keyword COLOR_REP, assuming RGB ***",filename);
 		if ((p->devmask = icx_char2inkmask("RGB") ) == 0) {
-			sprintf(p->err, "Calibration file '%s' has unrecognized COLOR_REP '%s'",
+			sprintf(p->e.m, "Calibration file '%s' has unrecognized COLOR_REP '%s'",
 			                                          filename,tcg->t[table].kdata[ti]);
-			return p->errc = 1;
+			return p->e.c = 1;
 		}
 	} else {
 		if ((p->devmask = icx_char2inkmask(tcg->t[table].kdata[ti]) ) == 0) {
-			sprintf(p->err, "Calibration file '%s' has unrecognized COLOR_REP '%s'",
+			sprintf(p->e.m, "Calibration file '%s' has unrecognized COLOR_REP '%s'",
 			                                          filename,tcg->t[table].kdata[ti]);
-			return p->errc = 1;
+			return p->e.c = 1;
 		}
 	}
 
@@ -146,24 +146,24 @@ static int xcal_read_cgats(xcal *p, cgats *tcg, int table, char *filename) {
 		p->xpi.copyright = strdup(tcg->t[table].kdata[ti]);
 
 	if (tcg->t[table].nsets <= 0) {
-		sprintf(p->err, "Calibration file '%s' has too few entries %d",
+		sprintf(p->e.m, "Calibration file '%s' has too few entries %d",
 		                                          filename,tcg->t[table].nsets);
-		return p->errc = 1;
+		return p->e.c = 1;
 	}
 
 	/* Figure out the indexes of all the fields */
 	sprintf(buf, "%s_I",bident);
 	if ((spi[0] = tcg->find_field(tcg, table, buf)) < 0) {
-		sprintf(p->err,"Calibration file '%s' doesn't contain field '%s'", filename,buf);
-		return p->errc = 1;
+		sprintf(p->e.m,"Calibration file '%s' doesn't contain field '%s'", filename,buf);
+		return p->e.c = 1;
 	}
 
 	for (j = 0; j < p->devchan; j++) {
 		inkmask imask = icx_index2ink(p->devmask, j);
 		sprintf(buf, "%s_%s",bident,icx_ink2char(imask));
 		if ((spi[1+j] = tcg->find_field(tcg, table, buf)) < 0) {
-			sprintf(p->err,"Calibration file '%s' doesn't contain field '%s'", filename,buf);
-			return p->errc = 1;
+			sprintf(p->e.m,"Calibration file '%s' doesn't contain field '%s'", filename,buf);
+			return p->e.c = 1;
 		}
 	}
 
@@ -179,13 +179,13 @@ static int xcal_read_cgats(xcal *p, cgats *tcg, int table, char *filename) {
 		gres[0] = tcg->t[table].nsets;
 
 		if ((p->cals[j] = new_rspl(RSPL_NOFLAGS,1, 1)) == NULL) {
-			sprintf(p->err,"new_rspl() failed");
-			return p->errc = 2;
+			sprintf(p->e.m,"new_rspl() failed");
+			return p->e.c = 2;
 		}
 
 		if ((dpoints = malloc(sizeof(co) * gres[0])) == NULL) {
-			sprintf(p->err,"malloc dpoints[%d] failed",gres[0]);
-			return p->errc = 2;
+			sprintf(p->e.m,"malloc dpoints[%d] failed",gres[0]);
+			return p->e.c = 2;
 		}
 
 		/* Copy the points to our array */
@@ -222,8 +222,8 @@ int xcal_read_icc(xcal *p, icc *c) {
 
 	/* See if there is a vcgt tag */
 	if ((vg = (icmVideoCardGamma *)c->read_tag(c, icSigVideoCardGammaTag)) == NULL) {
-		sprintf(p->err, "ICC profile has no vcgt");
-		return p->errc = 1;
+		sprintf(p->e.m, "ICC profile has no vcgt");
+		return p->e.c = 1;
 	}
 
 	/* What sort of device the profile is for */
@@ -231,8 +231,8 @@ int xcal_read_icc(xcal *p, icc *c) {
 	p->colspace = c->header->colorSpace;
 
 	if ((p->devmask = icx_icc_to_colorant_comb(p->colspace, p->devclass)) == 0) {
-		sprintf(p->err, "Unable to determine inkmask from ICC profile");
-		return p->errc = 1;
+		sprintf(p->e.m, "Unable to determine inkmask from ICC profile");
+		return p->e.c = 1;
 	} 
 	p->devchan = icx_noofinks(p->devmask);
 
@@ -247,11 +247,11 @@ int xcal_read_icc(xcal *p, icc *c) {
 		p->xpi.profDesc = strdup(td->desc);
 	} 
 	if ((tx = (icmText *)c->read_tag(c, icSigCopyrightTag)) != NULL) {
-		p->xpi.copyright = strdup(tx->data);
+		p->xpi.copyright = strdup(tx->desc);
 	} 
 
 	/* Decide the lut resolution */
-	if (vg->tagType == icmVideoCardGammaFormulaType)
+	if (vg->tagType == icVideoCardGammaFormula)
 		res = 2048;
 	else
 		res = vg->u.table.entryCount;
@@ -268,13 +268,13 @@ int xcal_read_icc(xcal *p, icc *c) {
 		gres[0] = res;
 
 		if ((p->cals[j] = new_rspl(RSPL_NOFLAGS,1, 1)) == NULL) {
-			sprintf(p->err,"new_rspl() failed");
-			return p->errc = 2;
+			sprintf(p->e.m,"new_rspl() failed");
+			return p->e.c = 2;
 		}
 
 		if ((dpoints = malloc(sizeof(co) * gres[0])) == NULL) {
-			sprintf(p->err,"malloc dpoints[%d] failed",gres[0]);
-			return p->errc = 2;
+			sprintf(p->e.m,"malloc dpoints[%d] failed",gres[0]);
+			return p->e.c = 2;
 		}
 
 		/* Copy the points to our array */
@@ -307,17 +307,17 @@ static int xcal_read(xcal *p, char *filename) {
 	int rv;
 
 	if ((tcg = new_cgats()) == NULL) {
-		sprintf(p->err, "new_cgats() failed");
-		return p->errc = 2;
+		sprintf(p->e.m, "new_cgats() failed");
+		return p->e.c = 2;
 	}
 
 	tcg->add_other(tcg, "CAL"); 	/* our special input type is Calibration Target */
 
 	if (tcg->read_name(tcg, filename)) {
-		strcpy(p->err, tcg->err);
-		p->errc = tcg->errc;
+		strcpy(p->e.m, tcg->e.m);
+		p->e.c = tcg->e.c;
 		tcg->del(tcg);
-		return p->errc;
+		return p->e.c;
 	}
 
 	if (tcg->ntables < 1)
@@ -362,11 +362,11 @@ static int xcal_write_cgats(xcal *p, cgats *tcg) {
 		tcg->add_kword(tcg, table, "DEVICE_CLASS","DISPLAY", NULL);
 	else {
 #ifdef SALONEINSTLIB
-		sprintf(p->err,"Unknown device class 0x%x",p->devclass);
+		sprintf(p->e.m,"Unknown device class 0x%x",p->devclass);
 #else
-		sprintf(p->err,"Unknown device class '%s'",icm2str(icmProfileClassSignature,p->devclass));
+		sprintf(p->e.m,"Unknown device class '%s'",icm2str(icmProfileClassSig,p->devclass));
 #endif
-		return p->errc = 1;
+		return p->e.c = 1;
 	}
 
 	/* Colorspace */
@@ -401,8 +401,8 @@ static int xcal_write_cgats(xcal *p, cgats *tcg) {
 		nsetel++;
 	}
 	if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL) {
-		sprintf(p->err,"Malloc failed");
-		return p->errc = 2;
+		sprintf(p->e.m,"Malloc failed");
+		return p->e.c = 2;
 	}
 
 	calres = p->cals[0]->get_res(p->cals[0])[0];
@@ -436,22 +436,22 @@ static int xcal_write(xcal *p, char *filename) {
 	int rv;
 
 	if ((tcg = new_cgats()) == NULL) {
-		sprintf(p->err, "new_cgats() failed");
-		return p->errc = 2;
+		sprintf(p->e.m, "new_cgats() failed");
+		return p->e.c = 2;
 	}
 
 	if ((rv = xcal_write_cgats(p, tcg)) != 0) {
-		strcpy(p->err, tcg->err);
-		p->errc = tcg->errc;
+		strcpy(p->e.m, tcg->e.m);
+		p->e.c = tcg->e.c;
 		tcg->del(tcg);
-		return p->errc;
+		return p->e.c;
 	}
 
 	if (tcg->write_name(tcg, filename)) {
-		strcpy(p->err, tcg->err);
-		p->errc = tcg->errc;
+		strcpy(p->e.m, tcg->e.m);
+		p->e.c = tcg->e.c;
 		tcg->del(tcg);
-		return p->errc;
+		return p->e.c;
 	}
 
 	tcg->del(tcg);

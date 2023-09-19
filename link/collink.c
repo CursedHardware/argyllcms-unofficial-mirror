@@ -160,7 +160,6 @@
 #undef DEBUG_ONE	/* [und] test a single value out. Look for DBGNO to set value. */
 #undef NEUTKDEBUG	/* [und] print info about neutral L -> K mapping */
 
-
 #ifndef USE_CAM_CLIP_OPT
 # pragma message("!!!!!!!!!!!! USE_CAM_CLIP_OPT turned off  !!!!!!!!!")
 #endif
@@ -182,6 +181,7 @@
 #include "gammap.h"
 #include "vrml.h"
 
+
 /* flag usage:
 
     0123456789
@@ -191,7 +191,7 @@
     ....... . .. ....... ..   
 
     ABCDEFGHIJKLMNOPQRSTUVWXYZ
-    . ....... . . ..  .. .    
+    . ......... . ..  .. .    
 */
 
 void usage(char *diag, ...) {
@@ -405,6 +405,8 @@ struct _clink {
 	icxGMappingIntent gmi;
 	gammap *map;	/* Gamut mapping */
 	gammap *Kmap;	/* Gamut mapping K in to K out nhack == 2 and K in to K out */
+
+	int tnixsh;		/* Table number index shift */
 
 
 	/* Per profile setup information */
@@ -743,12 +745,14 @@ int tt = 0;
 
 #else
 
-# define DEBUGCND			/* Define it as empty */
+# define DEBUGCND			/* Define it as empty condition */
 
 #endif	/* DEBUGC */
 
 /* Input table, DevIn -> DevIn' */
-void devi_devip(void *cntx, double *out, double *in) {
+void devi_devip(void *cntx, double *out, double *in
+, int tn
+) {
 	int rv = 0;
 	clink *p = (clink *)cntx;
 	int i, clip = 0;	/* Not preserving video sync when doing video decode in input lut */
@@ -813,7 +817,7 @@ void devi_devip(void *cntx, double *out, double *in) {
 				error("Unexpected algorithm type %d in devi_devip()",p->in.alg);
 		}
 		if (rv >= 2)
-			error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
+			error("icc lookup failed: %d, %s",p->in.c->e.c,p->in.c->e.m);
 #ifdef DEBUG
 		DEBUGCND printf("After input curve: %s\n",icmPdv(p->in.chan, out));
 #endif
@@ -857,7 +861,9 @@ void devi_devip(void *cntx, double *out, double *in) {
 
 /* - - - - - - - - - - - - */
 /* clut, DevIn' -> DevOut' */
-void devip_devop(void *cntx, double *out, double *in) {
+void devip_devop(void *cntx, double *out, double *in
+, int itn
+) {
 	double oin[MAX_CHAN];			/* original input values */
 	double win[MAX_CHAN];			/* working input values */
 	double pcsv[MAX_CHAN];			/* PCS intermediate value, pre-gamut map */
@@ -875,6 +881,7 @@ void devip_devop(void *cntx, double *out, double *in) {
 	double uci[3];		/* Unclipped input values (Video) */
 	double full[3];		/* Full (0.0/1.0) input value in clip direction (Video) */
 	double scale;		/* RGB positive clipping scale factor (Video) */
+	int tn = itn >> p->tnixsh;		/* Intent no, 0 = colorimetric, 1 = percept, 2 = sat */
 
 #ifdef DEBUGC
 	tt = 0;
@@ -1077,7 +1084,7 @@ void devip_devop(void *cntx, double *out, double *in) {
 
 		vect_cpy(out, win, p->cal->devchan);
 
-	} else {
+	} else {	/* ICC profile linking */
 
 		/* Do DevIn' -> PCS */
 		switch(p->in.alg) {
@@ -1090,6 +1097,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 				} else {
 					rv |= lu->fwd_map(lu, pcsv, win);
 				}
+#ifdef DEBUG
+				DEBUGCND printf("After mono PCS' XYZ %s Lab %s\n",icmPdv(3, pcsv), icmPLab(pcsv));
+#endif
 				rv |= lu->fwd_abs(lu, pcsv, pcsv);
 				break;
 			}
@@ -1119,12 +1129,12 @@ void devip_devop(void *cntx, double *out, double *in) {
 						rv |= lu->fwd_matrix(lu, pcsv, win);
 				}
 #ifdef DEBUG
-		DEBUGCND printf("After matrix PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
+				DEBUGCND printf("After matrix PCS' XYZ %s Lab %s\n",icmPdv(3, pcsv), icmPLab(pcsv));
 #endif
 				if (p->in.bt1886) {
 					bt1886_wp_adjust(&p->in.bt, pcsv, pcsv);
 #ifdef DEBUG
-		DEBUGCND printf("After bt1886 PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
+					DEBUGCND printf("After bt1886 PCS' XYZ %s Lab %s\n",icmPdv(3, pcsv), icmPLab(pcsv));
 #endif
 				}
 
@@ -1169,6 +1179,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 				}
 				rv |= lu->output(lu, pcsv, pcsv);	/* PCS' ->     */
 				rv |= lu->out_abs(lu, pcsv, pcsv);	/*         PCS */
+#ifdef DEBUG
+				DEBUGCND printf("After clut PCS' XYZ %s Lab %s\n",icmPdv(p->in.chan, pcsv), icmPLab(pcsv));
+#endif
 				break;
 			}
 			default:
@@ -1184,8 +1197,8 @@ void devip_devop(void *cntx, double *out, double *in) {
 		 *			Absolute Lab
 		 *		or
 		 *			Jab derived from absolute XYZ via the in/out viewing conditions
-     *
-     *	and locus[] contains any auxiliar target values if the
+		 *
+		 *	and locus[] contains any auxiliar target values if the
 		 *  auxiliary is not being created by a rule applied to the PCS.
 		 */
 
@@ -1297,6 +1310,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 				{
 					p->map->domap(p->map, pcsvm, pcsv);
 				}
+#ifdef DEBUG
+				DEBUGCND printf("PCS after normal map %f %f %f\n", pcsvm[0], pcsvm[1], pcsvm[2], pcsvm[0]);
+#endif
 			}
 
 
@@ -1426,6 +1442,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 					if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
 						rv |= lu->bwd_curve(lu, out, out);
 					}
+#ifdef DEBUG
+					DEBUGCND printf("DevOut' after mono PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
+#endif
 					break;
 				}
 			    case icmMatrixBwdType: {
@@ -1436,6 +1455,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 					if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
 						rv |= lu->bwd_curve(lu, out, out);
 					}
+#ifdef DEBUG
+					DEBUGCND printf("DevOut' after matrix PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
+#endif
 					break;
 				}
 			    case icmLutType: {
@@ -1480,6 +1502,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 						if (p->out.nocurve) {	/* No explicit curve, so do implicit here */
 							rv |= lu->inv_input(lu, out, out);
 						}
+#ifdef DEBUG
+						DEBUGCND printf("DevOut' after cLut PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
+#endif
 					}
 					break;
 				}
@@ -1488,10 +1513,7 @@ void devip_devop(void *cntx, double *out, double *in) {
 					error("Unexpected algorithm type %d in devop of devip_devop()",p->out.alg);
 			}
 			if (rv >= 2)
-				error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
-#ifdef DEBUG
-			DEBUGCND printf("DevOut' after PCS->Dev %s\n\n",icmPdv(p->out.chan, out));
-#endif
+				error("icc lookup failed: %d, %s",p->in.c->e.c,p->in.c->e.m);
 		}
 
 		/* Apply calibration curve */
@@ -1639,6 +1661,10 @@ void devip_devop(void *cntx, double *out, double *in) {
 		int pc;
 		p->count++;
 		pc = (int)(p->count * 100.0/p->total + 0.5);
+		if (pc < 0)
+			pc = 0;
+		else if (pc > 100)
+			pc = 100;
 		if (pc != p->last) {
 			printf("%c%2d%%",cr_char,pc); fflush(stdout);
 			p->last = pc;
@@ -1648,7 +1674,9 @@ void devip_devop(void *cntx, double *out, double *in) {
 
 /* - - - - - - - - - - - - - - - - */
 /* Output table, DevOut' -> DevOut */
-void devop_devo(void *cntx, double *out, double *in) {
+void devop_devo(void *cntx, double *out, double *in
+, int tn
+) {
 	int rv = 0;
 	clink *p = (clink *)cntx;
 	int i, clip = 0;	/* Not preserving video sync when doing video decode in input lut */
@@ -1702,11 +1730,13 @@ void devop_devo(void *cntx, double *out, double *in) {
 					icxLuLut *lu = (icxLuLut *)p->out.luo;	/* Safe to coerce */
 					rv |= lu->output(lu, out, out);
 					/* Since not PCS, out_abs is never used */
+					/* (?? What about a dest profile that has L*a*b* as device space ??) */
 					break;
 				} else {	/* Use inverse A2B table */
 					icxLuLut *lu = (icxLuLut *)p->out.luo;	/* Safe to coerce */
 					rv |= lu->inv_input(lu, out, out);
 					/* Since not PCS, inv_matrix and inv_in_abs is never used */
+					/* (?? What about a dest profile that has L*a*b* as device space ??) */
 					break;
 				}
 			}
@@ -1714,7 +1744,7 @@ void devop_devo(void *cntx, double *out, double *in) {
 				error("Unexpected algorithm type in devop_devo()");
 		}
 		if (rv >= 2)
-			error("icc lookup failed: %d, %s",p->in.c->errc,p->in.c->err);
+			error("icc lookup failed: %d, %s",p->in.c->e.c,p->in.c->e.m);
 
 #ifdef DEBUG
 		DEBUGCND printf("After output curve %s\n",icmPdv(p->out.chan, out));
@@ -1882,6 +1912,7 @@ main(int argc, char *argv[]) {
 	char out_name[MAXNAMEL+1] = "\000";
 	char link_name[MAXNAMEL+1] = "\000";
 	char tdlut_name[MAXNAMEL+1] = "\000";
+	icmErr err = { 0, { '\000'} };
 	int verify = 0;				/* Do verify pass */
 	int outinkset = 0;			/* The user specfied an output inking */
 	int intentset = 0;			/* The user specified an intent */
@@ -1897,6 +1928,8 @@ main(int argc, char *argv[]) {
 	int isJab = 0;				/* (Derived from li.mode & li.gmi) NZ if Jab link space */
 	int in_curve_res = 0;		/* Input profile A2B input curve resolution (if known) */
 	int out_curve_res = 0;		/* Output profile B2A output curve resolution (if known) */
+	icmTV iccver = ICMTV_DEFAULT;	/* ICC file version to create */
+	icxTransformCreateType icctype = icxTCT_V2V2;	/* ICC profile version to create */
 	profxinf xpi;				/* Extra profile information */
 	int i;
 
@@ -1979,6 +2012,7 @@ main(int argc, char *argv[]) {
 	if (argc < 4)
 		usage("Too few arguments, got %d expect at least 3",argc-1);
 
+
 	/* Process the arguments */
 	mfa = 3;        /* Minimum final arguments */
 	for (fa = 1; fa < argc; fa++) {
@@ -2033,6 +2067,7 @@ main(int argc, char *argv[]) {
 				fa = nfa;
 				xpi.copyright = na;
 			}
+
 
 			/* Verify rather than link */
 			else if (argv[fa][1] == 'V')
@@ -2444,9 +2479,11 @@ main(int argc, char *argv[]) {
 				if (na == NULL) usage("No parameter after flag -t");
 				fa = nfa;
 				tlimit = atoi(na);
-				if (tlimit >= 0)
+				if (tlimit >= 0) {
 					li.in.ink.tlimit = tlimit/100.0;
-				else
+					if (li.mode < 1)	/* Set minimum link mode */
+						li.mode = 1;
+				} else
 					li.in.ink.tlimit = -1.0;
 			}
 			else if (argv[fa][1] == 'T') {
@@ -2454,9 +2491,11 @@ main(int argc, char *argv[]) {
 				if (na == NULL) usage("No parameter after flag -T");
 				fa = nfa;
 				klimit = atoi(na);
-				if (klimit >= 0)
+				if (klimit >= 0) {
 					li.in.ink.klimit = klimit/100.0;
-				else
+					if (li.mode < 1)	/* Set minimum link mode */
+						li.mode = 1;
+				} else
 					li.in.ink.klimit = -1.0;
 			}
 			/* Output ink limits */
@@ -2465,24 +2504,24 @@ main(int argc, char *argv[]) {
 				if (na == NULL) usage("No parameter after flag -l");
 				fa = nfa;
 				tlimit = atoi(na);
-				if (tlimit >= 0)
+				if (tlimit >= 0) {
 					li.out.ink.tlimit = tlimit/100.0;
-				else
+					if (li.mode < 2)	/* Set minimum link mode */
+						li.mode = 2;
+				} else
 					li.out.ink.tlimit = -1.0;
-				if (li.mode < 2)	/* Set minimum link mode */
-					li.mode = 2;
 			}
 			else if (argv[fa][1] == 'L') {
 				int klimit;
 				if (na == NULL) usage("No parameter after flag -L");
 				fa = nfa;
 				klimit = atoi(na);
-				if (klimit >= 0)
+				if (klimit >= 0) {
 					li.out.ink.klimit = klimit/100.0;
-				else
+					if (li.mode < 2)	/* Set minimum link mode */
+						li.mode = 2;
+				} else
 					li.out.ink.klimit = -1.0;
-				if (li.mode < 2)	/* Set minimum link mode */
-					li.mode = 2;
 			}
 
 			/* 3DLut output */
@@ -2612,6 +2651,7 @@ main(int argc, char *argv[]) {
 		} else
 			break;
 	}
+
 
 #ifdef NEVER
 	if (li.in.bt1886) {
@@ -2973,7 +3013,7 @@ main(int argc, char *argv[]) {
 			error("new_xcal failed");
 
 		if ((li.cal->read(li.cal, cal_name)) != 0)
-			error("%s",li.cal->err);
+			error("%s",li.cal->e.m);
 
 		li.addcal = addcal;
 
@@ -3012,15 +3052,15 @@ main(int argc, char *argv[]) {
 		/* - - - - - - - - - - - - - - - - - - - */
 		/* Open up the abstract profile if requested */
 		if (abs_name[0] != '\000') {
-			if ((li.abs_fp = new_icmFileStd_name(abs_name,"r")) == NULL)
-				error ("Can't open abstract profile file '%s'",abs_name);
+			if ((li.abs_fp = new_icmFileStd_name(&err, abs_name,"r")) == NULL)
+				error ("Can't open abstract profile file '%s (0x%x, '%s')'",abs_name,err.c,err.m);
 			
-			if ((li.abs_icc = new_icc()) == NULL)
-				error ("Creation of Abstract profile ICC object failed");
+			if ((li.abs_icc = new_icc(&err)) == NULL)
+				error ("Creation of Abstract profile ICC object failed (0x%x, '%s')",err.c,err.m);
 
 			/* Read header etc. */
 			if ((rv = li.abs_icc->read(li.abs_icc,li.abs_fp,0)) != 0)
-				error ("%d, %s",rv,li.abs_icc->err);
+				error ("%d, %s",rv,li.abs_icc->e.m);
 
 			if (li.abs_icc->header->deviceClass != icSigAbstractClass)
 				error("Abstract profile isn't an abstract profile");
@@ -3144,7 +3184,7 @@ main(int argc, char *argv[]) {
 			/* First any enumerated selection */
 			if (es != -1) {
 				if (xicc_enum_viewcond(x, vc, es, NULL, 0, NULL) == -999)
-					error ("%d, %s",x->errc, x->err);
+					error ("%d, %s",x->e.c, x->e.m);
 				*set = 1;
 			}
 			/* Then any individual paramaters */
@@ -3236,11 +3276,11 @@ main(int argc, char *argv[]) {
 	/* - - - - - - - - - - - - - - - - - - - */
 	/* Setup the profile color lookup information */
 	if (!calonly) {
-		icmLuAlgType oalg;				/* Native output algorithm */
+		int can_bwd;					/* Can lookup_bwd ? */
 		icColorSpaceSignature natpcs;	/* Underlying native output PCS */
 		int flb = 0, fl = 0;			/* luobj flags */
 		
-		li.pcsor = icSigLabData;			/* Default use Lab as PCS */
+		li.pcsor = icSigLabData;		/* Default use Lab as PCS */
 
 		/* If we are using the gamut map mode, then setup */
 		/* the intents and pcsor appropriately. */
@@ -3298,7 +3338,7 @@ main(int argc, char *argv[]) {
 		if (li.verb && li.mode > 0) {
 //			printf("Input space flags = 0x%x\n",fl);
 //			printf("Input space intent = %s\n",icx2str(icmRenderingIntent,li.in.intent));
-//			printf("Input space pcs = %s\n",icx2str(icmColorSpaceSignature,li.pcsor));
+//			printf("Input space pcs = %s\n",icx2str(icmColorSpaceSig,li.pcsor));
 			if (li.in.vc_set || li.out.vc_set)
 				printf("Input space viewing conditions =\n"), xicc_dump_viewcond(&li.in.vc);
 //			printf("Input space inking =\n"); xicc_dump_inking(&li.in.ink);
@@ -3306,23 +3346,15 @@ main(int argc, char *argv[]) {
 
 		if ((li.in.luo = li.in.x->get_luobj(li.in.x, fl, icmFwd, li.in.intent,
 		                                    li.pcsor, icmLuOrdNorm, &li.in.vc, &li.in.ink)) == NULL) {
-			error("get xlookup object failed: %d, %s",li.in.x->errc,li.in.x->err);
+			error("get xlookup object failed: %d, %s",li.in.x->e.c,li.in.x->e.m);
 		}
 	
 		/* Get details of overall conversion */
 		li.in.luo->spaces(li.in.luo, &li.in.csp, &li.in.chan, NULL, NULL, &li.in.alg,
 		                  NULL, NULL, NULL);
 
-		/* Get the input profile A2B input curve resolution */
-		/* (This is pretty rough - this should work for non LUT types as well!!) */
-		{
-			if (li.in.alg== icmLutType) {
-				icmLut *lut;
-				icxLuLut *luluo = (icxLuLut *)li.in.luo;		/* Safe to coerce */
-				luluo->get_info(luluo, &lut, NULL, NULL, NULL);	/* Get some details */
-				in_curve_res = lut->inputEnt;
-			}
-		}
+		/* Get the input profile input curve resolution */
+		in_curve_res = li.in.luo->plu->max_in_res(li.in.luo->plu, NULL);	/* 0 if N/A */
 
 		/* Grab the white point in case the wphack or xyzscale needs it */
 		li.in.luo->efv_wh_bk_points(li.in.luo, li.in.wp, NULL, NULL);
@@ -3351,50 +3383,42 @@ main(int argc, char *argv[]) {
 
 			if ((li.abs_luo = li.abs_xicc->get_luobj(li.abs_xicc, flb, icmFwd, li.abs_intent,
 			        li.pcsor, icmLuOrdNorm, &li.out.vc, NULL)) == NULL)
-					error ("%d, %s",li.abs_icc->errc, li.abs_icc->err);
+					error ("%d, %s",li.abs_icc->e.c, li.abs_icc->e.m);
 		}
 
 		// Figure out whether the output profile is a Lut profile or not */
 		{
-			icmLuBase *plu;
+			icmLuSpace *plu;
 
 			/* Get temporary icm lookup object */
 			/* (Use Fwd just in case profile is missing B2A !!!!) */
-			if ((plu = li.out.c->get_luobj(li.out.c, icmFwd, icmDefaultIntent, icmSigDefaultData,
+			if ((plu = (icmLuSpace *)li.out.c->get_luobj(li.out.c, icmFwd, icmDefaultIntent, icmSigDefaultData,
 			                            icmLuOrdNorm)) == NULL) {
-				error("get icm lookup object failed: on '%s' %d, %s",out_name,li.out.c->errc,li.out.c->err);
+				error("get icm lookup object failed: on '%s' %d, %s",out_name,li.out.c->e.c,li.out.c->e.m);
 			}
 
-			/* Check what the algorithm is */
-			plu->spaces(plu, NULL, NULL, NULL, NULL, &oalg, NULL, NULL, NULL, NULL);
-
+			/* Check what the algorithm is, to see if it is reversable */
+			plu->spaces(plu, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &can_bwd); 
 			/* release the icm lookup */
 			plu->del(plu);
-
 		}
 
-		if (oalg != icmLutType || li.mode < 2) {	/* Using B2A table or inv. mono/matrix */
+		/* If we arn't asked for or don't need to use inverse A2B Lut for output conversion */
+		if (li.mode < 2 || can_bwd)
+		{	/* Using B2A table or inv. mono/matrix */
 			if (li.verb)
 				printf("Loading output B2A table\n");
 
 			if ((li.out.luo = li.out.x->get_luobj(li.out.x, flb, icmBwd, li.out.intent,
 			                              li.pcsor, icmLuOrdNorm, &li.out.vc, &li.out.ink)) == NULL) {
-				error("get xlookup object failed: %d, %s",li.out.x->errc,li.out.x->err);
+				error("get xlookup object failed: %d, %s",li.out.x->e.c,li.out.x->e.m);
 			}
 			/* Get details of overall conversion */
 			li.out.luo->spaces(li.out.luo, NULL, NULL, NULL, &li.out.chan, &li.out.alg,
 			                   NULL, NULL, NULL);
 
 			/* Get the output profile B2A output curve resolution */
-			/* (This is pretty rough - this should work for non LUT types as well!!) */
-			{
-				if (li.out.alg== icmLutType) {
-					icmLut *lut;
-					icxLuLut *luluo = (icxLuLut *)li.out.luo;		/* Safe to coerce */
-					luluo->get_info(luluo, &lut, NULL, NULL, NULL);	/* Get some details */
-					out_curve_res = lut->outputEnt;
-				}
-			}
+			out_curve_res = li.out.luo->plu->max_out_res(li.out.luo->plu, NULL);	/* 0 if N/A */
 	
 			/* Grab the white point in case the wphack or xyzscale needs it */
 			li.out.luo->efv_wh_bk_points(li.out.luo, li.out.wp, NULL, NULL);
@@ -3421,7 +3445,7 @@ main(int argc, char *argv[]) {
 			if (li.verb) {
 //				printf("Output space flags = 0x%x\n",fl);
 //				printf("Output space intent = %s\n",icx2str(icmRenderingIntent,li.out.intent));
-//				printf("Output space pcs = %s\n",icx2str(icmColorSpaceSignature,li.pcsor));
+//				printf("Output space pcs = %s\n",icx2str(icmColorSpaceSig,li.pcsor));
 				if (li.in.vc_set || li.out.vc_set)
 					printf("Output space viewing conditions =\n"), xicc_dump_viewcond(&li.out.vc);
 //				printf("Output space inking =\n"); xicc_dump_inking(&li.out.ink);
@@ -3430,7 +3454,7 @@ main(int argc, char *argv[]) {
 			if ((li.out.luo = li.out.x->get_luobj(li.out.x, fl, icmFwd,
 			                  li.out.intent, li.pcsor, icmLuOrdNorm, &li.out.vc,
 			                  &li.out.ink)) == NULL) {
-				error("get xlookup object failed: %d, %s",li.out.x->errc,li.out.x->err);
+				error("get xlookup object failed: %d, %s",li.out.x->e.c,li.out.x->e.m);
 			}
 		
 			/* Get details of overall conversion */
@@ -3438,15 +3462,7 @@ main(int argc, char *argv[]) {
 			                   NULL, NULL, NULL);
 
 			/* Get the output profile A2B input curve resolution */
-			/* (This is pretty rough - this should work for non LUT types as well!!) */
-			{
-				if (li.out.alg== icmLutType) {
-					icmLut *lut;
-					icxLuLut *luluo = (icxLuLut *)li.out.luo;		/* Safe to coerce */
-					luluo->get_info(luluo, &lut, NULL, NULL, NULL);	/* Get some details */
-					out_curve_res = lut->inputEnt;
-				}
-			}
+			out_curve_res = li.out.luo->plu->max_in_res(li.out.luo->plu, NULL);	/* 0 if N/A */
 
 			/* Grab the white point in case the wphack or xyzscale needs it */
 			li.out.luo->efv_wh_bk_points(li.out.luo, li.out.wp, NULL, NULL);
@@ -3458,7 +3474,7 @@ main(int argc, char *argv[]) {
 			if (li.out.inking == 7) {
 				if ((li.out.b2aluo = li.out.x->get_luobj(li.out.x, flb, icmBwd,
 					li.out.intent, li.pcsor, icmLuOrdNorm, &li.out.vc, NULL)) == NULL) {
-					error("get B2A xlookup object failed: %d, %s",li.out.x->errc,li.out.x->err);
+					error("get B2A xlookup object failed: %d, %s",li.out.x->e.c,li.out.x->e.m);
 				}
 			}
 		}
@@ -3497,7 +3513,7 @@ main(int argc, char *argv[]) {
 			if ((luo = li.out.x->get_luobj(li.out.x, flb,
 			                  icmFwd, li.out.intent, li.pcsor, icmLuOrdNorm, &li.out.vc,
 			                  NULL)) == NULL) {
-				error("get xlookup object failed: %d, %s",li.out.x->errc,li.out.x->err);
+				error("get xlookup object failed: %d, %s",li.out.x->e.c,li.out.x->e.m);
 			}
 			/* Get details of overall conversion */
 			luo->spaces(luo, NULL, NULL, NULL, NULL, &alg, NULL, NULL, NULL);
@@ -3623,8 +3639,8 @@ main(int argc, char *argv[]) {
 	} else if (li.cal != NULL) {
 		if (li.cal->colspace != li.out.csp) {
 			error("Calibration space %s doesn't match output profile %s",
-			             icm2str(icmColorSpaceSignature, li.cal->colspace),
-			             icm2str(icmColorSpaceSignature, li.out.csp));
+			             icm2str(icmColorSpaceSig, li.cal->colspace),
+			             icm2str(icmColorSpaceSig, li.out.csp));
 		}
 	}
 
@@ -3678,7 +3694,10 @@ main(int argc, char *argv[]) {
 
 	if (li.verb)
 		printf("Gamut mapping mode is '%s'\n",li.mode == 0 ? "Simple" : li.mode == 1 ? "Mapping" : "Mapping inverse A2B");
-	if (li.verb && li.mode > 0)
+	if (li.verb && li.mode == 0) {
+		printf(" Source      intent '%s'\n",icm2str(icmRenderingIntent, li.in.intent));
+		printf(" Destination intent '%s'\n",icm2str(icmRenderingIntent, li.out.intent));
+	} else if (li.verb && li.mode > 0)
 		printf("Gamut mapping intent is '%s'\n",li.gmi.desc);
 
 	/* In gamut mapping mode, the PCS used will always be absolute */
@@ -3721,7 +3740,7 @@ main(int argc, char *argv[]) {
 
 		/* Creat the source image gamut surface in the selected li.pcsor space */
 		if ((csgam = li.in.luo->get_gamut(li.in.luo, sgres)) == NULL)
-			error ("%d, %s",li.in.x->errc, li.in.x->err);
+			error ("%d, %s",li.in.x->e.c, li.in.x->e.m);
 
 		/* Grab a given source image gamut. */
 		if (sgam_name[0] != '\000') {		/* Optional source gamut - ie. from an images */
@@ -3752,7 +3771,7 @@ main(int argc, char *argv[]) {
 			printf(" Finding Destination Gamut with res %f\n",dgres);
 
 		if ((ogam = li.out.luo->get_gamut(li.out.luo, dgres)) == NULL)
-			error ("%d, %s",li.out.x->errc, li.out.x->err);
+			error ("%d, %s",li.out.x->e.c, li.out.x->e.m);
 
 		if (li.verb)
 			printf(" Creating Gamut match\n");
@@ -3854,7 +3873,7 @@ main(int argc, char *argv[]) {
 		if ((oluo = li.out.x->get_luobj(li.out.x, fl, icmFwd,
 		                  li.out.intent, li.pcsor, icmLuOrdNorm, &li.out.vc,
 		                  &li.out.ink)) == NULL) {
-			error("get xlookup object failed: %d, %s",li.out.x->errc,li.out.x->err);
+			error("get xlookup object failed: %d, %s",li.out.x->e.c,li.out.x->e.m);
 		}
 		
 		/* We're assuming that the input space has a perfect black point... */
@@ -3964,11 +3983,14 @@ main(int argc, char *argv[]) {
 			printf("Creating link profile\n");
 
 		/* Open up the link file for writing */
-		if ((wr_fp = new_icmFileStd_name(link_name,"w")) == NULL)
-			error ("Write: Can't open file '%s'",link_name);
+		if ((wr_fp = new_icmFileStd_name(&err,link_name,"w")) == NULL)
+			error ("Write: Can't open file '%s' (0x%x, '%s')",link_name,err.c,err.m);
 
-		if ((wr_icc = new_icc()) == NULL)
-			error ("Write: Creation of ICC object failed");
+		if ((wr_icc = new_icc(&err)) == NULL)
+			error ("Write: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
+
+		if (wr_icc->set_version(wr_icc, iccver) != 0)
+			error("set_version %d failed: %d, %s",iccver,wr_icc->e.c,wr_icc->e.m);
 
 		/* Add all the tags required */
 
@@ -3981,18 +4003,18 @@ main(int argc, char *argv[]) {
 			if (li.in.tvenc >= 3) {
 				wh->colorSpace  = icSigYCbCrData;			/* Use YCbCr encoding */
 			} else {
-//				wh->colorSpace  = li.in.h->colorSpace;		/* Input profile device space */
 				wh->colorSpace  = li.in.csp;				/* Input profile device space */
 			}
 			if (li.out.tvenc >= 3) {
 				wh->pcs         = icSigYCbCrData;			/* Use YCbCr encoding */
 			} else {
-//				wh->pcs         = li.out.h->colorSpace;		/* Output profile device space */
 				wh->pcs         = li.out.csp;		/* Output profile device space */
 			}
 			if (li.mode > 0) {
 				wh->renderingIntent = li.gmi.icci;			/* Closest ICC intent */
 			} else {
+				if (li.out.intent == icmDefaultIntent)
+					li.out.intent = icRelativeColorimetric;	/* ?? */
 				wh->renderingIntent = li.out.intent;		/* Output intent chosen */
 			}
 
@@ -4025,7 +4047,7 @@ main(int argc, char *argv[]) {
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst, dstm[200];			/* description */
 	
 			if (xpi.profDesc != NULL)
@@ -4035,17 +4057,17 @@ main(int argc, char *argv[]) {
 				dst = dstm;
 			}
 	
-			if ((wo = (icmTextDescription *)wr_icc->add_tag(
-			           wr_icc, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+			           wr_icc, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 	
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt;
 	
 			if (xpi.copyright != NULL)
@@ -4053,38 +4075,38 @@ main(int argc, char *argv[]) {
 			else
 				crt = "Copyright, the creator of this profile";
 	
-			if ((wo = (icmText *)wr_icc->add_tag(
-			           wr_icc, icSigCopyrightTag,	icSigTextType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+			           wr_icc, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 	
-			wo->size = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
+			wo->allocate(wo);/* Allocate space */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* Device Manufacturers Description Tag: */
 		if (xpi.deviceMfgDesc != NULL) {
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = xpi.deviceMfgDesc;
 	
-			if ((wo = (icmTextDescription *)wr_icc->add_tag(
-			           wr_icc, icSigDeviceMfgDescTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+			           wr_icc, icSigDeviceMfgDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 	
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 		/* Model Description Tag: */
 		if (xpi.modelDesc != NULL) {
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = xpi.modelDesc;
 	
-			if ((wo = (icmTextDescription *)wr_icc->add_tag(
-			           wr_icc, icSigDeviceModelDescTag,	icSigTextDescriptionType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+			           wr_icc, icSigDeviceModelDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+				error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 	
-			wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-			wo->allocate((icmBase *)wo);/* Allocate space */
+			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+			wo->allocate(wo);/* Allocate space */
 			strcpy(wo->desc, dst);		/* Copy the string in */
 		}
 
@@ -4097,8 +4119,8 @@ main(int argc, char *argv[]) {
 				return 1;
 
 			wo->count = 2; 		/* Number of descriptions in sequence */
-			if (wo->allocate((icmBase *)wo) != 0)	/* Allocate space for all the DescStructures */
-				error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if (wo->allocate(wo) != 0)	/* Allocate space for all the DescStructures */
+				error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 		/* Real one */
 		} else {
@@ -4109,8 +4131,8 @@ main(int argc, char *argv[]) {
 				return 1;
 
 			wo->count = 2; 		/* Number of descriptions in sequence */
-			if (wo->allocate((icmBase *)wo) != 0)	/* Allocate space for all the DescStructures */
-				error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
+			if (wo->allocate(wo) != 0)	/* Allocate space for all the DescStructures */
+				error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 			/* Fill in each description structure in sequence */
 
@@ -4119,8 +4141,8 @@ main(int argc, char *argv[]) {
 				icc *iccs = NULL;
 				icmHeader *sh = NULL;
 				icmSignature *tsig;
-				icmTextDescription *ddesc;
-				icmTextDescription *mdesc;
+				icmCommonTextDescription *adesc;
+				icmCommonTextDescription *mdesc;
 
 				if (i == 0) {
 					iccs = li.in.c;		/* Input profile */
@@ -4139,18 +4161,10 @@ main(int argc, char *argv[]) {
 				}
 
 				/* Try and read the Device Manufacturers Description Tag */
-				if ((ddesc = (icmTextDescription *)iccs->read_tag(
-				                                      iccs, icSigDeviceMfgDescTag)) != NULL) {
-					if (ddesc->ttype != icSigTextDescriptionType)	/* oops */
-						ddesc = NULL;
-				}
+				adesc = (icmCommonTextDescription *)iccs->read_tag(iccs, icSigDeviceMfgDescTag);
 			
 				/* Try and read the Model Manufacturers Description Tag */
-				if ((mdesc = (icmTextDescription *)iccs->read_tag(
-				                                      iccs, icSigDeviceModelDescTag)) != NULL) {
-					if (mdesc->ttype != icSigTextDescriptionType)	/* oops */
-						mdesc = NULL;
-				}
+				mdesc = (icmCommonTextDescription *)iccs->read_tag(iccs, icSigDeviceModelDescTag);
 			
 				/* Header information */
 				wo->data[i].deviceMfg   = sh->manufacturer;
@@ -4160,45 +4174,24 @@ main(int argc, char *argv[]) {
 				/* Technology signature */
 				if (tsig != NULL)
 					wo->data[i].technology = tsig->sig; 
+				else
+					wo->data[i].technology = icSigTechnologyUnknown;
 
-				if (ddesc != NULL) {
-					wo->data[i].device.size = ddesc->size;
-					if (wo->data[i].allocate(&wo->data[i]) != 0)	/* Allocate space */
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
-					strcpy(wo->data[i].device.desc, ddesc->desc);
+				/* Manufacturer Text description */
+				if (adesc != NULL)
+					wr_icc->copy_ttype(wr_icc, (icmBase *)wo->data[i].mfgDesc, (icmBase *)adesc);
 
-					wo->data[i].device.ucLangCode = ddesc->ucLangCode;
-					wo->data[i].device.ucSize = ddesc->ucSize;
-					if (wo->data[i].allocate(&wo->data[i]) != 0)	/* Allocate space */
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
-					memmove(wo->data[i].device.ucDesc, ddesc->ucDesc, 2 * ddesc->ucSize);
-
-					wo->data[i].device.scCode = ddesc->scCode;	
-					wo->data[i].device.scSize = ddesc->scSize;		
-					strcpy((char *)wo->data[i].device.scDesc, (char *)ddesc->scDesc);
-				}
-
-				/* model Text description */
-				if (mdesc != NULL) {
-					wo->data[i].model.size = mdesc->size;
-					if (wo->data[i].allocate(&wo->data[i])!= 0)		/* Allocate space */
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
-					strcpy(wo->data[i].model.desc, mdesc->desc);
-
-					wo->data[i].model.ucLangCode = mdesc->ucLangCode;
-					wo->data[i].model.ucSize = mdesc->ucSize;
-					if (wo->data[i].allocate(&wo->data[i]) != 0) 	/* Allocate space */
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
-					memmove(wo->data[i].model.ucDesc, mdesc->ucDesc, 2 * mdesc->ucSize);
-
-					wo->data[i].model.scCode = mdesc->scCode;	
-					wo->data[i].model.scSize = mdesc->scSize;		
-					strcpy((char *)wo->data[i].model.scDesc, (char *)mdesc->scDesc);
-				}
+				/* Model Text description */
+				if (mdesc != NULL)
+					wr_icc->copy_ttype(wr_icc, (icmBase *)wo->data[i].modelDesc, (icmBase *)mdesc);
 			}
 		}
+
 		/* ColorantTable: */
-		if (!li.calonly) {
+		/* This is really ICC V4, but icclibv2 had suport for it... */
+		if (getenv("ARGYLL_CREATE_V2COLORANT_TABLE") != NULL
+		 && !li.calonly)
+		{
 			int i;
 			unsigned int j;
 			int repclip = 0;
@@ -4223,21 +4216,26 @@ main(int argc, char *argv[]) {
 				}
 
 				/* Try and read the input ColorantTable */
-				if ((ro = (icmColorantTable *)iccs->read_tag(
+				if (ICMVERS2TV(iccs->header->vers) >= ICMTV_40
+				 && (ro = (icmColorantTable *)iccs->read_tag(
 			   	          iccs, icSigColorantTableTag)) != NULL) { 
 
 					/* Create a ColorantTable in the output device link */
 					if ((wo = (icmColorantTable *)wr_icc->add_tag(
 			           wr_icc, cts, icSigColorantTableType)) == NULL) 
-						error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+						error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 					/* Copy everything across */
 			   		wo->count = ro->count;
-					if (wo->allocate((icmBase *)wo) != 0)
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
+					if (wo->allocate(wo) != 0)
+						error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 					for (j = 0; j < wo->count; j++) {
+						wo->data[j].ncount = strlen(ro->data[j].name) + 1;
+						if (wo->allocate(wo) != 0)
+							error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 						strcpy(wo->data[j].name, ro->data[j].name);
+
 						if (sh->pcs != icSigLabData) {
 							icmXYZ2Lab(&icmD50, wo->data[j].pcsCoords, ro->data[j].pcsCoords);
 							/* For device links the colorant table must be Lab PCS, */
@@ -4254,14 +4252,14 @@ main(int argc, char *argv[]) {
 					}
 
 				} else {	/* Do this the hard way */
-					icmLuBase *luo;
+					icmLuSpace *luo;
 					unsigned int count;
 					double dv[MAX_CHAN];
 					double cvals[MAX_CHAN][3];
 					inkmask imask;
 
 					/* Get a lookup to read colorant values */
-					if ((luo = iccs->get_luobj(iccs, icmFwd, icRelativeColorimetric,
+					if ((luo = (icmLuSpace *)iccs->get_luobj(iccs, icmFwd, icRelativeColorimetric,
 					                           icSigLabData, icmLuOrdNorm)) == NULL)
 						goto skip_coloranttable;
 
@@ -4272,7 +4270,8 @@ main(int argc, char *argv[]) {
 					/* Lookup the colorant Lab values the recommended ICC way */
 					for (j = 0; j < count; j++) {
 						dv[j] = 1.0;
-						luo->lookup(luo, cvals[j], dv);
+						// ~8 should check for error...
+						luo->lookup_fwd(luo, cvals[j], dv);
 						/* For device links the colorant table must be Lab PCS, */
 						/* but embarassingly, XYZ profiles can have colorant values */
 						/* not representable in the Lab PCS range. */
@@ -4292,11 +4291,11 @@ main(int argc, char *argv[]) {
 					/* Create a ColorantTable in the output device link */
 					if ((wo = (icmColorantTable *)wr_icc->add_tag(
 			           wr_icc, cts, icSigColorantTableType)) == NULL) 
-						error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
+						error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 			   		wo->count = count;
-					if (wo->allocate((icmBase *)wo) != 0)
-						error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
+					if (wo->allocate(wo) != 0)
+						error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 					
 					for (j = 0; j < count; j++) {
 						inkmask iimask;			/* Individual ink mask */
@@ -4304,9 +4303,12 @@ main(int argc, char *argv[]) {
 						
 						iimask = icx_index2ink(imask, j);
 						name = icx_ink2string(iimask); 
-						if (strlen(name) > 31)
-							error("Internal: colorant name exceeds 31 characters");
+
+						wo->data[j].ncount = strlen(name) + 1;
+						if (wo->allocate(wo) != 0)
+							error("allocate failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 						strcpy(wo->data[j].name, name);
+
 						wo->data[j].pcsCoords[0] = cvals[j][0];
 						wo->data[j].pcsCoords[1] = cvals[j][1];
 						wo->data[j].pcsCoords[2] = cvals[j][2];
@@ -4316,12 +4318,16 @@ main(int argc, char *argv[]) {
 				skip_coloranttable:;
 			}
 		}
+
 		/* 16 bit input device -> output device lut: */
 		{
 			int inputEnt, outputEnt, clutPoints;
 			int *apxls_min = NULL, *apxls_max = NULL;
 			int tapxls_min[MAX_CHAN], tapxls_max[MAX_CHAN];
-			icmLut *wo;
+			unsigned int agres[MAX_CHAN];
+			int nsigs = 0;
+			icmXformSigs sigs[2];
+
 
 			/* Setup the cLUT resolutions */
 			if (li.quality >= 3)
@@ -4500,7 +4506,9 @@ main(int argc, char *argv[]) {
 				if (li.out.tvenc == 0) {			/* Full range RGB */
 					int verb = li.verb;
 					li.verb = 0;
-					devip_devop((void *)&li, inout, inout);
+					devip_devop((void *)&li, inout, inout
+					                                     , 0
+					);
 					li.verb = verb;
 					if (inout[0] < 0.1
 					 || inout[1] < 0.1
@@ -4515,40 +4523,20 @@ main(int argc, char *argv[]) {
 			}
 
 
-			/* Link Lut = AToB0 */
-			if ((wo = (icmLut *)wr_icc->add_tag(
-			           wr_icc, icSigAToB0Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icc->errc,wr_icc->err);
-
-			wo->inputChan = li.in.chan;
-			wo->outputChan = li.out.chan;
-
-			/* Setup the tables resolutions */
-    		wo->inputEnt = inputEnt;
-  		  	wo->clutPoints = clutPoints;
-	  		wo->outputEnt = outputEnt;
-
-			if (clutPoints == 256) {		/* MadVR special */
-				wr_icc->allowclutPoints256 = 1;
-				warning("Creating non-standard 256 res. cLUT ICC profile !!!!");
+			switch (icctype) {
+				default:
+					sigs[nsigs].sig = icSigAToB0Tag;
+					sigs[nsigs].ttype = icSigLut16Type;
+					nsigs++;
+					/* Default ICC Version used */
+					break;
 			}
-
-			if (wo->allocate((icmBase *)wo) != 0)	/* Allocate space */
-				error("allocate failed: %d, %s",wr_icc->errc,wr_icc->err);
-
-			/* Special case if input profile is Lut with matrix */
-			/* (Does this do anything since input is not XYZ ?) */
-			if (li.in.alg == icmLutType && li.in.nocurve == 0) {
-				icxLuLut *lu = (icxLuLut *)li.in.luo;
-				lu->get_matrix(lu, wo->e);		/* Copy it across */
-			}
-
 
 
 			if (li.verb)
 				printf("Filling in Lut table\n");
 #ifdef DEBUG_ONE
-#define DBGNO 2		/* Up to 10 */
+#define DBGNO 1		/* Up to 10 */
 
 #ifndef NEVER
 			/* Test a single given rgb/cmyk -> cmyk value */
@@ -4556,65 +4544,32 @@ main(int argc, char *argv[]) {
 				double in[10][MAX_CHAN];
 				double out[MAX_CHAN];
 
-				in[0][0] = 0.09803;		// Bad
-				in[0][1] = 0.30588;
-				in[0][2] = 0.55686;
+				in[0][0] = 1.0;		// Bad
+				in[0][1] = 1.0;
+				in[0][2] = 1.0;
+				in[0][3] = 1.0;
 
-				in[1][0] = 0.09803;		// Good
+				in[1][0] = 0.09803;		
 				in[1][1] = 0.36863;
 				in[1][2] = 0.55686;
 
-//				in[0][0] = 125.0/255.0;
-//				in[0][1] = 61.4/255.0;
-//				in[0][2] = 28.42/255.0;
-//				in[0][0] = 0.5;
-
-//				in[0][0] = 0.2;
-//				in[0][1] = 0.2;
-//				in[0][2] = 0.8;
-
-//				in[0][0] = 0.5;
-//				in[0][1] = 0.5;
-//				in[0][2] = 0.5;
-
-//				in[0][0] = ((235-16)/255.0 * 0.5) + 16/255.0;
-//				in[0][1] = ((235-16)/255.0 * 0.5) + 16/255.0;
-//				in[0][2] = ((235-16)/255.0 * 0.5) + 16/255.0;
-
-//				in[0][3] = 0.0;
-
-//				in[0][0] = 16.0/255.0;
-//				in[0][1] = 16.0/255.0;
-//				in[0][2] = 16.0/255.0;
-//				in[0][3] = 0.0;
-
-//				in[0][0] = 3.0/64.0;
-//				in[0][1] = 3.0/64.0;
-//				in[0][2] = 3.0/64.0;
-//				in[0][3] = 0.0;
-
-//				in[1][0] = 4.0/64.0;
-//				in[1][1] = 4.0/64.0;
-//				in[1][2] = 4.0/64.0;
-//				in[1][3] = 0.0;
-
-//				in[2][0] = 5.0/64.0;
-//				in[2][1] = 5.0/64.0;
-//				in[2][2] = 5.0/64.0;
-//				in[2][3] = 0.0;
+				// More value here...
 
 				if (li.map != NULL)
 					li.map->dbg = 1;
 
+# define EXTRARG ,0
 				for (i = 0; i < DBGNO; i++) {
-					printf("Input %f %f %f %*\n",in[i][0], in[i][1], in[i][2], in[i][3]);
-					devi_devip((void *)&li, out, in[i]);
-					printf("Input' %f %f %f %*\n",out[0], out[1], out[2], out[3]);
-					devip_devop((void *)&li, out, out);
-					printf("Out'' %f %f %f %*\n",out[0], out[1], out[2], out[3]);
-					devop_devo((void *)&li, out, out);
-					printf("Out %f %f %f %f\n\n",out[0], out[1], out[2], out[3]);
+					printf("Input %s\n",icmPdv(li.in.luo->inputChan, in[i]));
+					devi_devip((void *)&li, out, in[i] EXTRARG);
+					printf("Input' %s\n",icmPdv(li.in.luo->inputChan, out));
+					devip_devop((void *)&li, out, out EXTRARG);
+					printf("Out'' %s\n",icmPdv(li.out.luo->outputChan, out));
+					devop_devo((void *)&li, out, out EXTRARG);
+					printf("Out %s\n\n",icmPdv(li.out.luo->outputChan, out));
 				}
+
+#undef EXTRARG
 
 				if (li.map != NULL)
 					li.map->dbg = 0;
@@ -4622,7 +4577,6 @@ main(int argc, char *argv[]) {
 #endif /* NEVER */
 
 #else	/* !DEBUG_ONE */
-			/* Use helper function to do the hard work. */
 			if (li.verb) {
 				unsigned int ui;
 				int itotal;
@@ -4643,27 +4597,34 @@ main(int argc, char *argv[]) {
 				li.count = 0;
 				printf(" 0%%"); fflush(stdout);
 			}
-			if (icmSetMultiLutTables(
-				1,
-				&wo,
-#ifdef USE_APXLS
-				ICM_CLUT_SET_APXLS |			/* Use aproximate least squares */
-#endif /* USE_APXLS */
-				0,
-				&li,						/* Context */
-//				li.in.h->colorSpace,		/* Input color space */
+
+			/* Use helper function to do the hard work. */
+			for (i = 0; i < li.in.chan; i++)
+				 agres[i] = clutPoints;
+
+			if (wr_icc->create_lut_xforms(
+				wr_icc,
+#ifdef USE_LEASTSQUARES_APROX
+				ICM_CLUT_SET_APXLS | 
+#endif
+				0,					/* flags */
+				&li,				/* Context */
+				nsigs,				/* Number of tables */
+				sigs,				/* signatures and tag types for each table */
+				2,					/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+    			inputEnt, agres, outputEnt,	/* Table resolutions */
 				li.in.csp,					/* Input color space */
-//				li.out.h->colorSpace,		/* Output color space */
 				li.out.csp,					/* Output color space */
+				NULL, NULL,					/* Use default input range */
 				devi_devip,					/* Input transfer tables devi->devi' */
 				NULL, NULL,					/* Use default input colorspace range */
 				devip_devop,				/* devi' -> devo' transfer function */
 				NULL, NULL,					/* Default output colorspace range */
 				devop_devo,					/* Output transfer tables, devo'->devo */
 				apxls_min, apxls_max		/* Limit APXLS to inside colorspace */
-			) != 0) {
-				error("Setting 16 bit Lut failed: %d, %s",wr_icc->errc,wr_icc->err);
-			}
+			) != ICM_ERR_OK)
+				error("Setting 16 bit Lut failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
+
 			if (li.verb) {
 				printf("\n");
 			}
@@ -4697,7 +4658,7 @@ main(int argc, char *argv[]) {
 			double oval[MXDO];		/* Correct output value for black */
 
 			if ((lut = (icmLut *)wr_icc->read_tag(wr_icc, icSigAToB0Tag)) == NULL)
-				error("unableto locate A2B tag: %d, %s",wr_icc->errc,wr_icc->err);
+				error("unableto locate A2B tag: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 			ival[0] = ival[1] = ival[2] = 0.0;		/* RGB black input */
 			
@@ -4745,10 +4706,13 @@ main(int argc, char *argv[]) {
 
 		/* Write the file out */
 		if ((rv = wr_icc->write(wr_icc,wr_fp,0)) != 0)
-			error ("Write file: %d, %s",rv,wr_icc->err);
+			error ("Write file: %d, %s",rv,wr_icc->e.m);
 
 		/* eeColor format */
 		if (li.tdlut == 1) {
+			if (li.addcal == 2)
+				error("calibration curves (-H param) not supported for eeColor output");
+
 			write_eeColor1DinputLuts(&li, tdlut_name); 
 			if (write_eeColor3DLut(wr_icc, &li, tdlut_name)) 
 				error ("Write file '%s' failed",tdlut_name);
@@ -4775,11 +4739,17 @@ main(int argc, char *argv[]) {
 	} else {
 		icmFile *rd_fp;
 		icc *rd_icc;
-		icmLuBase *luo;
+		icmLuSpace *luo;
 
-		icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
-		int inn, outn;						/* Number of components */
-		icmLuAlgType alg;					/* Type of lookup algorithm */
+		icmCSInfo ini, outi;
+# define ins ini.sig
+# define inn ini.nch
+# define imin ini.min
+# define imax ini.max
+# define outs outi.sig
+# define outn outi.nch
+# define omin outi.min
+# define omax outi.max
 
 		/* Lookup parameters */
 		icmLookupFunc     func   = icmFwd;				/* Default */
@@ -4788,8 +4758,6 @@ main(int argc, char *argv[]) {
 
 		int gc[MAX_CHAN];								/* Grid counter */
 		int vres = 8;		//~~9
-		double imin[MAX_CHAN], imax[MAX_CHAN];			/* Range of input values */
-		double omin[MAX_CHAN], omax[MAX_CHAN];			/* Range of output values */
 		double in[MAX_CHAN];							/* Input value */
 		double ref[MAX_CHAN];							/* Reference output value */
 		double out[MAX_CHAN];							/* Output value */
@@ -4803,31 +4771,25 @@ main(int argc, char *argv[]) {
 			printf("Setting up to verify the link\n");
 
 		/* Open up the link file for reading */
-		if ((rd_fp = new_icmFileStd_name(link_name,"r")) == NULL)
+		if ((rd_fp = new_icmFileStd_name(&err,link_name,"r")) == NULL)
 			error ("Verify: Can't open file '%s'",link_name);
 
-		if ((rd_icc = new_icc()) == NULL)
-			error ("Verify: Creation of ICC object failed");
+		if ((rd_icc = new_icc(&err)) == NULL)
+			error ("Verify: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 		if ((rv = rd_icc->read(rd_icc,rd_fp,0)) != 0)
-			error ("%d, %s",rv,rd_icc->err);
+			error ("%d, %s",rv,rd_icc->e.m);
 
 		/* Check that the profile is appropriate */
 		if (rd_icc->header->deviceClass != icSigLinkClass)
 			error("Profile isn't a device link profile");
 
 		/* Get a conversion object */
-		if ((luo = rd_icc->get_luobj(rd_icc, func, intent, icmSigDefaultData, order)) == NULL)
-			error ("%d, %s",rd_icc->errc, rd_icc->err);
+		if ((luo = (icmLuSpace *)rd_icc->get_luobj(rd_icc, func, intent, icmSigDefaultData, order)) == NULL)
+			error ("%d, %s",rd_icc->e.c, rd_icc->e.m);
 
 		/* Get details of conversion (Arguments may be NULL if info not needed) */
-		luo->spaces(luo, &ins, &inn, &outs, &outn, &alg, NULL, NULL, NULL, NULL);
-
-		if (alg != icmLutType)
-			error ("DeviceLink profile doesn't have Lut !");
-
-		/* Get the icm value ranges */
-		luo->get_ranges(luo, imin, imax, omin, omax);
+		luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 		/* Init the grid counter */
 		for (i = 0; i < inn; i++)
@@ -4852,13 +4814,19 @@ main(int argc, char *argv[]) {
 //			printf("Input %f %f %f %f\n",in[0], in[1], in[2], in[3]);
 
 			/* Create the reference output value */
-			devi_devip((void *)&li, ref, in);
-			devip_devop((void *)&li, ref, ref);
-			devop_devo((void *)&li, ref, ref);
+			devi_devip((void *)&li, ref, in
+					                       , 0
+			);
+			devip_devop((void *)&li, ref, ref
+					                         , 0
+			);
+			devop_devo((void *)&li, ref, ref
+					                         , 0
+			);
 
 			/* Lookup the icm output value */
-			if ((rv = luo->lookup(luo, out, in)) > 1)
-				error ("%d, %s",rd_icc->errc,rd_icc->err);
+			if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+				error ("%d, %s",rd_icc->e.c,rd_icc->e.m);
 		
 //			printf("Output %f %f %f %f\n",out[0], out[1], out[2], out[3]);
 //			printf("Ref    %f %f %f %f\n",ref[0], ref[1], ref[2], ref[3]);
@@ -4910,6 +4878,15 @@ main(int argc, char *argv[]) {
 		luo->del(luo);
 		rd_icc->del(rd_icc);
 		rd_fp->del(rd_fp);
+
+# undef ins
+# undef inn
+# undef imin
+# undef imax
+# undef outs
+# undef outn
+# undef omin
+# undef omax
 	}
 
 	/* - - - - - - - - - - - - - - - - - - - */
@@ -4980,6 +4957,7 @@ int write_eeColor1DinputLuts(clink *li, char *tdlut_name) {
 	
 	for (j = 0; j < 3; j++) {
 		icmFile *fp;
+		icmErr err = { 0, { '\000'} };
 		double in[3], out[3];
 
 		strncpy(fname,tdlut_name,MAXNAMEL-1); fname[MAXNAMEL-1] = '\000';
@@ -4993,14 +4971,14 @@ int write_eeColor1DinputLuts(clink *li, char *tdlut_name) {
 		else
 			strcpy(xl,"-first1dblue.txt");
 	
-		if ((fp = new_icmFileStd_name(fname,"w")) == NULL)
-			error ("write_eeColor1DinputLuts: Can't open file '%s'",fname);
+		if ((fp = new_icmFileStd_name(&err,fname,"w")) == NULL)
+			error ("write_eeColor1DinputLuts: Can't open file '%s' (0x%x, '%s')",fname,err.c,err.m);
 
 		for (i = 0; i < 1024; i++) {
 			for (k = 0; k < 3; k++)
 				in[k] = i/(1024-1.0);
 			icmCpy3(out,in);
-			fp->gprintf(fp,"%.6f\n",out[j]);
+			fp->printf(fp,"%.6f\n",out[j]);
 		}
 
 		if (fp->del(fp)) 
@@ -5012,25 +4990,26 @@ int write_eeColor1DinputLuts(clink *li, char *tdlut_name) {
 /* Write a eeColor 3DLut file by doing a lookup for each node. */
 /* Return nz on error */
 int write_eeColor3DLut(icc *icc, clink *li, char *fname) {
-	icmLuBase *luo;
+	icmLuSpace *luo;
 	icmLuLut *lut;
 	int i, j, k;
 	DCOUNT(gc, MAX_CHAN, 3, 0, 0, 65);
 	int ord[3];			/* Input channel order, fastest to slowest */
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 //	int trace = 0;
 	
 	/* Get a conversion object. We assume it is of the right type, being a link */
-	if ((luo = icc->get_luobj(icc, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm))
+	if ((luo = (icmLuSpace *)icc->get_luobj(icc, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm))
 		                                                                              == NULL)
-		error("write_eeColor3DLut: get luobj failed: %d, %s",icc->errc,icc->err);
+		error("write_eeColor3DLut: get luobj failed: %d, %s",icc->e.c,icc->e.m);
 
 	/* Cast to Lut lookup - safe because that's all that collink does */
 	lut = (icmLuLut *)luo;
 
 	/* Open up the 3dlut file for writing */
-	if ((fp = new_icmFileStd_name(fname,"w")) == NULL)
-		error ("write_eeColor3DLut: Can't open file '%s'",fname);
+	if ((fp = new_icmFileStd_name(&err,fname,"w")) == NULL)
+		error ("write_eeColor3DLut: Can't open file '%s' (0x%x, '%s')",fname,err.c,err.m);
 
 	DC_INIT(gc);
 
@@ -5091,8 +5070,8 @@ int write_eeColor3DLut(icc *icc, clink *li, char *fname) {
 		}
 //		if (trace) printf("cLut in        = %f %f %f\n", in[0], in[1], in[2]);
 
-		if (lut->clut(lut, out, in) > 1)
-		    error ("write_eeColor3DLut: %d, %s",icc->errc,icc->err);
+		if (lut->core5_fwd(lut, out, in) & icmPe_lurv_err)
+		    error ("write_eeColor3DLut: %d, %s",icc->e.c,icc->e.m);
 
 //		if (trace) printf("cLut/video out = %f %f %f\n", out[0], out[1], out[2]);
 
@@ -5100,11 +5079,11 @@ int write_eeColor3DLut(icc *icc, clink *li, char *fname) {
 //		if (trace) printf("eeColor out    = %f %f %f\n", out[0], out[1], out[2]);
 
 		for (i = 0; i < 3; i++)
-			fp->gprintf(fp," %.6f",oin[i]);
+			fp->printf(fp," %.6f",oin[i]);
 		for (i = 0; i < 3; i++)
-			fp->gprintf(fp," %.6f",out[i]);
+			fp->printf(fp," %.6f",out[i]);
 
-		fp->gprintf(fp,"\n");
+		fp->printf(fp,"\n");
 
   next:;
 		DC_INC(gc);
@@ -5122,6 +5101,7 @@ int write_eeColor1DoutputLuts(clink *li, char *tdlut_name) {
 	
 	for (j = 0; j < 3; j++) {
 		icmFile *fp;
+		icmErr err = { 0, { '\000'} };
 		double in[3], out[3];
 
 		strncpy(fname,tdlut_name,MAXNAMEL-1); fname[MAXNAMEL-1] = '\000';
@@ -5135,14 +5115,16 @@ int write_eeColor1DoutputLuts(clink *li, char *tdlut_name) {
 		else
 			strcpy(xl,"-second1dblue.txt");
 	
-		if ((fp = new_icmFileStd_name(fname,"w")) == NULL)
-			error ("write_eeColor1DoutputLuts: Can't open file '%s'",fname);
+		if ((fp = new_icmFileStd_name(&err,fname,"w")) == NULL)
+			error ("write_eeColor1DoutputLuts: Can't open file '%s' (0x%x, '%s')",fname,err.c,err.m);
 
 		for (i = 0; i < 8192; i++) {
 			for (k = 0; k < 3; k++)
 				in[k] = i/(8192-1.0);
-			devop_devo((void *)li, out, in);	/* Apply possible output re-scaling */
-			fp->gprintf(fp,"%.6f\n",out[j]);
+			devop_devo((void *)li, out, in	/* Apply possible output re-scaling */
+					                         , 0
+			);
+			fp->printf(fp,"%.6f\n",out[j]);
 		}
 
 		if (fp->del(fp)) 
@@ -5157,6 +5139,7 @@ int write_eeColor1DoutputLuts(clink *li, char *tdlut_name) {
 /* Return nz on error */
 int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 	ORD8 *h;
 	int of, hoff, clutsize;
 	int dov2 = 0;
@@ -5168,16 +5151,16 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 	};
 	int i;
 
-	icmLuBase *luo;
+	icmLuSpace *luo;
 
 	/* Get an absolute conversion object to lookup primaries */
-	if ((luo = li->in.c->get_luobj(li->in.c, icmFwd, icAbsoluteColorimetric, icmSigDefaultData, icmLuOrdNorm))
+	if ((luo = (icmLuSpace *)li->in.c->get_luobj(li->in.c, icmFwd, icAbsoluteColorimetric, icmSigDefaultData, icmLuOrdNorm))
 		                                                                              == NULL)
-		error ("write_MadVR_3DLut: %d, %s",icc->errc, icc->err);
+		error ("write_MadVR_3DLut: %d, %s",icc->e.c, icc->e.m);
 
 	for (i = 0; i < 4; i++) {
-		if (luo->lookup(luo, rgbw[i], rgbw[i]) > 1)
-		    error ("write_MadVR_3DLut: %d, %s",icc->errc,icc->err);
+		if (luo->lookup_fwd(luo, rgbw[i], rgbw[i]) & icmPe_lurv_err)
+		    error ("write_MadVR_3DLut: %d, %s",icc->e.c,icc->e.m);
 
 		icmXYZ2Yxy(rgbw[i], rgbw[i]);
 	}
@@ -5185,13 +5168,13 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 	luo->del(luo);
 
 	/* Get a conversion object. We assume it is of the right type */
-	if ((luo = icc->get_luobj(icc, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm))
+	if ((luo = (icmLuSpace *)icc->get_luobj(icc, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm))
 		                                                                              == NULL)
-		error ("write_MadVR_3DLut: %d, %s",icc->errc, icc->err);
+		error ("write_MadVR_3DLut: %d, %s",icc->e.c, icc->e.m);
 
 	/* Open up the 3dlut file for writing */
-	if ((fp = new_icmFileStd_name(fname,"w")) == NULL)
-		error("write_MadVR_3DLut: Can't open file '%s'",fname);
+	if ((fp = new_icmFileStd_name(&err,fname,"w")) == NULL)
+		error("write_MadVR_3DLut: Can't open file '%s' (0x%x, '%s')",fname,err.c,err.m);
 
 	/* Create the 3dlutheader */
 	if ((h = (ORD8 *)calloc(0x4000, sizeof(ORD8))) == NULL)
@@ -5268,8 +5251,8 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 			for (i = 0; i < 3; i++)
 				in[ord[i]] = gc[i]/255.0;
 
-			if (luo->lookup(luo, out, in) > 1)
-			    error ("write_MadVR_3DLut: %d, %s",icc->errc,icc->err);
+			if (luo->lookup_fwd(luo, out, in) & icmPe_lurv_err)
+			    error ("write_MadVR_3DLut: %d, %s",icc->e.c,icc->e.m);
 
 //printf("~1 %f %f %f -> %f %f %f\n", in[0], in[1], in[2], out[0], out[1], out[2]);
 
@@ -5379,32 +5362,34 @@ int write_MadVR_3DLut(clink *li, icc *icc, char *fname) {
 /* Return nz on error */
 int write_cube_3DLut(clink *li, icc *icc, char *fname) {
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 	ORD8 *h;
 	int clutsize;
 	int i;
 
-	icmLuBase *luo;
-	icmLut *lu;
+	icmLuSpace *luo;
 
 	/* Get a conversion object. We assume it is of the right type */
-	if ((luo = icc->get_luobj(icc, icmFwd, icmDefaultIntent,
+	if ((luo = (icmLuSpace *)icc->get_luobj(icc, icmFwd, icmDefaultIntent,
 		                                 icmSigDefaultData, icmLuOrdNorm)) == NULL)
-		error ("write_cube_3DLut: %d, %s",icc->errc, icc->err);
+		error ("write_cube_3DLut: %d, %s",icc->e.c, icc->e.m);
 
 	/* Open up the 3dlut file for writing */
-	if ((fp = new_icmFileStd_name(fname,"w")) == NULL)
-		error("write_cube_3DLut: Can't open file '%s'",fname);
+	if ((fp = new_icmFileStd_name(&err,fname,"w")) == NULL)
+		error("write_cube_3DLut: Can't open file '%s' (0x%x, '%s')",fname,err.c,err.m);
 
-	lu = ((icmLuLut *)luo)->lut;
-	clutsize = lu->clutPoints;
+	clutsize = luo->max_clut_res(luo, NULL);
 
-	fp->gprintf(fp, "# Created by ArgyllCMS\n");
-	fp->gprintf(fp, "LUT_3D_SIZE %d\n",clutsize);
-//	fp->gprintf(fp, "DOMAIN_MIN %f %f %f\n",0.0, 0.0, 0.0);
-//	fp->gprintf(fp, "DOMAIN_MAX %f %f %f\n",1.0, 1.0, 1.0);
+	fp->printf(fp, "# Created by ArgyllCMS\n");
+	fp->printf(fp, "LUT_3D_SIZE %d\n",clutsize);
+//	fp->printf(fp, "DOMAIN_MIN %f %f %f\n",0.0, 0.0, 0.0);
+//	fp->printf(fp, "DOMAIN_MAX %f %f %f\n",1.0, 1.0, 1.0);
 
 	if (li->verb)
 		printf("Writing .cube 3dLut '%s'\n",fname);
+
+	if (li->addcal == 2)
+		error(".cube format doesn't support calibration curves (-H param)");
 
 	/* Write the clut data */
 	{
@@ -5424,11 +5409,11 @@ int write_cube_3DLut(clink *li, icc *icc, char *fname) {
 			for (i = 0; i < 3; i++)
 				in[ord[i]] = gc[i]/(clutsize-1.0);
 
-			if (luo->lookup(luo, out, in) > 1)
-			    error ("write_cube_3DLut: %d, %s",icc->errc,icc->err);
+			if (luo->lookup_fwd(luo, out, in) & icmPe_lurv_err)
+			    error ("write_cube_3DLut: %d, %s",icc->e.c,icc->e.m);
 
 //printf("~1 %f %f %f -> %f %f %f\n", in[0], in[1], in[2], out[0], out[1], out[2]);
-			fp->gprintf(fp, " %f %f %f\n",out[0], out[1], out[2]);
+			fp->printf(fp, " %f %f %f\n",out[0], out[1], out[2]);
 
 			DC_INC(gc);
 		}

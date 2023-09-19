@@ -56,6 +56,9 @@
 #define EXTRAP_WEIGHT 1.0		/* [1.0] Extra extrapolated point weighting */
 
 /*
+
+ Should add unicode strings if text has unicode characteris in them.
+
    Basic algorithm outline:
 
  Scanner:
@@ -163,7 +166,9 @@ static void invxyzcurve(double *out, double *in) {
 
 /* B2A Input table is the inverse of the AtoB output table */
 /* Input PCS output PCS'' */
-void in_b2a_input(void *cntx, double out[3], double in[3]) {
+void in_b2a_input(void *cntx, double out[3], double in[3]
+, int tn
+) {
 	in_b2a_callback *p = (in_b2a_callback *)cntx;
 
 	DBG(("out_b2a_input got         PCS %f %f %f\n",in[0],in[1],in[2]))
@@ -175,7 +180,7 @@ void in_b2a_input(void *cntx, double out[3], double in[3]) {
 		out[2] = in[2];
 	} else {
 		if (p->x->inv_output(p->x, out, in) > 1)
-			error("%d, %s",p->x->pp->errc,p->x->pp->err);
+			error("%d, %s",p->x->pp->e.c,p->x->pp->e.m);
 	}
 	/* PCS' to PCS'' */
 	if (p->pcsspace == icSigXYZData)	/* Apply XYZ non-linearity curve */
@@ -191,7 +196,9 @@ void in_b2a_input(void *cntx, double out[3], double in[3]) {
 /* output device. Ideally the gamut mapping should take the change */
 /* the abstract profile has on the output device into account, but */
 /* currently we're not doing this.. */
-void in_b2a_clut(void *cntx, double *out, double in[3]) {
+void in_b2a_clut(void *cntx, double *out, double in[3]
+, int tn
+) {
 	in_b2a_callback *p = (in_b2a_callback *)cntx;
 	double in1[3];
 
@@ -208,7 +215,7 @@ void in_b2a_clut(void *cntx, double *out, double in[3]) {
 
 		/* PCS to PCS' */
 		if (p->x->inv_output(p->x, in1, in1) > 1)
-			error("%d, %s",p->x->pp->errc,p->x->pp->err);
+			error("%d, %s",p->x->pp->e.c,p->x->pp->e.m);
 
 		DBG(("convert to PCS' got         %f %f %f\n",in1[0],in1[1],in1[2]))
 	}
@@ -216,12 +223,14 @@ void in_b2a_clut(void *cntx, double *out, double in[3]) {
 	/* Invert AtoB clut (PCS' to Dev') Colorimetric */
 	/* to producte the colorimetric tables output. */
 	if (p->x->inv_clut(p->x, out, in1) > 1)
-		error("%d, %s",p->x->pp->errc,p->x->pp->err);
+		error("%d, %s",p->x->pp->e.c,p->x->pp->e.m);
 
 	DBG(("convert PCS' to DEV' got    %f %f %f %f\n",out[0],out[1],out[2],out[3]))
 	DBG(("in_b2a_clut returning DEV' %f %f %f\n",out[0],out[1],out[2]))
 
-	if (p->verb) {		/* Output percent intervals */
+	if (p->verb
+	&& tn == 0
+	) {		/* Output percent intervals */
 		int pc;
 		p->count++;
 		pc = (int)(p->count * 100.0/p->total + 0.5);
@@ -234,13 +243,15 @@ void in_b2a_clut(void *cntx, double *out, double in[3]) {
 
 /* Output table is the inverse of the AtoB input table */
 /* Input Dev' output Dev */
-void in_b2a_output(void *cntx, double out[4], double in[4]) {
+void in_b2a_output(void *cntx, double out[4], double in[4]
+, int tn
+) {
 	in_b2a_callback *p = (in_b2a_callback *)cntx;
 
 	DBG(("in_b2a_output got      DEV' %f %f %f\n",in[0],in[1],in[2]))
 
 	if (p->x->inv_input(p->x, out, in) > 1)
-		error("%d, %s",p->x->pp->errc,p->x->pp->err);
+		error("%d, %s",p->x->pp->e.c,p->x->pp->e.m);
 
 	DBG(("in_b2a_output returning DEV %f %f %f\n",out[0],out[1],out[2]))
 }
@@ -254,8 +265,8 @@ void in_b2a_output(void *cntx, double out[4], double in[4]) {
 /* directly from the scattered input data. */
 void
 make_input_icc(
-	prof_atype ptype,		/* Profile algorithm type */
-	icmICCVersion iccver,	/* ICC profile version to create */
+	prof_atype ptype,				/* Profile algorithm type */
+	icxTransformCreateType icctype, /* ICC profile type to create */
 	int verb,
 	int iquality,			/* A2B table quality, 0..3 */
 	int oquality,			/* B2A table quality, 0..3 */
@@ -284,7 +295,9 @@ make_input_icc(
 	double avgdev,			/* reading Average Deviation as a proportion of the input range */
 	profxinf *xpi			/* Optional Profile creation extra data */
 ) {
+	icmTV iccver = ICMTV_DEFAULT;	/* ICC file version to create */
 	icmFile *wr_fp;
+	icmErr err = { 0, { '\000'} };
 	icc *wr_icco;
 	int npat;				/* Number of patches */
 	int npxpat = 0;			/* Number of possible extrap extrapolation patches */
@@ -296,6 +309,20 @@ make_input_icc(
 							/* Values will be wantLab after reading */
 	int isLut = 0;			/* 0 if shaper+ matrix, 1 if lut type */
 	int isShTRC = 0;		/* 0 if separate gamma/shaper TRC, 1 if shared */
+	int isGamma = 0;		/* NZ if gamma rather than shaper */
+	int isLinear = 0;		/* NZ if pure linear, gamma = 1.0 */
+
+	int matrix_inputEnt = 0;
+	int matrix_inv_inputEnt = 0;
+	int flut_inputEnt = 0;
+	int flut_clutPoints[MAX_CHAN] =  { 0 };
+	int flut_outputEnt = 0;
+# ifdef DOB2A
+	unsigned int blut_inputEnt = 0;
+	unsigned int blut_clutPoints[MAX_CHAN] = { 0 };
+	unsigned int blut_outputEnt = 0;
+# endif
+
 
 	if (ptype == prof_clutLab) {		/* Lab lut */
 		wantLab = 1;
@@ -313,14 +340,24 @@ make_input_icc(
 		 || ptype == prof_matonly) {
 			isShTRC = 1;		/* Single curve */
 		}
+
+		if (ptype != prof_shamat
+		 && ptype != prof_sha1mat)
+			isGamma = 1;		/* Not shaper so must be Gamma */
+
+		if (ptype == prof_matonly)
+			isLinear = 1;
 	}
 
 	/* Open up the file for writing */
-	if ((wr_fp = new_icmFileStd_name(file_name,"w")) == NULL)
-		error ("Write: Can't open file '%s'",file_name);
+	if ((wr_fp = new_icmFileStd_name(&err,file_name,"w")) == NULL)
+		error ("Write: Can't open file '%s' (0x%x, '%s')",file_name,err.c,err.m);
 
-	if ((wr_icco = new_icc()) == NULL)
-		error ("Write: Creation of ICC object failed");
+	if ((wr_icco = new_icc(&err)) == NULL)
+		error ("Write: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
+
+	if (wr_icco->set_version(wr_icco, iccver) != 0)
+		error("set_version %d failed: %d, %s",iccver,wr_icco->e.c,wr_icco->e.m);
 
 	/* Add all the tags required */
 
@@ -376,8 +413,9 @@ make_input_icc(
 	}
 	/* Profile Description Tag: */
 	{
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst;			/* description */
+		int u8;
 
 		if (xpi != NULL && xpi->profDesc != NULL)
 			dst = xpi->profDesc;
@@ -385,17 +423,19 @@ make_input_icc(
 			dst = "This is a Lut style RGB - XYZ Input Profile";
 		}
 
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->desc, dst);		/* Copy the string in */
+		wo->count = strlen(dst) + 1;	/* Get size */
+		wo->allocate(wo);				/* Allocate space */
+		strcpy(wo->desc, dst);			/* Copy the string in */
+
+		// ~8 should add unicode string if u8 is set
 	}
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt;
 
 		if (xpi != NULL && xpi->copyright != NULL)
@@ -403,209 +443,113 @@ make_input_icc(
 		else
 			crt = "Copyright, the creator of this profile";
 
-		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		wo->count = strlen(crt) + 1;	/* Get size */
+		wo->allocate(wo);				/* Allocate space */
+		strcpy(wo->desc, crt);			/* Copy the string in */
 	}
 	/* Device Manufacturers Description Tag: */
 	if (xpi != NULL && xpi->deviceMfgDesc != NULL) {
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst = xpi->deviceMfgDesc;
+		int u8;
 
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigDeviceMfgDescTag,	icSigTextDescriptionType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigDeviceMfgDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->desc, dst);		/* Copy the string in */
+		wo->count = strlen(dst) + 1;	/* Get size */
+		wo->allocate(wo);				/* Allocate space */
+		strcpy(wo->desc, dst);			/* Copy the string in */
 	}
 	/* Model Description Tag: */
 	if (xpi != NULL && xpi->modelDesc != NULL) {
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst = xpi->modelDesc;
+		int u8;
 
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigDeviceModelDescTag,	icSigTextDescriptionType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigDeviceModelDescTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->desc, dst);		/* Copy the string in */
-	}
-	/* White Point Tag: */
-	{
-		icmXYZArray *wo;
-		/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
-		if ((wo = (icmXYZArray *)wr_icco->add_tag(
-		           wr_icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
-
-		wo->size = 1;
-		wo->allocate((icmBase *)wo);	/* Allocate space */
-		wo->data[0].X = 0.9642;		/* Set a default value - D50 */
-		wo->data[0].Y = 1.0000;
-		wo->data[0].Z = 0.8249;
-	}
-	/* Black Point Tag: */
-	{
-		icmXYZArray *wo;
-		if ((wo = (icmXYZArray *)wr_icco->add_tag(
-		           wr_icco, icSigMediaBlackPointTag, icSigXYZArrayType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
-
-		wo->size = 1;
-		wo->allocate((icmBase *)wo);	/* Allocate space */
-		wo->data[0].X = 0.00;			/* Set default perfect black */
-		wo->data[0].Y = 0.00;
-		wo->data[0].Z = 0.00;
+		wo->count = strlen(dst) + 1;	/* Get size */
+		wo->allocate(wo);				/* Allocate space */
+		strcpy(wo->desc, dst);			/* Copy the string in */
 	}
 
 	if (isLut == 0) {	/* shaper + matrix type */
 
-		/* Red, Green and Blue Colorant Tags: */
-		{
-			icmXYZArray *wor, *wog, *wob;
-			if ((wor = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigRedColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
-			if ((wog = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigGreenColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
-			if ((wob = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigBlueColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
-
-			wor->size = wog->size = wob->size = 1;
-			wor->allocate((icmBase *)wor);	/* Allocate space */
-			wog->allocate((icmBase *)wog);
-			wob->allocate((icmBase *)wob);
-
-			/* Setup some sane dummy values */
-			/* icxMatrix will override these later */
-			wor->data[0].X = 1.0; wor->data[0].Y = 0.0; wor->data[0].Z = 0.0;
-			wog->data[0].X = 0.0; wog->data[0].Y = 1.0; wog->data[0].Z = 0.0;
-			wob->data[0].X = 0.0; wob->data[0].Y = 0.0; wob->data[0].Z = 1.0;
-		}
-
-		/* Red, Green and Blue Tone Reproduction Curve Tags: */
-		{
-			icmCurve *wor, *wog, *wob;
-			if ((wor = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
-
-			if (isShTRC) {	/* Make all TRCs shared */
-				if ((wog = (icmCurve *)wr_icco->link_tag(
-				           wr_icco, icSigGreenTRCTag, icSigRedTRCTag)) == NULL) 
-					error("link_tag failed: %d, %s",rv,wr_icco->err);
-				if ((wob = (icmCurve *)wr_icco->link_tag(
-				           wr_icco, icSigBlueTRCTag, icSigRedTRCTag)) == NULL) 
-					error("link_tag failed: %d, %s",rv,wr_icco->err);
-
-			} else {		/* Else individual */
-				if ((wog = (icmCurve *)wr_icco->add_tag(
-				           wr_icco, icSigGreenTRCTag, icSigCurveType)) == NULL) 
-					error("add_tag failed: %d, %s",rv,wr_icco->err);
-				if ((wob = (icmCurve *)wr_icco->add_tag(
-				           wr_icco, icSigBlueTRCTag, icSigCurveType)) == NULL) 
-					error("add_tag failed: %d, %s",rv,wr_icco->err);
-			}
-	
-			if (ptype == prof_shamat || ptype == prof_sha1mat) {	/* Shaper */
-				wor->flag = wog->flag = wob->flag = icmCurveSpec; 
-				wor->size = wog->size = wob->size = 256;			/* Number of entries */
-			} else {						/* Gamma */
-				wor->flag = wog->flag = wob->flag = icmCurveGamma;
-				wor->size = wog->size = wob->size = 1;				/* Must be 1 for gamma */
-			}
-			wor->allocate((icmBase *)wor);	/* Allocate space */
-			wog->allocate((icmBase *)wog);
-			wob->allocate((icmBase *)wob);
-
-			/* icxMatrix will set curve values */
+		switch (iquality) {
+			case 2:
+				matrix_inputEnt = 512;
+				matrix_inv_inputEnt = 2048;
+				break;
+			case 3:
+				matrix_inputEnt = 1024;
+				matrix_inv_inputEnt = 4096;
+				break;
+			default:
+				matrix_inputEnt = 256;
+				matrix_inv_inputEnt = 1024;
+				break;
 		}
 
 	} else {		/* Lut type profile */
 
-		/* 16 bit dev -> pcs lut: */
-		{
-			icmLut *wo;
-
-			/* Only A2B0, no intent */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigAToB0Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
-
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-			if (iquality >= 3) {
-		    	wo->clutPoints = 45;
-		    	wo->inputEnt = 2048;
-		    	wo->outputEnt = 2048;
-			} else if (iquality == 2) {
-		    	wo->clutPoints = 33;
-		    	wo->inputEnt = 2048;
-		    	wo->outputEnt = 2048;
-			} else if (iquality == 1) {
-		    	wo->clutPoints = 17;
-		    	wo->inputEnt = 1024;
-		    	wo->outputEnt = 1024;
-			} else {
-		    	wo->clutPoints = 9;
-		    	wo->inputEnt = 512;
-		    	wo->outputEnt = 512;
-			}
-
-			wo->allocate((icmBase *)wo);/* Allocate space */
-
-			/* icxLuLut will set tables values */
+		/* A2B */
+		if (iquality >= 3) {
+			flut_inputEnt = 2048;
+			for (i = 0; i < 3; i++)
+				flut_clutPoints[i] = 45;
+			flut_outputEnt = 2048;
+		} else if (iquality == 2) {
+			flut_inputEnt = 2048;
+			for (i = 0; i < 3; i++)
+				flut_clutPoints[i] = 33;
+			flut_outputEnt = 2048;
+		} else if (iquality == 1) {
+			flut_inputEnt = 1024;
+			for (i = 0; i < 3; i++)
+				flut_clutPoints[i] = 17;
+			flut_outputEnt = 1024;
+		} else {
+			flut_inputEnt = 512;
+			for (i = 0; i < 3; i++)
+				flut_clutPoints[i] = 9;
+			flut_outputEnt = 512;
 		}
 
 #ifdef DOB2A
-		/* 16 bit pcs -> dev lut: */
-		if (dob2a) {
-			icmLut *wo;
-
-			/* Only B2A0, no intent */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigBToA0Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
-
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-			if (oquality >= 3) {
-		    	wo->clutPoints = 45;
-		    	wo->inputEnt = 2048;
-		    	wo->outputEnt = 2048;
-			} else if (oquality == 2) {
-		    	wo->clutPoints = 33;
-		    	wo->inputEnt = 2048;
-		    	wo->outputEnt = 2048;
-			} else if (oquality == 1) {
-		    	wo->clutPoints = 17;
-		    	wo->inputEnt = 1024;
-		    	wo->outputEnt = 1024;
-            } else if (oquality >= 0) {
-		    	wo->clutPoints = 9;
-		    	wo->inputEnt = 512;
-		    	wo->outputEnt = 512;
-            } else {                /* Special, Extremely low quality */
-		    	wo->clutPoints = 3;
-		    	wo->inputEnt = 64;
-		    	wo->outputEnt = 64;
-            }
-
-			wo->allocate((icmBase *)wo);/* Allocate space */
-
-			/* We set the tables below */
+		if (oquality >= 3) {
+			blut_inputEnt = 2048;
+			for (i = 0; i < 3; i++)
+				blut_clutPoints[i] = 45;
+			blut_outputEnt = 2048;
+		} else if (oquality == 2) {
+			blut_inputEnt = 2048;
+			for (i = 0; i < 3; i++)
+				blut_clutPoints[i] = 33;
+			blut_outputEnt = 2048;
+		} else if (oquality == 1) {
+			blut_inputEnt = 1024;
+			for (i = 0; i < 3; i++)
+				blut_clutPoints[i] = 17;
+			blut_outputEnt = 1024;
+		} else if (oquality >= 0) {
+			blut_inputEnt = 512;
+			for (i = 0; i < 3; i++)
+				blut_clutPoints[i] = 9;
+			blut_outputEnt = 512;
+	   	} else {				/* Special, Extremely low quality */
+			blut_inputEnt = 64;
+			for (i = 0; i < 3; i++)
+				blut_clutPoints[i] = 3;
+			blut_outputEnt = 64;
 		}
 #endif /* DOB2A */
-
 	}
 
 	/* Sample data use to create profile: */
@@ -616,7 +560,7 @@ make_input_icc(
 
 		if ((wo = (icmText *)wr_icco->add_tag(
 		           wr_icco, icmMakeTag('t','a','r','g'), icSigTextType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 #if defined(O_BINARY) || defined(_O_BINARY)
 	    if ((fp = fopen(in_name, "rb")) == NULL)
@@ -627,24 +571,24 @@ make_input_icc(
 
 		if (fseek(fp, 0, SEEK_END))
 			error("Unable to seek to end of file '%s'",in_name);
-		wo->size = ftell(fp) + 1;		/* Size needed + null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
+		wo->count = ftell(fp) + 1;		/* Size needed + null */
+		wo->allocate(wo);/* Allocate space */
 
 		if (fseek(fp, 0, SEEK_SET))
 			error("Unable to seek to end of file '%s'",in_name);
 
-		if (fread(wo->data, 1, wo->size-1, fp) != wo->size-1)
+		if (fread(wo->desc, 1, wo->count-1, fp) != wo->count-1)
 			error("Failed to read file '%s'",in_name);
-		wo->data[wo->size-1] = '\000';
+		wo->desc[wo->count-1] = '\000';
 		fclose(fp);
 
 		/* Duplicate for compatibility */
 		if (wr_icco->link_tag(
 		         wr_icco, icmMakeTag('D','e','v','D'), icmMakeTag('t','a','r','g')) == NULL) 
-			error("link_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		if (wr_icco->link_tag(
 		         wr_icco, icmMakeTag('C','I','E','D'), icmMakeTag('t','a','r','g')) == NULL) 
-			error("link_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	}
 
 	if ((npat = icg->t[0].nsets) <= 0)
@@ -819,13 +763,9 @@ make_input_icc(
 	}	/* End of reading in CGATs file */
 
 	if (isLut == 0) { /* Gamma/Shaper + matrix profile */
-		xicc *wr_xicc;			/* extention object */
 		icxLuBase *xluo;		/* Forward ixcLu */
 		int flags = 0;
 
-		/* Wrap with an expanded icc */
-		if ((wr_xicc = new_xicc(wr_icco)) == NULL)
-			error("Creation of xicc failed");
 		
 		if (verb)
 			flags |= ICX_VERBOSE;
@@ -839,6 +779,8 @@ make_input_icc(
         flags |= ICX_SET_BLACK;		/* Compute & use black */
 		flags |= ICX_SET_WHITE;		/* Compute & use white */
 
+		flags |= ICX_SINGLE_INTENT;	/* Only a single intent (i.e. use 0 tag, not 1) */
+
 		/* ICX_SET_WHITE_C isn't applicable to matrix profiles */
 		if (autowpsc == 1)
 	        flags |= ICX_SET_WHITE_US;	/* Compute & use white without scaling to L */
@@ -848,27 +790,21 @@ make_input_icc(
         flags |= ICX_WRITE_WBL;		/* Matrix: write white/black/luminence */
 
 		/* Setup Device -> XYZ conversion (Fwd) object from scattered data. */
-		if ((xluo = wr_xicc->set_luobj(
-//		               wr_xicc, icmFwd, icRelativeColorimetric,
-		               wr_xicc, icmFwd, icmDefaultIntent,
-		               icmLuOrdNorm,
-		               flags, 		/* Flags */
-		               npat, npat, tpat, NULL, 0.0, wpscale,
-//		               NULL,		/* bpo */
-			           smooth, avgdev, 1.0,
-		               NULL, NULL, NULL, iquality)) == NULL)
-			error("%d, %s",wr_xicc->errc, wr_xicc->err);
+		if (set_icxLuMatrix(
+			wr_icco, flags, icctype,  
+		    npat, npat, tpat,
+		    NULL, 0.0, 					/* No skeleton model, no disp luminence */
+		    wpscale, iquality, smooth,  
+			isShTRC, isGamma, isLinear,
+			matrix_inputEnt, matrix_inv_inputEnt) != ICM_ERR_OK
+		)
+			error("%d, %s",wr_icco->e.c, wr_icco->e.m);
 
-		/* Free up xicc stuff */
-		xluo->del(xluo);
-		wr_xicc->del(wr_xicc);
 
 	} else {		/* cLUT based profile */
 		int flags = 0;
 		icxMatrixModel *mm = NULL;
 
-		xicc *wr_xicc;			/* extention object */
-		icxLuBase *AtoB;		/* AtoB ixcLu */
 
 		if (extrap) {
 			cow *mpat;
@@ -911,12 +847,11 @@ make_input_icc(
 				      /* quality */ -1, /* isLinear */ ptype == prof_matonly,
 				      /* isGamma */ 0, /* isShTRC */ 0,
 				      /* shape0gam */ 1, /* clipbw */ 0, /* clipprims */ 0,
-//				      /* smooth */ 1.0, /* scale */ 0.7)) == NULL) {
 				      /* smooth */ 1.0, /* scale */ 1.0)) == NULL) {
 				error("Creating extrapolation matrix model failed - memory ?");
 			}
 
-#ifdef NEVER	/* Plot Lab of model */
+#ifdef NEVER	/* Plot Lab of extrapolation model */
 {
 	#define	XRES 100
 	double xx[XRES];
@@ -938,7 +873,7 @@ make_input_icc(
 	do_plot(xx,y0,y1,y2,XRES);
 }
 #endif /* DEBUG_PLOT */
-		}
+		}	/* End of extrap */
 
 		if (extrap) {
 			int ii, wix = 0, j;
@@ -1099,9 +1034,6 @@ make_input_icc(
 			}
 		}
 
-		/* Wrap with an expanded icc */
-		if ((wr_xicc = new_xicc(wr_icco)) == NULL)
-			error ("Creation of xicc failed");
 
 		flags |= ICX_CLIP_NEAREST;      /* This will avoid clip caused rev setup */
 
@@ -1122,6 +1054,9 @@ make_input_icc(
 				
         flags |= ICX_SET_BLACK;		/* Compute & use black */
 		flags |= ICX_SET_WHITE;		/* Compute & use white */
+
+		flags |= ICX_SINGLE_INTENT;	/* Only a single intent (i.e. use 0 tag, not 1) */
+
 		if (clipovwp)
 	        flags |= ICX_SET_WHITE_C;	/* Compute & use white and clip cLUT over D50 */
 		else if (autowpsc == 1)
@@ -1132,36 +1067,54 @@ make_input_icc(
 		/* Setup RGB -> Lab conversion object from scattered data. */
 		/* Note that we've layered it on a native XYZ icc profile. */
 		/* (The skeleton model is not used - it doesn't seem to help) */
-		if ((AtoB = wr_xicc->set_luobj(
-		               wr_xicc, icmFwd, icmDefaultIntent,
-		               icmLuOrdNorm,
+		if (set_icxLuLut(
+			wr_icco,
 #ifdef USE_EXTRA_FITTING
-			               ICX_EXTRA_FIT |
+	        ICX_EXTRA_FIT |
 #endif
 #ifdef USE_2PASSSMTH
-			               ICX_2PASSSMTH |
+	        ICX_2PASSSMTH |
 #endif
-		               flags, 		/* Flags */
-		               npat + nxpat, npat, tpat, NULL, 0.0, wpscale,
-//			           NULL,	/* bpo */
-			           smooth, avgdev, 1.0,
-			           NULL, NULL, NULL, iquality)) == NULL)
-			error ("%d, %s",wr_xicc->errc, wr_xicc->err);
+			flags,
+		    icctype,		/* Profile creation type */
+            npat + nxpat, npat, tpat,
+			NULL, 0.0, wpscale,
+            smooth, avgdev, 1.0,
+	        NULL, NULL, NULL,	/* Viewing Condition, inking details, Optional cal */
+            iquality,
+			flut_inputEnt,
+			flut_clutPoints,
+				flut_outputEnt
+		) != ICM_ERR_OK)
+			error ("%d, %s",wr_icco->e.c, wr_icco->e.m);
 
 		if (mm != NULL)
 			mm->del(mm);
 
-		/* Free up xicc stuff */
-		AtoB->del(AtoB);
-
 #ifdef DOB2A
-		if (dob2a) {
-			icmLut *wo;
 
+		if (dob2a) {
+			xicc *wr_xicc;			/* extention object */
+			icxLuBase *AtoB;		/* AtoB ixcLu */
 			in_b2a_callback cx;
+			int nsigs = 1;
+			icmXformSigs sigs[2];
+
+			switch (icctype) {
+				default:
+					sigs[0].sig = icSigBToA0Tag;
+					sigs[0].ttype = icSigLut16Type;
+					/* Default ICC Version used */
+					break;
+			}
+
 
 			if (verb)
 				printf("Setting up B to A table lookup\n");
+
+			/* Wrap with an expanded icc */
+			if ((wr_xicc = new_xicc(wr_icco)) == NULL)
+				error ("Creation of xicc failed");
 
 			/* Get a suitable forward conversion object to invert. */
 			/* By creating a separate one to the one created using scattered data, */
@@ -1183,7 +1136,7 @@ make_input_icc(
 				                  icmDefaultIntent,
 				                  wantLab ? icSigLabData : icSigXYZData,
                                   icmLuOrdNorm, NULL, NULL)) == NULL)
-					error ("%d, %s",wr_xicc->errc, wr_xicc->err);
+					error ("%d, %s",wr_xicc->e.c, wr_xicc->e.m);
 			}
 
 			/* setup context ready for B2A table setting */
@@ -1198,42 +1151,43 @@ make_input_icc(
 			cx.devspace = icSigRgbData;
 			cx.x = (icxLuLut *)AtoB;		/* A2B icxLuLut created from scattered data */
 
-			if ((wo = (icmLut *)wr_icco->read_tag(
-			           wr_icco, icSigBToA0Tag)) == NULL) 
-				error("read_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
 
 			/* We now setup an exact inverse, colorimetric style */
 			/* Use helper function to do the hard work. */
-
 			if (cx.verb) {
 				unsigned int ui;
 				int extra;
 				cx.count = 0;
 				cx.last = -1;
-				for (cx.total = 1, ui = 0; ui < wo->inputChan; ui++, cx.total *= wo->clutPoints)
-					; 
+				for (cx.total = 1, ui = 0; ui < 3; cx.total *= blut_clutPoints[ui++])
+					;
 				/* Add in cell center points */
-				for (extra = 1, ui = 0; ui < wo->inputChan; ui++, extra *= (wo->clutPoints-1))
+				for (extra = 1, ui = 0; ui < 3; extra *= (blut_clutPoints[ui++]-1))
 					;
 				cx.total += extra;
 				printf("Creating B to A tables\n");
 				printf(" 0%%"); fflush(stdout);
 			}
 
-			if (icmSetMultiLutTables(
-			        1,
-			        &wo,
-					ICM_CLUT_SET_APXLS,			/* Use least squared aprox. */
-					&cx,						/* Context */
-					cx.pcsspace,				/* Input color space */
-					icSigRgbData,				/* Output color space */
-					in_b2a_input,				/* Input transform PCS->PCS' */
-					NULL, NULL,					/* Use default Lab' range */
-					in_b2a_clut,				/* Lab' -> Device' transfer function */
-					NULL, NULL,					/* Use default Device' range */
-					in_b2a_output,				/* Output transfer function, Device'->Device */
-					NULL, NULL) != 0)			/* Use default APXLS range */
-				error("Setting 16 bit PCS->Device Lut failed: %d, %s",wr_icco->errc,wr_icco->err);
+			if (wr_icco->create_lut_xforms(
+				wr_icco,
+				ICM_CLUT_SET_APXLS,
+				&cx,				/* Context */
+				nsigs,				/* Number of tables */
+				sigs,				/* signatures and tag types for each table */
+				2,					/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+				blut_inputEnt, blut_clutPoints, blut_outputEnt,	/* Table resolutions */
+				cx.pcsspace, 		/* Input color space */
+				icSigRgbData, 		/* Output color space */
+				NULL, NULL,			/* Use default input range */
+				in_b2a_input,			/* Linear input transform Lab->Lab' */
+				NULL, NULL,			/* Use default Lab' range */
+				in_b2a_clut,			/* Lab' -> CMYK' transfer function */
+				NULL, NULL,			/* Use default CMYK' range */
+				in_b2a_output,		 	/* Output transfer function, CMYK'->CMYK */
+				NULL, NULL			/* default APXLS range */
+			) != ICM_ERR_OK)
+				error("Setting 16 bit PCS->Device Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 			if (cx.verb) {
 				printf("\n");
 			}
@@ -1245,15 +1199,14 @@ make_input_icc(
 			if (verb)
 				printf("Done B to A table\n");
 			AtoB->del(AtoB);
+			wr_xicc->del(wr_xicc);
 		}
 #endif /* DOB2A */
-		wr_xicc->del(wr_xicc);
-
-	}
+	}	/* end of cLUT case */
 
 	/* Write the file (including all tags) out */
 	if ((rv = wr_icco->write(wr_icco,wr_fp,0)) != 0)
-		error ("Write file: %d, %s",rv,wr_icco->err);
+		error ("Write file: %d, %s",rv,wr_icco->e.m);
 
 	/* Close the file */
 	wr_icco->del(wr_icco);
@@ -1262,36 +1215,37 @@ make_input_icc(
 	/* Check the profile accuracy against the data points */
 	if (verb || verify) {
 		icmFile *rd_fp;
+		icmErr err = { 0, { '\000'} };
 		icc *rd_icco;
-		icmLuBase *luo;
+		icmLuSpace *luo;
 		double merr = 0.0;
 		double aerr = 0.0;
 		double nsamps = 0.0;
 
 		/* Open up the file for reading */
-		if ((rd_fp = new_icmFileStd_name(file_name,"r")) == NULL)
-			error ("Write: Can't open file '%s'",file_name);
+		if ((rd_fp = new_icmFileStd_name(&err,file_name,"r")) == NULL)
+			error ("Write: Can't open file '%s' (0x%x, '%s')",file_name,err.c,err.m);
 
-		if ((rd_icco = new_icc()) == NULL)
-			error ("Write: Creation of ICC object failed");
+		if ((rd_icco = new_icc(&err)) == NULL)
+			error ("Write: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-			error ("Read: %d, %s",rv,rd_icco->err);
+			error ("Read: %d, %s",rv,rd_icco->e.m);
 
 		/* ~~ should use an xluobj with merge output ~~~ */
 		/* Get the A2B table */
-		if ((luo = rd_icco->get_luobj(rd_icco, icmFwd,
+		if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd,
                            icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-			error ("%d, %s",rd_icco->errc, rd_icco->err);
+			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
 
 		for (i = 0; i < npat; i++) {
 			double out[3], ref[3];
 			double mxd;
 
-			if (luo->lookup(luo, out, tpat[i].p) > 1)
-				error ("%d, %s",rd_icco->errc,rd_icco->err);
+			if (luo->lookup_fwd(luo, out, tpat[i].p) & icmPe_lurv_err)
+				error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 			/* Our tpat data might be in XYZ, so generate an Lab ref value */
 			if (!wantLab) { /* Convert test patch result XYZ to PCS (D50 Lab) */

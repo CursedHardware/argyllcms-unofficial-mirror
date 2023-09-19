@@ -2747,7 +2747,6 @@ spyd4_load_cal(spyd2 *p) {
 	if (spyd4_nocals != 0)
 		return SPYD2_OK;
 
-
 	for (;;) {		/* So we can break */
 		if ((no_paths = xdg_bds(NULL, &bin_paths, xdg_data, xdg_read, xdg_user, xdg_none,
 			            "ArgyllCMS/spyd4cal.bin" XDG_FUDGE "color/spyd4cal.bin"
@@ -2983,6 +2982,7 @@ spyd2_init_inst(inst *pp) {
 		int rwbytes;			/* Data bytes read or written */
 
 		
+		a1logd(p->log, 3, "spyd3/4/5 flush any stale data:\n");
 		for (i = 0; i < 10; i++) {
 			if ((p->icom->usb_read(p->icom, NULL, 0x81, buf, 8, &rwbytes, 0.1) & ICOM_TO)
 			 && i > 9)
@@ -4172,7 +4172,6 @@ int setup_spyd2(int id) {
 	/* If not loaded, try and load it */
 	if (spyder_pld_size[id] == 0) {
 		
-
 		for (;;) {	/* So we can break out */
 			if (id == 0)
 				p1 = "ArgyllCMS/spyd1PLD.bin" XDG_FUDGE "color/spyd1PLD.bin";

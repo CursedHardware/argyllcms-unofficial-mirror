@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
 	cgf->add_other(cgf, ""); 	/* Allow any signature file */
 	
 	if (cgf->read_name(cgf, in_name))
-		error("CGATS file '%s' read error : %s",in_name,cgf->err);
+		error("CGATS file '%s' read error : %s",in_name,cgf->e.m);
 	
 	if (cgf->ntables < 1)
 		error ("Input file '%s' doesn't contain at least one table",in_name);
@@ -383,9 +383,9 @@ int main(int argc, char *argv[]) {
 
 	/* Write out the files */
 	if (cg1->write_name(cg1, out_name1))
-		error("CGATS file '%s' write error : %s",out_name1,cg1->err);
+		error("CGATS file '%s' write error : %s",out_name1,cg1->e.m);
 	if (cg2->write_name(cg2, out_name2))
-		error("CGATS file '%s' write error : %s",out_name2,cg2->err);
+		error("CGATS file '%s' write error : %s",out_name2,cg2->e.m);
 	
 
 	free(flags);

@@ -139,8 +139,9 @@ int main(int argc, char *argv[])
 
 	/* ICC separation/calibration device link profile  */
 	icmFile *sep_fp = NULL;		/* Color profile file */
+	icmErr err = { 0, { '\000'} };
 	icc *sep_icco = NULL;		/* Profile object */
-	icmLuBase *sep_luo = NULL;	/* Conversion object */
+	icmLuSpace *sep_luo = NULL;	/* Conversion object */
 	icColorSpaceSignature sep_ins, sep_outs;	/* Type of input and output spaces */
 	int sep_inn;				/* Number of input channels to separation */
 	inkmask sep_nmask = 0;		/* Colorant mask for separation input */
@@ -154,7 +155,7 @@ int main(int argc, char *argv[])
 	icRenderingIntent intent = icAbsoluteColorimetric;
 	icmFile *icc_fp = NULL;	/* Color profile file */
 	icc *icc_icco = NULL;	/* Profile object */
-	icmLuBase *icc_luo = NULL;	/* Conversion object */
+	icmLuSpace *icc_luo = NULL;	/* Conversion object */
 	icmLuAlgType alg;		/* Algorithm */
 
 	/* MPP profile based */
@@ -453,7 +454,7 @@ int main(int argc, char *argv[])
 	icg->add_other(icg, "CTI3"); 	/* also accept renamed .ti3 file */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || (icg->t[0].oi != 0 && icg->t[0].oi != 1))
 		error ("Input file isn't a CTI1 format file");
@@ -504,22 +505,29 @@ int main(int argc, char *argv[])
 
 	/* Deal with separation */
 	if (dosep) {
-		if ((sep_fp = new_icmFileStd_name(sepname,"r")) == NULL)
-			error ("Can't open file '%s'",sepname);
+		if ((sep_fp = new_icmFileStd_name(&err,sepname,"r")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",sepname,err.c,err.m);
 	
-		if ((sep_icco = new_icc()) == NULL)
-			error ("Creation of ICC object failed");
+		if ((sep_icco = new_icc(&err)) == NULL)
+			error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 		/* Deal with ICC separation */
 		if ((rv = sep_icco->read(sep_icco,sep_fp,0)) == 0) {
 	
 			/* Get a conversion object */
-			if ((sep_luo = sep_icco->get_luobj(sep_icco, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm)) == NULL) {
-					error ("%d, %s",sep_icco->errc, sep_icco->err);
+			if ((sep_luo = (icmLuSpace *)sep_icco->get_luobj(sep_icco, icmFwd, icmDefaultIntent, icmSigDefaultData, icmLuOrdNorm)) == NULL) {
+					error ("%d, %s",sep_icco->e.c, sep_icco->e.m);
 			}
 	
 			/* Get details of conversion */
-			sep_luo->spaces(sep_luo, &sep_ins, &sep_inn, &sep_outs, NULL, NULL, NULL, NULL, NULL, NULL);
+			{
+				icmCSInfo ini, outi;
+
+				sep_luo->spaces(sep_luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				sep_ins = ini.sig;
+				sep_inn = ini.nch;
+				sep_outs = outi.sig;
+			}
 			sep_nmask = icx_icc_to_colorant_comb(sep_ins, sep_icco->header->deviceClass);
 		}
 		if (in_tvenc && sep_ins != icSigRgbData)
@@ -536,7 +544,7 @@ int main(int argc, char *argv[])
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read(cal, calname)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 		if (verb) {
 			if (applycal == 1)
 				printf("Applying calibration curves from '%s'\n",calname);
@@ -548,11 +556,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* Deal with ICC profile */
-	if ((icc_fp = new_icmFileStd_name(profname,"r")) == NULL)
-		error ("Can't open file '%s'",profname);
+	if ((icc_fp = new_icmFileStd_name(&err,profname,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",profname,err.c,err.m);
 
-	if ((icc_icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icc_icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read ICC profile */
 	if ((rv = icc_icco->read(icc_icco,icc_fp,0)) == 0) {
@@ -568,24 +576,34 @@ int main(int argc, char *argv[])
 
 		if (revlookup) {
 			/* Get a PCS to Device conversion object */
-			if ((icc_luo = icc_icco->get_luobj(icc_icco, icmBwd, intent,
+			if ((icc_luo = (icmLuSpace *)icc_icco->get_luobj(icc_icco, icmBwd, intent,
 			                           islab ? icSigLabData : icSigXYZData, icmLuOrdNorm)) == NULL) {
-				if ((icc_luo = icc_icco->get_luobj(icc_icco, icmBwd, icmDefaultIntent,
+				if ((icc_luo = (icmLuSpace *)icc_icco->get_luobj(icc_icco, icmBwd, icmDefaultIntent,
 				                       islab ? icSigLabData : icSigXYZData, icmLuOrdNorm)) == NULL)
-					error ("%d, %s",icc_icco->errc, icc_icco->err);
+					error ("%d, %s",icc_icco->e.c, icc_icco->e.m);
 			}
 		} else {
 			/* Get a Device to PCS conversion object */
-			if ((icc_luo = icc_icco->get_luobj(icc_icco, icmFwd, intent,
+			if ((icc_luo = (icmLuSpace *)icc_icco->get_luobj(icc_icco, icmFwd, intent,
 			                           dolab ? icSigLabData : icSigXYZData, icmLuOrdNorm)) == NULL) {
-				if ((icc_luo = icc_icco->get_luobj(icc_icco, icmFwd, icmDefaultIntent,
+				if ((icc_luo = (icmLuSpace *)icc_icco->get_luobj(icc_icco, icmFwd, icmDefaultIntent,
 				                       dolab ? icSigLabData : icSigXYZData, icmLuOrdNorm)) == NULL)
-					error ("%d, %s",icc_icco->errc, icc_icco->err);
+					error ("%d, %s",icc_icco->e.c, icc_icco->e.m);
 			}
 		}
 
 		/* Get details of conversion */
-		icc_luo->spaces(icc_luo, &ins, &inn, &outs, &outn, &alg, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+
+			icc_luo->spaces(icc_luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			ins = ini.sig;
+			inn = ini.nch;
+			outs = outi.sig;
+			outn = outi.nch;
+
+			alg = icmSynthAlgType((icmLuBase *)icc_luo);
+		}
 
 		cnv_nmask = icx_icc_to_colorant_comb(ins, icc_icco->header->deviceClass);
 
@@ -595,7 +613,7 @@ int main(int argc, char *argv[])
 		if (tbp[0] >= 0.0) {
 			double ss[3], tt[3];
 	
-			icc_luo->wh_bk_points(icc_luo, wp, bp);
+			icc_luo->wh_bk_points(icc_luo, wp, bp, NULL);
 			if (dolab) {
 				icmXYZ2Lab(&icmD50, wp, wp);
 				icmXYZ2Lab(&icmD50, bp, bp);
@@ -672,7 +690,7 @@ int main(int argc, char *argv[])
 		ti3->add_other(ti3, "CTI3");/* our special input type is Calibration Target Information 3 */
 	
 		if (ti3->read_name(ti3, profname))
-			error("CGATS file read error : %s",ti3->err);
+			error("CGATS file read error : %s",ti3->e.m);
 	
 		if (ti3->ntables == 0 || ti3->t[0].tt != tt_other || ti3->t[0].oi != 0)
 			error ("Profile file '%s' isn't a CTI3 format file",profname);
@@ -785,7 +803,7 @@ int main(int argc, char *argv[])
 	if (bt1886) {
 		icmFile *ofp = NULL;	/* Output Color profile file */
 		icc *oicco = NULL;		/* Output Profile object */
-		icmLuBase *oluo = NULL;	/* Output Conversion object */
+		icmLuSpace *oluo = NULL;	/* Output Conversion object */
 		icmLuMatrix *lu;		/* Input profile lookup */
 		double bp[3], rgb[3];
 
@@ -800,24 +818,24 @@ int main(int argc, char *argv[])
 		lu = (icmLuMatrix *)icc_luo;	/* Safe to coerce - we have checked it's matrix. */
 
 		/* Open up output profile used for BT.1886 black point */
-		if ((ofp = new_icmFileStd_name(odispname,"r")) == NULL)
-			error ("Can't open file '%s'",odispname);
+		if ((ofp = new_icmFileStd_name(&err,odispname,"r")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",odispname,err.c,err.m);
 	
-		if ((oicco = new_icc()) == NULL)
-			error ("Creation of ICC object failed");
+		if ((oicco = new_icc(&err)) == NULL)
+			error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 		if (oicco->read(oicco,ofp,0))
 			error ("Unable to read '%s'",odispname);
 
-		if ((oluo = oicco->get_luobj(oicco, icmFwd, icRelativeColorimetric,
+		if ((oluo = (icmLuSpace *)oicco->get_luobj(oicco, icmFwd, icRelativeColorimetric,
 		                           icSigXYZData, icmLuOrdNorm)) == NULL)
-			error("get output ICC lookup object failed: %d, %s",oicco->errc,oicco->err);
+			error("get output ICC lookup object failed: %d, %s",oicco->e.c,oicco->e.m);
 
 		/* We're assuming that the input space has a perfect black point... */
 
 		/* Lookup the ouput black point in XYZ PCS. We're assuming monotonicity.. */
 		bp[0] = bp[1] = bp[2] = 0.0;
-		oluo->lookup(oluo, bp, bp);
+		oluo->lookup_fwd(oluo, bp, bp);
 
 		/* Done with output profile */
 		oluo->del(oluo);
@@ -851,7 +869,7 @@ int main(int argc, char *argv[])
 		/* Check black point now produced by input profile with bt.1886 adjustment */
 		rgb[0] = rgb[1] = rgb[2] = 0.0;
 		bt1886_fwd_curve(&bt, rgb, rgb);
-		lu->fwd_matrix(lu, rgb, rgb);
+		lu->core5_fwd(lu, rgb, rgb);
 		bt1886_wp_adjust(&bt, rgb, rgb);
 		if (verb) printf("BT.1886: check input black point rel. XYZ %f %f %f\n", rgb[0],rgb[1],rgb[2]);
 		if (verb > 1) {
@@ -866,7 +884,7 @@ int main(int argc, char *argv[])
 				
 				vi[0] = vi[1] = vi[2] = v;
 				bt1886_fwd_curve(&bt, vo, vi);
-				lu->fwd_matrix(lu, vo, vo);
+				lu->core5_fwd(lu, vo, vo);
 				bt1886_wp_adjust(&bt, vo, vo);
 		
 				icmXYZ2Lab(&lu->pcswht, Lab, vo);
@@ -982,7 +1000,7 @@ int main(int argc, char *argv[])
 				gfudge = 2;
 			else if (icx_colorant_comb_match_icc(nmask, sep_ins) == 0) {
 				error("Separation ICC device space '%s' dosen't match TI1 '%s'",
-				       icm2str(icmColorSpaceSignature, sep_ins),
+				       icm2str(icmColorSpaceSig, sep_ins),
 				       ident);	/* Should free(). */
 			}
 
@@ -991,20 +1009,20 @@ int main(int argc, char *argv[])
 				/* Check if icc is compatible with .ti1 */
 				if (sep_outs != ins)
 					error("ICC device space '%s' dosen't match Separation ICC '%s'",
-					       icm2str(icmColorSpaceSignature, ins),
-					       icm2str(icmColorSpaceSignature, sep_outs));
+					       icm2str(icmColorSpaceSig, ins),
+					       icm2str(icmColorSpaceSig, sep_outs));
 			} else if (mlu != NULL) {
 				/* Check if mpp is compatible with .ti1 */
 				if (icx_colorant_comb_match_icc(cnv_nmask, sep_outs) == 0)
 					error("MPP device space '%s' doesn't match Separation ICC '%s'",
 					       icx_inkmask2char(cnv_nmask, 1),	/* Should free(). */
-					       icm2str(icmColorSpaceSignature, sep_outs));
+					       icm2str(icmColorSpaceSig, sep_outs));
 			} else if (ti3 != NULL) {
 				/* Check if .ti3 is compatible with .ti1 */
 				if (icx_colorant_comb_match_icc(cnv_nmask, sep_outs) == 0)
 					error("TI3 device space '%s' doesn't match Separation ICC '%s'",
 					       icx_inkmask2char(cnv_nmask, 1),	/* Should free(). */
-					       icm2str(icmColorSpaceSignature, sep_outs));
+					       icm2str(icmColorSpaceSig, sep_outs));
 			}
 		} else if (icc_luo != NULL) {
 			/* Check if icc is compatible with .ti1 */
@@ -1016,12 +1034,12 @@ int main(int argc, char *argv[])
 				if (!revlookup) {
 					if (icx_colorant_comb_match_icc(nmask, ins) == 0)
 						error("ICC device space '%s' dosen't match TI1 '%s'",
-						       icm2str(icmColorSpaceSignature, ins),
+						       icm2str(icmColorSpaceSig, ins),
 						       ident);	// Should free().
 				} else {
 					if (icx_colorant_comb_match_icc(nmask, outs) == 0)
 						error("ICC device space '%s' dosen't match TI1 '%s'",
-						       icm2str(icmColorSpaceSignature, ins),
+						       icm2str(icmColorSpaceSig, ins),
 						       ident);	// Should free().
 
 				}
@@ -1205,8 +1223,8 @@ int main(int argc, char *argv[])
 						}
 					}
 	
-					if (sep_luo->lookup(sep_luo, sep, dev) > 1)
-						error ("%d, %s",icc_icco->errc,icc_icco->err);
+					if (sep_luo->lookup_fwd(sep_luo, sep, dev) & icmPe_lurv_err)
+						error ("%d, %s",icc_icco->e.c,icc_icco->e.m);
 	
 					if (out_tvenc != 0) {
 						if (out_tvenc == 1) {				/* Video 16-235 range */
@@ -1270,15 +1288,16 @@ int main(int argc, char *argv[])
 	//printf("Matrix dev in: %s\n",icmPdv(inn, sep));
 						bt1886_fwd_curve(&bt, sep, sep);
 	//printf("Matrix after bt1886 curve: %s\n",icmPdv(inn, sep));
-						lu->fwd_matrix(lu, PCS, sep);
+						lu->core5_fwd(lu, PCS, sep);
 	//printf("Matrix after matrix XYZ %s Lab %s\n",icmPdv(3, PCS), icmPLab(PCS));
 						bt1886_wp_adjust(&bt, PCS, PCS);
 	//printf("Matrix after bt1186 wp adj. XYZ %s Lab %s\n",icmPdv(3, PCS), icmPLab(PCS));
-						lu->fwd_abs(lu, PCS, PCS);
+						lu->output_pch_fwd(lu, PCS, PCS);
+						lu->output_fmt_fwd(lu, PCS, PCS);
 	//printf("Matrix after abs %s\n",icmPdv(3, PCS));
 					} else {
-						if (icc_luo->lookup(icc_luo, PCS, sep) > 1)
-							error ("%d, %s",icc_icco->errc,icc_icco->err);
+						if (icc_luo->lookup_fwd(icc_luo, PCS, sep) & icmPe_lurv_err)
+							error ("%d, %s",icc_icco->e.c,icc_icco->e.m);
 					}
 	
 					if (tbp[0] >= 0) {	/* Doing black point scaling */
@@ -1410,8 +1429,8 @@ int main(int argc, char *argv[])
 				}
 	
 				/* Do PCS to device color conversion */
-				if (icc_luo->lookup(icc_luo, dev, pcs) > 1)
-						error ("%d, %s",icc_icco->errc,icc_icco->err);
+				if (icc_luo->lookup_fwd(icc_luo, dev, pcs) & icmPe_lurv_err)
+						error ("%d, %s",icc_icco->e.c,icc_icco->e.m);
 	
 				/* Write the values */
 				id = ((char *)icg->t[0].fdata[i][si]);
@@ -1445,7 +1464,7 @@ int main(int argc, char *argv[])
 	/* If there is a calibration, append it to the .ti3 file */
 	if (cal != NULL) {
 		if (cal->write_cgats(cal, ocg) != 0)
-			error("Writing cal error : %s",cal->err);
+			error("Writing cal error : %s",cal->e.m);
 	}
 	
 	if (cal != NULL)
@@ -1463,7 +1482,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	ocg->del(ocg);		/* Clean up */
 	icg->del(icg);		/* Clean up */

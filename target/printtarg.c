@@ -3363,7 +3363,7 @@ char *argv[];
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
 		if ((cal->read(cal, calname)) != 0)
-			error("%s",cal->err);
+			error("%s",cal->e.m);
 	}
 
 	/* Set default qantization for known output */
@@ -3398,7 +3398,7 @@ char *argv[];
 	icg->add_other(icg, "CTI1"); 	/* our special input type is Calibration Target Information 1 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI1 format file");
@@ -3762,11 +3762,11 @@ char *argv[];
 	/* If there is a calibration, append it to the .ti2 file */
 	if (cal != NULL) {
 		if (cal->write_cgats(cal, ocg) != 0)
-			error("Writing cal error : %s",cal->err);
+			error("Writing cal error : %s",cal->e.m);
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	if (cal != NULL)
 		cal->del(cal);

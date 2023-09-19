@@ -60,6 +60,7 @@ main(
 	char in_name[100];
 	icmFile *rd_fp;
 	icc *rd_icco;		/* Keep object separate */
+	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 
 	/* Lookup parameters */
@@ -67,11 +68,9 @@ main(
 	icmLookupOrder    order  = icmLuOrdNorm;		/* Default */
 
 	/* Check variables */
-	icmLuBase *luo;
-	icmLuLut *luluto;	/* Lookup xLut type object */
+	icmLuSpace *luo;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 	int inn;							/* Number of input chanels */
-	icmLuAlgType alg;
 	int labin = 0;		/* Flag */
 	int rgbin = 0;		/* Flag */
 	int labout = 0;		/* Flag */
@@ -139,11 +138,9 @@ main(
 				if (na == NULL) usage();
     			switch (na[0]) {
 					case 'n':
-					case 'N':
 						order = icmLuOrdNorm;
 						break;
 					case 'r':
-					case 'R':
 						order = icmLuOrdRev;
 						break;
 					default:
@@ -198,31 +195,38 @@ main(
 	strcpy(in_name,argv[fa]);
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err, in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name, err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')", err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 	if (labin) {
 		/* Get a Device to PCS conversion object */
-		if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, intent, icSigLabData, order)) == NULL)
-			error ("%d, %s",rd_icco->errc, rd_icco->err);
+		if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, intent, icSigLabData, order)) == NULL)
+			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	} else {
 		/* Get a PCS to Device conversion object */
-		if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent, icSigLabData, order)) == NULL) {
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent, icmSigDefaultData, order)) == NULL) {
-				error ("%d, %s",rd_icco->errc, rd_icco->err);
+		if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent, icSigLabData, order)) == NULL) {
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent, icmSigDefaultData, order)) == NULL) {
+				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 			}
 		}
 	}
 
 	/* Get details of conversion */
-	luo->spaces(luo, &ins, &inn, &outs, NULL, &alg, NULL, NULL, NULL, NULL);
+	{
+		icmCSInfo ini, outi;
+
+		luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		ins = ini.sig;
+		inn = ini.nch;
+		outs = outi.sig;
+	}
 
 	if (labin) {
 		chans[3] = 0;
@@ -253,8 +257,6 @@ main(
 			labout = 1;
 	}
 
-
-	luluto = (icmLuLut *)luo;	/* Lookup xLut type object */
 
 	{
 		int i, j;
@@ -294,8 +296,8 @@ main(
 			}
 
 			/* Do the conversion */
-			if ((rv = luo->lookup(luo, out, in)) > 1)
-				error ("%d, %s",rd_icco->errc,rd_icco->err);
+			if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+				error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 			if (labout) {
 //printf("~1 in %f %f %f %f, out %f %f %f\n",in[0],in[1],in[2],in[3],out[0],out[1],out[2]);

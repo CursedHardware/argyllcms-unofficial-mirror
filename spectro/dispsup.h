@@ -26,6 +26,7 @@ struct _disp_win_info {
 #endif
 	int dummydisp;			/* NZ for dummy display */
 	disppath *disp;			/* display to calibrate. */
+	double icalmax;			/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc;			/* 1 = use RGB Video Level encoding */
 	int fullscreen;			/* NZ if whole screen should be filled with black */
 	int override;			/* Override_redirect on X11 */
@@ -33,7 +34,7 @@ struct _disp_win_info {
 	double vpatsize;		/* Size of dispwin */
 	double ho, vo;			/* Position of dispwin */
 	dispwin *dw;			/* Display window if already open */
-	dispwin *_dw;			/* Privare window if not already open */
+	dispwin *_dw;			/* Private window if not already open */
 }; typedef struct _disp_win_info disp_win_info;
 
 /* A defauult callback that can be provided as an argument to */
@@ -64,6 +65,7 @@ ccast_id *ccid,		/* non-NULL for ChromeCast */
 int madvrdisp,		/* NZ for MadVR display */
 #endif
 int dummydisp,		/* NZ for dummy display */
+double icalmax,		/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 int out_tvenc,		/* 1 = use RGB Video Level encoding */
 int fullscreen,		/* NZ if whole screen should be filled with black */
 int override,		/* Override_redirect on X11 */
@@ -111,7 +113,7 @@ struct _disprd {
 						/* 1X = disable color management cLUT (MadVR) */
 	double cal[3][MAX_CAL_ENT];	/* Calibration being worked through (cal[0][0] < 0.0 or NULL if not used) */
 	int ncal;			/* Number of entries used in cal[] */
-	icmLuBase *fake_lu;
+	icmLuSpace *fake_lu;
 	char *mcallout;		/* fake instrument shell callout */
 //	char *scallout;		/* measurement XYZ value callout */
 	int xtern;			/* Use external (user supplied) values rather than instument read */
@@ -253,6 +255,7 @@ int *nocm,			/* Return nz if no CM cLUT access. native is set to 0X */
 double cal[3][MAX_CAL_ENT],	/* Calibration set (cal = NULL or cal[0][0] < 0.0 if not to be used) */
 int ncal,			/* number of entries use in cal */
 disppath *screen,	/* Screen to calibrate. */
+double icalmax,		/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,		/* 1 = use RGB Video Level encoding */
 int fullscreen,		/* NZ if whole screen should be filled with black */
 int override,		/* Override_redirect on X11 */

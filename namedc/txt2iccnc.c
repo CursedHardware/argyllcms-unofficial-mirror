@@ -62,6 +62,7 @@ main(int argc, char *argv[]) {
 #define BUFSZ 512
 	char buf[BUFSZ];
 	icmFile *wr_fp;
+	icmErr err = { 0, { '\000'} };
 	icc *wr_icco;
 	int i, rv;
 
@@ -109,11 +110,11 @@ main(int argc, char *argv[]) {
 	}
 
 	/* Open up the file for writing */
-	if ((wr_fp = new_icmFileStd_name(outname,"w")) == NULL)
-		error ("Write: Can't open file '%s'",outname);
+	if ((wr_fp = new_icmFileStd_name(&err,outname,"w")) == NULL)
+		error ("Write: Can't open file '%s' (0x%x, '%s')",outname,err.c,err.m);
 
-	if ((wr_icco = new_icc()) == NULL)
-		error ("Write: Creation of ICC object failed");
+	if ((wr_icco = new_icc(&err)) == NULL)
+		error ("Write: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Values that must be set before writing */
 	wr_icco->header->deviceClass     = icSigNamedColorClass;
@@ -123,30 +124,30 @@ main(int argc, char *argv[]) {
 
 	/* Add the description tag */
 	{
-		icmTextDescription *wo;
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-			error("Failed to add icmTextDescription");
+		icmCommonTextDescription *wo;
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("Failed to add icmCommonTextDescription");
 	
-		wo->size = strlen(desc)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
+		wo->count = strlen(desc)+1; 	/* Allocated and used size of desc, inc null */
+		wo->allocate(wo);/* Allocate space */
 		strcpy(wo->desc, desc);		/* Copy the string in */
 	}
 
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt;
 
 		crt = "";
 
-		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
+		wo->allocate(wo);/* Allocate space */
+		strcpy(wo->desc, crt);		/* Copy the text in */
 	}
 
 	/* White Point Tag: */
@@ -156,10 +157,10 @@ main(int argc, char *argv[]) {
 		/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
 		if ((wo = (icmXYZArray *)wr_icco->add_tag(
 		           wr_icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = 1;
-		wo->allocate((icmBase *)wo);	/* Allocate space */
+		wo->count = 1;
+		wo->allocate(wo);	/* Allocate space */
 		wo->data[0] = icmD65;			/* sRGB is D65 */
 	}
 
@@ -189,10 +190,13 @@ main(int argc, char *argv[]) {
 		}
 	
 	   	wo->nDeviceCoords =	3;	/* Num of device coordinates */
-		strcpy(wo->prefix,""); /* Prefix for each color name, max 32, null terminated */
-		strcpy(wo->suffix,""); /* Suffix for each color name, max 32, null terminated */
+	   	wo->pcount = 1;
+	   	wo->scount = 1;
 	
-		wo->allocate((icmBase *)wo);	/* Allocate named color structures */
+		wo->allocate(wo);	/* Allocate strings and named color structures */
+
+		strcpy(wo->prefix,""); /* Prefix for each color name, null terminated */
+		strcpy(wo->suffix,""); /* Suffix for each color name, null terminated */
 	
 		if (verb)
 			printf("Counted %d colors\n",wo->count);
@@ -228,8 +232,10 @@ main(int argc, char *argv[]) {
 				if (verb)
 					printf("Got %f %f %f '%s'\n",rgb[0], rgb[1], rgb[2], s1);
 	
-				strncpy(wo->data[i].root,s1,31);
-				wo->data[i].root[31] = '\000';
+				s1[31] = '\000';			/* truncate if needed */
+				wo->data[i].rcount = strlen(s1) + 1;
+				wo->allocate(wo);		/* Allocate root name string */
+				strcpy(wo->data[i].root, s1);
 	
 				for (j = 0; j < wo->nDeviceCoords; j++)
 					wo->data[i].deviceCoords[j] = rgb[j];
@@ -241,7 +247,7 @@ main(int argc, char *argv[]) {
 	}
 
 	if ((rv = wr_icco->write(wr_icco, wr_fp, 0)) != 0)
-		error ("Write file: %d, %s",rv,wr_icco->err);
+		error ("Write file: %d, %s",rv,wr_icco->e.m);
 
 	wr_icco->del(wr_icco);
 	wr_fp->del(wr_fp);

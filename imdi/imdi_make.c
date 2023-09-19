@@ -79,7 +79,7 @@ gendesc descs[] = {
 		{opts_sort_splx, opts_end}		/* * Direction & stride combinations */
 //		{opts_splx_sort, opts_end}		/* * Direction & stride combinations */
 	}
-#else
+#else	/* !TEST1 */
 	/* A reasonably full set of combinations */
 								/* * means multiplies combination */
 								/* + means lockstep with previous line */

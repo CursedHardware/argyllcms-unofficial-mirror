@@ -7,6 +7,79 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
+Version 3.0.0 15th September 2023
+-------------
+
+* Updated ccast/axTLS to get ChromCast working again with latest Google
+  CC operating software.
+
+* Extensive re-write/re-factor of icclib to make it more future-proof :-
+  Changed all the tag type file serialization to be more declarative in form,
+  and make it more robust against buffer overflows. Switched to a processing
+  element pipeline implementation of color transforms. 
+  The change in icclib API's necessitates changes thruout the
+  ArgyllCMS codebase. Bumped ArgyllCMS and icclib to V3 to reflect
+  this major re-factoring. 
+  Added iccdump -S flag which turns on strict ICC format checking.
+  Added iccdumo -w and -W flags which turn on ICC format warnings.
+  Added icclu -T flag which turns on detailed conversion tracing.
+  See icc/log.txt for more details.
+
+* Added ref/ColorCheckerPassport.ti2 and ref/ColorCheckerHalfPassport.ti2
+  to allow measuring ColorCheckerPassport with instrument.
+
+* Fixed bug in Munki spectro hi-res mode with some instruments.
+  Luminance matching between normal and hi-res was sometimes quite poor.
+
+* Added ARGYLL_CREATE_DISPLAY_PROFILE_WITHOUT_CHAD environment variable.
+
+* Changed colprof -U flag to -u.
+  Changed dispcal -J flag to -K
+  to accomodate a potential new flag for colprof and dispcal.
+
+* Added workaround for bug in madHcNet64.dll32/64.dll which sometimes
+  causes failure.
+
+* Added delay after USB set_config on OS X to help Spyder 3/4 on
+  Ventura OS.
+
+* Added -Y parameter to dispwin to override automatic patch delay.
+
+* Changed i1d3 driver to cope with Rev. B "0x83" error robustly.
+  This should fix any issuses measuring low level Red only
+  patch values on OLED displays, but with slower measurements
+  when this occures.
+
+* Added spotread -Y S option to save spectral sensitivity curves
+  and added corresponding support in i1d3 driver.
+  This alllows for comparison of different instruments factory calibrations.
+
+* Added a -h scale parameter to dispread, to allow the automatic
+  instrument calibration test patch values to be scaled down from
+  their default 100% value. This is useful with HDR displays.
+
+* Added manifest to MSWindows executables to use
+  UTF-8 code pages on Windows 1903 and later.
+  This should improve non-ASCII filename and path
+  handling.
+
+* Added a Violet colorant to the targen colorant list. 
+
+* Fixed problem with OS X 64 bit backwards compatibility
+  where it failed to locate serial instruments when the binaries
+  are run on OS X V12 or latter machines.
+
+* Fixed bug in i1Pro3 driver where it was not returning the correct
+  measurement conditions enum.
+
+* Fixed spotread so that ambient measure for monochrome sources doesn't
+  error out due to bad CCT/VCT/VDT. Also change -T so that it
+  suppresses CCT etc. if ambient mode is used.
+
+* Added hacky workaround to strange Mac M2/rosetta bug in del_i1proimp().
+
+* Added -n option to specplot to match plot levels.
+
 
 Version 2.3.1 27th June 2022
 -------------
@@ -4579,7 +4652,7 @@ Version 0.5 changes (7 November 2004)
     desired number of test points.)
 
 
-Fourth snapshot changes: (25 March 2002)
+Fourth snapshot changes: R4 (25 March 2002)
 ------------------------
 
 *   Removed gamut/iccgamut, and renamed
@@ -4764,7 +4837,7 @@ Fourth snapshot changes: (25 March 2002)
 *   Added a couple of options to cctiff to aid diagnostics.
 
 
-Third snapshot changes: (17 July 2001)
+Third snapshot changes: R3 (17 July 2001)
 ----------------------
 
 *	Changed targen to allow full spread test points to take account
@@ -4819,7 +4892,7 @@ Third snapshot changes: (17 July 2001)
     is to use Java as a sophisticated scripting front end, to
 	make the command line commands more palatable.
 
-Second snapshot changes: (30 November 2000)
+Second snapshot changes: R2 (30 November 2000)
 ------------------------
 
   Neil Okamoto has contributed support for generating
@@ -4850,5 +4923,6 @@ Second snapshot changes: (30 November 2000)
 
   Numerous bug fixes and enhancement.
 
-First snapshot	(28 October 2000)
+First snapshot	R1 (28 October 2000)
 --------------
+

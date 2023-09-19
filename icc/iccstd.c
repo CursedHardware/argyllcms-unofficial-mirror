@@ -31,9 +31,6 @@
 #ifdef __sun
 #include <unistd.h>
 #endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "icc.h"
 
 #endif /* !COMBINED_STD */
@@ -48,11 +45,139 @@
 # define SIZE_MAX ((size_t)(-1))
 #endif
 
-/* ------------------------------------------------- */
-/* Standard Heap allocator icmAlloc compatible class */
-/* Just call the standard system function */
+static void Zmemory(void) { } 
+#define ZMARKER ((void *)Zmemory)	/* Use address of function as zero memory marker */
 
-#ifdef ICC_DEBUG_MALLOC
+/* -------------------------------------------------- */
+
+/* Take a reference to the icmAlloc */
+icmAlloc *icmAlloc_reference(
+icmAlloc *pp
+) {
+	pp->refcount++;
+	return pp;
+}
+
+/* -------------------------------------------------- */
+/* Standard Heap allocator icmAlloc compatible class. */
+/* Make the icclib malloc functions behave consistently, such as */
+/* malloc(0) != NULL, realloc(NULL, size) and free(NULL) working, */
+/* was well as providing recalloc() */
+
+#ifndef ICC_DEBUG_MALLOC
+
+static void icmAllocStd_free(
+struct _icmAlloc *pp,
+void *ptr
+) {
+	if (ptr != NULL && ptr != ZMARKER) {
+		free(ptr);
+	}
+}
+
+static void *icmAllocStd_malloc(
+struct _icmAlloc *pp,
+size_t size
+) {
+	if (size == 0)			/* Some malloc's return NULL for zero size */
+		return ZMARKER;
+	return malloc(size);
+}
+
+static void *icmAllocStd_realloc(
+struct _icmAlloc *pp,
+void *ptr,
+size_t size
+) {
+	if (size == 0) {			/* Some malloc's return NULL for zero size */
+		icmAllocStd_free(pp, ptr);
+		return ZMARKER;
+	}
+	if (ptr == NULL)			/* Some realloc's barf on reallocing NULL */
+		return malloc(size);
+	return realloc(ptr, size);
+}
+
+static void *icmAllocStd_calloc(
+struct _icmAlloc *pp,
+size_t num,
+size_t size
+) {
+	int ind = 0;
+	size_t tot = sati_mul(&ind, num, size);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+
+	if (tot == 0)				/* Some malloc's return NULL for zero size */
+		return ZMARKER;
+	return calloc(num, size);
+}
+
+static void *icmAllocStd_recalloc(
+struct _icmAlloc *pp,
+void *ptr,
+size_t cnum,		/* Current number and size */
+size_t csize,
+size_t nnum,		/* New number and size */
+size_t nsize
+) {
+	int ind = 0;
+	size_t ctot, ntot;
+
+	if (ptr == NULL)
+		return icmAllocStd_calloc(pp, nnum, nsize); 
+
+	ntot = sati_mul(&ind, nnum, nsize);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+	ctot = sati_mul(&ind, cnum, csize);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+	ptr = icmAllocStd_realloc(pp, ptr, ntot);
+
+	if (ptr != NULL && ptr != ZMARKER && ntot > ctot)
+		memset((char *)ptr + ctot, 0, ntot - ctot);			/* Clear the new region */
+	return ptr;
+}
+
+/* we're done with the AllocStd object */
+static void icmAllocStd_delete(
+icmAlloc *pp
+) {
+	if (pp == NULL || --pp->refcount > 0)
+		return;
+	{
+		icmAllocStd *p = (icmAllocStd *)pp;
+		free(p);
+	}
+}
+
+/* Create icmAllocStd */
+/* Note that this will fail if e has an error already set */
+icmAlloc *new_icmAllocStd(icmErr *e) {
+	icmAllocStd *p;
+
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
+
+	if ((p = (icmAllocStd *) calloc(1,sizeof(icmAllocStd))) == NULL) {
+		icm_err_e(e, ICM_ERR_MALLOC, "Allocating Standard Allocator object failed");
+		return NULL;
+	}
+	p->refcount  = 1;
+	p->malloc    = icmAllocStd_malloc;
+	p->calloc    = icmAllocStd_calloc;
+	p->realloc   = icmAllocStd_realloc;
+	p->recalloc  = icmAllocStd_recalloc;
+	p->free      = icmAllocStd_free;
+	p->reference = icmAlloc_reference;
+	p->del       = icmAllocStd_delete;
+
+	return (icmAlloc *)p;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - */
+#else /* ICC_DEBUG_MALLOC */
 
 /* Make sure that inline malloc #defines are turned off for this file */
 #undef was_debug_malloc
@@ -60,9 +185,11 @@
 #undef malloc
 #undef calloc
 #undef realloc
+#undef recalloc
 #undef free
 #define was_debug_malloc
 #endif	/* dmalloc */
+
 
 static void *icmAllocStd_dmalloc(
 struct _icmAlloc *pp,
@@ -70,19 +197,9 @@ size_t size,
 char *name,
 int line
 ) {
+	if (size == 0)			/* Some malloc's return NULL for zero size */
+		return ZMARKER;
 	return malloc(size);
-}
-
-static void *icmAllocStd_dcalloc(
-struct _icmAlloc *pp,
-size_t num,
-size_t size,
-char *name,
-int line
-) {
-	if (size != 0 && num > (SIZE_MAX/size))
-		return NULL;
-	calloc(num, size);
 }
 
 static void *icmAllocStd_drealloc(
@@ -92,9 +209,61 @@ size_t size,
 char *name,
 int line
 ) {
+	if (size == 0) {			/* Some malloc's return NULL for zero size */
+		icmAllocStd_dfree(pp, ptr, name, line);
+		return ZMARKER;
+	}
+	if (ptr == NULL)			/* Some realloc's barf on reallocing NULL */
+		return malloc(size);
 	return realloc(ptr, size);
 }
 
+static void *icmAllocStd_dcalloc(
+struct _icmAlloc *pp,
+size_t num,
+size_t size,
+char *name,
+int line
+) {
+	int ind = 0;
+	size_t tot = sati_mul(&ind, num, size);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+
+	if (tot == 0)				/* Some malloc's return NULL for zero size */
+		return ZMARKER;
+	return calloc(num, size);
+}
+
+static void *icmAllocStd_drecalloc(
+struct _icmAlloc *pp,
+void *ptr,
+size_t cnum,		/* Current number and size */
+size_t csize,
+size_t nnum,		/* New number and size */
+size_t nsize,
+char *name,
+int line
+) {
+	int ind = 0;
+	size_t ctot, ntot;
+
+	if (ptr == NULL)
+		return icmAllocStd_dcalloc(pp, nnum, nsize, name, line); 
+
+	ntot = sati_mul(&ind, nnum, nsize);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+	ctot = sati_mul(&ind, cnum, csize);
+	if (ind != 0)
+		return NULL;			/* Overflow */
+	ptr = icmAllocStd_realloc(pp, ptr, ntot, name, line);
+
+	if (ptr != NULL && ptr != ZMARKER && ntot > ctot)
+		memset((char *)ptr + ctot, 0, ntot - ctot);			/* Clear the new region */
+	return ptr;
+
+}
 
 static void icmAllocStd_dfree(
 struct _icmAlloc *pp,
@@ -102,104 +271,62 @@ void *ptr,
 char *name,
 int line
 ) {
-	free(ptr);
+	if (ptr != NULL && ptr != ZMARKER)
+		free(ptr);
 }
 
 /* we're done with the AllocStd object */
 static void icmAllocStd_delete(
 icmAlloc *pp
 ) {
-	icmAllocStd *p = (icmAllocStd *)pp;
-
-	free(p);
+	if (p == NULL || --p->refcount > 0)
+		return;
+	{
+		icmAllocStd *p = (icmAllocStd *)pp;
+	
+		free(p);
+	}
 }
 
 /* Create icmAllocStd */
-icmAlloc *new_icmAllocStd() {
+icmAlloc *new_icmAllocStd(icmErr *e) {
 	icmAllocStd *p;
-	if ((p = (icmAllocStd *) calloc(1,sizeof(icmAllocStd))) == NULL)
+
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
+
+	if ((p = (icmAllocStd *) calloc(1,sizeof(icmAllocStd))) == NULL) {
+		icm_err_e(e, ICM_ERR_MALLOC, "Allocating Standard Allocator object failed");
 		return NULL;
-	p->dmalloc  = icmAllocStd_dmalloc;
-	p->dcalloc  = icmAllocStd_dcalloc;
-	p->drealloc = icmAllocStd_drealloc;
-	p->dfree    = icmAllocStd_dfree;
-	p->del     = icmAllocStd_delete;
+	}
+	p->refcount  = 1;
+	p->dmalloc   = icmAllocStd_dmalloc;
+	p->drealloc  = icmAllocStd_drealloc;
+	p->dcalloc   = icmAllocStd_dcalloc;
+	p->drecalloc = icmAllocStd_drecalloc;
+	p->dfree     = icmAllocStd_dfree;
+	p->reference = icmAlloc_reference;
+	p->del       = icmAllocStd_delete;
 
 	return (icmAlloc *)p;
 }
 
 #ifdef was_debug_malloc
-#undef was_debug_malloc
+/* Re-enable debug malloc #defines */
 #define malloc( p, size )	    dmalloc( p, size, __FILE__, __LINE__ )
 #define calloc( p, num, size )	dcalloc( p, num, size, __FILE__, __LINE__ )
 #define realloc( p, ptr, size )	drealloc( p, ptr, size, __FILE__, __LINE__ )
+#define recalloc( p, ptr, cnum, csize, nnum, nsize ) drecalloc( p, ptr, cnum, csize, nnum, nsize, __FILE__, __LINE__ )
 #define free( p, ptr )	        dfree( p, ptr , __FILE__, __LINE__ )
+#undef was_debug_malloc
 #endif	/* was_debug_malloc */
-
-#else /* !DEBUG_MALLOC */
-
-static void *icmAllocStd_malloc(
-struct _icmAlloc *pp,
-size_t size
-) {
-	return malloc(size);
-}
-
-static void *icmAllocStd_calloc(
-struct _icmAlloc *pp,
-size_t num,
-size_t size
-) {
-	if (size != 0 && num > (SIZE_MAX/size))
-		return NULL;
-	return calloc(num, size);
-}
-
-static void *icmAllocStd_realloc(
-struct _icmAlloc *pp,
-void *ptr,
-size_t size
-) {
-	return realloc(ptr, size);
-}
-
-
-static void icmAllocStd_free(
-struct _icmAlloc *pp,
-void *ptr
-) {
-	free(ptr);
-}
-
-/* we're done with the AllocStd object */
-static void icmAllocStd_delete(
-icmAlloc *pp
-) {
-	icmAllocStd *p = (icmAllocStd *)pp;
-
-	free(p);
-}
-
-/* Create icmAllocStd */
-icmAlloc *new_icmAllocStd() {
-	icmAllocStd *p;
-	if ((p = (icmAllocStd *) calloc(1,sizeof(icmAllocStd))) == NULL)
-		return NULL;
-	p->malloc  = icmAllocStd_malloc;
-	p->calloc  = icmAllocStd_calloc;
-	p->realloc = icmAllocStd_realloc;
-	p->free    = icmAllocStd_free;
-	p->del     = icmAllocStd_delete;
-
-	return (icmAlloc *)p;
-}
 
 #endif	/* ICC_DEBUG_MALLOC */
 
 /* ------------------------------------------------- */
 /* Standard Stream file I/O icmFile compatible class */
 
-/* Get the size of the file (Only valid for reading file. */
+/* Get the size of the file (Only valid for reading file). */
 static size_t icmFileStd_get_size(icmFile *pp) {
 	icmFileStd *p = (icmFileStd *)pp;
 
@@ -275,88 +402,109 @@ size_t *len
 	return 1;
 }
 
+/* Take a reference to the icmFileStd */
+static icmFile *icmFileStd_reference(
+icmFile *pp
+) {
+	pp->refcount++;
+	return pp;
+}
+
 /* we're done with the file object, return nz on failure */
 static int icmFileStd_delete(
 icmFile *pp
 ) {
-	int rv = 0;
-	icmFileStd *p = (icmFileStd *)pp;
-	icmAlloc *al = p->al;
-	int del_al   = p->del_al;
+	if (pp == NULL || --pp->refcount > 0)
+		return 0;
+	{
+		int rv = 0;
+		icmFileStd *p = (icmFileStd *)pp;
+		icmAlloc *al = p->al;
+	
+		if (p->doclose != 0) {
+			if (fclose(p->fp) != 0)
+				rv = 2;
+		}
+	
+		al->free(al, p);	/* Free this object */
+		al->del(al);		/* Free allocator if this is the last reference */
 
-	if (p->doclose != 0) {
-		if (fclose(p->fp) != 0)
-			rv = 2;
+		return rv;
 	}
-
-	al->free(al, p);	/* Free object */
-	if (del_al)			/* We are responsible for deleting allocator */
-		al->del(al);
-
-	return rv;
 }
 
 /* Create icmFile given a (binary) FILE* */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileStd_fp(
+icmErr *e,		/* Sticky return error, may be NULL */
 FILE *fp
 ) {
-	return new_icmFileStd_fp_a(fp, NULL);
+	return new_icmFileStd_fp_a(e, fp, NULL);
 }
 
 /* Create icmFile given a (binary) FILE* and allocator */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileStd_fp_a(
+icmErr *e,			/* Sticky returned error, may be NULL */
 FILE *fp,
 icmAlloc *al		/* heap allocator, NULL for default */
 ) {
-	icmFileStd *p;
-	int del_al = 0;
+	icmFileStd *p = NULL;
+	struct stat sbuf = { 0 };
+
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
 
 	if (al == NULL) {	/* None provided, create default */
-		if ((al = new_icmAllocStd()) == NULL)
+		if ((al = new_icmAllocStd(e)) == NULL)
 			return NULL;
-		del_al = 1;		/* We need to delete the allocator we created */
+	} else {
+		al = al->reference(al);
 	}
 
 	if ((p = (icmFileStd *) al->calloc(al, 1, sizeof(icmFileStd))) == NULL) {
-		if (del_al)
-			al->del(al);
+		al->del(al);
+		icm_err_e(e, ICM_ERR_MALLOC, "Allocating Standard File object failed");
 		return NULL;
 	}
-	p->al       = al;				/* Heap allocator */
-	p->del_al   = del_al;			/* Flag noting whether we delete it */
-	p->get_size = icmFileStd_get_size;
-	p->seek     = icmFileStd_seek;
-	p->read     = icmFileStd_read;
-	p->write    = icmFileStd_write;
-	p->gprintf  = icmFileStd_printf;
-	p->flush    = icmFileStd_flush;
-	p->get_buf  = icmFileStd_get_buf;
-	p->del      = icmFileStd_delete;
-
-	// fstat() is not so robust on MSWin.
-	if (fseek(fp, 0L, SEEK_END) == 0) {
-		p->size = ftell(fp);
-		fseek(fp, 0L, SEEK_SET);
-	} else {
-		p->size = 0;
-	}
+	p->refcount  = 1;
+	p->al        = al;
+	p->get_size  = icmFileStd_get_size;
+	p->seek      = icmFileStd_seek;
+	p->read      = icmFileStd_read;
+	p->write     = icmFileStd_write;
+	p->printf    = icmFileStd_printf;
+	p->flush     = icmFileStd_flush;
+	p->get_buf   = icmFileStd_get_buf;
+	p->reference = icmFileStd_reference;
+	p->del       = icmFileStd_delete;
 
 	p->fp = fp;
 	p->doclose = 0;
+
+	if (fstat(fileno(fp), &sbuf) == 0) {
+		p->size = sbuf.st_size;
+	} else {
+		p->size = 0;		/* Hmm. */
+	}
 
 	return (icmFile *)p;
 }
 
 /* Create icmFile given a file name */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileStd_name(
+icmErr *e,				/* sticky return error, may be NULL */
 char *name,
 char *mode
 ) {
-	return new_icmFileStd_name_a(name, mode, NULL);
+	return new_icmFileStd_name_a(e, name, mode, NULL);
 }
 
 /* Create given a file name and allocator */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileStd_name_a(
+icmErr *e,				/* Sticky return error, may be NULL */
 char *name,
 char *mode,
 icmAlloc *al			/* heap allocator, NULL for default */
@@ -364,6 +512,9 @@ icmAlloc *al			/* heap allocator, NULL for default */
 	FILE *fp;
 	icmFile *p;
 	char nmode[50];
+
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
 
 	strcpy(nmode, mode);
 #if !defined(O_CREAT) && !defined(_O_CREAT)
@@ -373,10 +524,12 @@ icmAlloc *al			/* heap allocator, NULL for default */
 	strcat(nmode, "b");
 #endif
 
-	if ((fp = fopen(name,nmode)) == NULL)
+	if ((fp = fopen(name,nmode)) == NULL) {
+		icm_err_e(e, ICM_ERR_FILE_OPEN, "Opening file '%s' failed",name);
 		return NULL;
+	}
 	
-	p = new_icmFileStd_fp_a(fp, al);
+	p = new_icmFileStd_fp_a(e, fp, al);
 
 	if (p != NULL) {
 		icmFileStd *pp = (icmFileStd *)p;
@@ -388,34 +541,42 @@ icmAlloc *al			/* heap allocator, NULL for default */
 /* ------------------------------------------------- */
 
 /* Create a memory image file access class with the std allocator */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileMem(
+icmErr *e,			/* Sticky return error, may be NULL */
 void *base,			/* Pointer to base of memory buffer */
 size_t length		/* Number of bytes in buffer */
 ) {
 	icmFile *p;
 	icmAlloc *al;			/* memory allocator */
 
-	if ((al = new_icmAllocStd()) == NULL)
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
+
+	if ((al = new_icmAllocStd(e)) == NULL)
 		return NULL;
 
-	if ((p = new_icmFileMem_a(base, length, al)) == NULL) {
+	if ((p = new_icmFileMem_a(e, base, length, al)) == NULL) {
 		al->del(al);
 		return NULL;
 	}
 
-	((icmFileMem *)p)->del_al = 1;		/* Get icmFileMem->del to cleanup allocator */
+	al->del(al);			/* icmFile will have taken a reference */
+
 	return p;
 }
 
 /* Create a memory image file access class with the std allocator */
 /* and delete buffer when icmFile is deleted. */
+/* Note that this will fail if e has an error already set */
 icmFile *new_icmFileMem_d(
+icmErr *e,			/* Sticky return error, may be NULL */
 void *base,			/* Pointer to base of memory buffer */
 size_t length		/* Number of bytes in buffer */
 ) {
 	icmFile *fp;
 
-	if ((fp = new_icmFileMem(base, length)) != NULL) {	
+	if ((fp = new_icmFileMem(e, base, length)) != NULL) {	
 		((icmFileMem *)fp)->del_buf = 1;
 	}
 	return fp;
@@ -424,40 +585,45 @@ size_t length		/* Number of bytes in buffer */
 /* ------------------------------------------------- */
 
 /* Create an icc with the std allocator */
-icc *new_icc(void) {
+/* Note that this will fail if e has an error already set */
+icc *new_icc(icmErr *e) {
 	icc *p;
 	icmAlloc *al;			/* memory allocator */
 
-	if ((al = new_icmAllocStd()) == NULL)
+	if (e != NULL && e->c != ICM_ERR_OK)
+		return NULL;		/* Pre-existing error */
+
+	if ((al = new_icmAllocStd(e)) == NULL)
 		return NULL;
 
-	if ((p = new_icc_a(al)) == NULL) {
+	if ((p = new_icc_a(e, al)) == NULL) {
 		al->del(al);
 		return NULL;
 	}
 
-	p->del_al = 1;		/* Get icc->del to cleanup allocator */
+	al->del(al);		/* new_icc_a will have taken a reference */
 	return p;
 }
 
 /* ------------------------------------------------- */
 
 /* Create an icmMD5 with the std allocator */
-icmMD5 *new_icmMD5(void) {
+/* Note that this will fail if e has an error already set */
+icmMD5 *new_icmMD5(icmErr *e) {
 	icmMD5 *p;
 	icmAlloc *al;			/* memory allocator */
 
-	if ((al = new_icmAllocStd()) == NULL)
+	if ((al = new_icmAllocStd(e)) == NULL)
 		return NULL;
 
-	if ((p = new_icmMD5_a(al)) == NULL) {
+	if ((p = new_icmMD5_a(e, al)) == NULL) {
 		al->del(al);
 		return NULL;
 	}
 
-	p->del_al = 1;		/* Get md5->del to cleanup allocator */
+	al->del(al);		/* new_icmMD5_a will have taken a reference */
+
 	return p;
 }
-
 
 #endif /* defined(SEPARATE_STD) || defined(COMBINED_STD) */

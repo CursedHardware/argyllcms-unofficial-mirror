@@ -54,6 +54,7 @@
 # error "Need to #include fcntl.h!"
 #endif
 
+
 void set_fminmax(double min[3], double max[3]);
 void reset_filter();
 void add_fpixel(double val[3]);
@@ -347,6 +348,7 @@ main(int argc, char *argv[]) {
 	int rv = 0;
 
 	icc *icco = NULL;
+	icmErr err = { 0, { '\000'} };
 	xicc *xicco = NULL;
 	icxcam *cam = NULL;			/* Separate CAM used for Lab TIFF files */
 	icxViewCond vc;				/* Viewing Condition for CIECAM */
@@ -634,6 +636,7 @@ main(int argc, char *argv[]) {
 	if (fa < (argc-1))
 		strncpy(prof_name,argv[fa++],MAXNAMEL); prof_name[MAXNAMEL] = '\000';
 
+
 	for (ffa = fa; fa < argc; fa++)
 		if (fa >= argc || argv[fa][0] == '-') usage();
 	lfa = fa-1;
@@ -670,8 +673,8 @@ main(int argc, char *argv[]) {
 	
 		if (verb) {
 			icmFile *op;
-			if ((op = new_icmFileStd_fp(stdout)) == NULL)
-				error ("Can't open stdout");
+			if ((op = new_icmFileStd_fp(&err, stdout)) == NULL)
+				error ("Can't open stdout (0x%x, '%s')",err.c,err.m);
 			icco->header->dump(icco->header, op, 1);
 			op->del(op);
 		}
@@ -689,11 +692,11 @@ main(int argc, char *argv[]) {
 	
 		/* Setup the default viewing conditions */
 		if (xicc_enum_viewcond(xicco, &vc, -1, NULL, 0, NULL) == -999)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	
 		if (vc_e != -1)
 			if (xicc_enum_viewcond(xicco, &vc, vc_e, NULL, 0, NULL) == -999)
-				error ("%d, %s",xicco->errc, xicco->err);
+				error ("%d, %s",xicco->e.c, xicco->e.m);
 		if (vc_s >= 0)
 			vc.Ev = vc_s;
 		if (vc_wXYZ[1] > 0.0) {
@@ -755,7 +758,7 @@ main(int argc, char *argv[]) {
 		             | ICX_CAM_NOGAMCLIP
 #endif
 		           , func, intent, pcsor, order, &vc, NULL)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	
 		luo->spaces(luo, &ins, &inn, &outs, &outn, &alg, NULL, NULL, NULL);
 
@@ -871,6 +874,7 @@ main(int argc, char *argv[]) {
 		set_fminmax(pcsmin, pcsmax);
 	}
 
+
 	/* - - - - - - - - - - - - - - - */
 	/* Creat a raster gamut surface */
 	gam = new_gamut(gamres, pcsor == icxSigJabData, 1);
@@ -911,7 +915,7 @@ main(int argc, char *argv[]) {
 			if (luo != NULL) {
 				if (inn != (samplesperpixel-extrasamples))
 					error("TIFF Input file has %d input chanels and is mismatched to colorspace '%s'",
-					       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+					       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 			}
 
 			if ((tcs = TiffPhotometric2ColorSpaceSignature(&cvt, &sign_mask, photometric,
@@ -921,7 +925,7 @@ main(int argc, char *argv[]) {
 			if (tcs != ins) {
 				if (luo != NULL)
 					error("TIFF photometric '%s' doesn't match ICC input colorspace '%s' !",
-					      Photometric2str(photometric), icm2str(icmColorSpaceSignature,ins));
+					      Photometric2str(photometric), icm2str(icmColorSpaceSig,ins));
 				else
 					error("No profile provided and TIFF photometric '%s' isn't Lab !",
 					      Photometric2str(photometric));
@@ -934,7 +938,7 @@ main(int argc, char *argv[]) {
 			if (verb) {
 				printf("Input TIFF file '%s'\n",in_name);
 				printf("TIFF file photometric is %s\n",Photometric2str(photometric));
-				printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+				printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 				printf("File size %d x %d pixels\n",width,height);
 				printf("\n");
 			}
@@ -1023,16 +1027,16 @@ main(int argc, char *argv[]) {
 			if (luo != NULL) {
 				if (inn != samplesperpixel)
 					error ("JPEG Input file has %d input chanels and is mismatched to colorspace '%s'",
-					       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+					       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 			}
 
 			if (tcs != ins) {
 				if (luo != NULL)
 					error("JPEG colorspace '%s' doesn't match ICC input colorspace '%s' !",
-					      icm2str(icmColorSpaceSignature, tcs), icm2str(icmColorSpaceSignature,ins));
+					      icm2str(icmColorSpaceSig, tcs), icm2str(icmColorSpaceSig,ins));
 				else
 					error("No profile provided and JPEG colorspace '%s' isn't Lab !",
-					      icm2str(icmColorSpaceSignature, tcs));
+					      icm2str(icmColorSpaceSig, tcs));
 			}
 			jpeg_calc_output_dimensions(&rj);
 			width = rj.output_width;
@@ -1041,7 +1045,7 @@ main(int argc, char *argv[]) {
 			if (verb) {
 				printf("Input JPEG file '%s'\n",in_name);
 				printf("JPEG file original colorspace is %s\n",JPEG_cspace2str(rj.jpeg_color_space));
-				printf("JPEG file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+				printf("JPEG file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 				printf("File size %d x %d pixels\n",width,height);
 				printf("\n");
 			}
@@ -1115,7 +1119,7 @@ main(int argc, char *argv[]) {
 				if (luo != NULL) {
 //printf("~1 RGB in value = %f %f %f\n",in[0],in[1],in[2]);
 					if ((rv = luo->lookup(luo, out, in)) > 1)
-						error ("%d, %s",icco->errc,icco->err);
+						error ("%d, %s",icco->e.c,icco->e.m);
 //printf("~1 after luo = %f %f %f\n",out[0],out[1],out[2]);
 					
 					if (outs == icSigXYZData) {	/* Convert to Lab */
@@ -1408,3 +1412,5 @@ void del_filter() {
 
 	free(ff);
 }
+
+

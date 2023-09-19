@@ -57,6 +57,7 @@ int argc,
 char *argv[]
 ) {
 	int fa,nfa;
+	icmErr e = { 0, { '\000'} };
 	char out_name[1000];
 	icmFile *wr_fp;
 	icc *wr_icco;
@@ -105,12 +106,14 @@ char *argv[]
 	/* Create a matrix/shaper based XYZ profile */
 	/* ---------------------------------------- */
 
-	/* Open up the file for writing */
-	if ((wr_fp = new_icmFileStd_name(out_name,"w")) == NULL)
-		error ("Write: Can't open file '%s'",out_name);
+	icm_err_clear_e(&e);
 
-	if ((wr_icco = new_icc()) == NULL)
-		error ("Write: Creation of ICC object failed");
+	/* Open up the file for writing */
+	if ((wr_fp = new_icmFileStd_name(&e, out_name,"w")) == NULL)
+		error ("Write: Can't open file '%s', failed with 0x%x, '%s'",out_name,e.c, e.m);
+
+	if ((wr_icco = new_icc(&e)) == NULL)
+		error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 
 	/* Add all the tags required */
 
@@ -125,39 +128,34 @@ char *argv[]
     	wh->renderingIntent = icPerceptual;
 
 		/* Values that should be set before writing */
-		wh->manufacturer = str2tag("????");
-    	wh->model        = str2tag("????");
+		wh->manufacturer = icmstr2tag("????");
+    	wh->model        = icmstr2tag("????");
 	}
 	/* Profile Description Tag: */
 	{
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst;
 
 		dst = "sRGB like Matrix Display profile";
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-		wo->scCode = 0;
-		wo->scSize = strlen(dst)+1;
-		if (wo->scSize > 67)
-			error("Description scriptCode string longer than 67");
-		wo->allocate((icmBase *)wo);/* Allocate space */
+		wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
+		wo->allocate(wo);/* Allocate space */
 		strcpy(wo->desc, dst);		/* Copy the string in */
-		strcpy((char *)wo->scDesc, dst);	/* Copy the string in */
 	}
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt = "Copyright tag goes here";
-		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-		wo->size = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate((icmBase *)wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
+		wo->allocate(wo);/* Allocate space */
+		strcpy(wo->desc, crt);		/* Copy the text in */
 	}
 
 	/* Could add other relevant tags here, such as:
@@ -236,10 +234,10 @@ char *argv[]
 
 			if ((wo = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = 1;
-			wo->allocate((icmBase *)wo);	/* Allocate space */
+			wo->count = 1;
+			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = wrgb[0][0];
 			wo->data[0].Y = wrgb[0][1];
 			wo->data[0].Z = wrgb[0][2]; 
@@ -250,10 +248,10 @@ char *argv[]
 
 			if ((wo = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigMediaBlackPointTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->errc,wr_icco->err);
+				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
-			wo->size = 1;
-			wo->allocate((icmBase *)wo);	/* Allocate space */
+			wo->count = 1;
+			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = 0.00;
 			wo->data[0].Y = 0.00;
 			wo->data[0].Z = 0.00;
@@ -277,18 +275,18 @@ char *argv[]
 
 			if ((wor = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigRedColorantTag, icSigXYZArrayType)) == NULL) 
-					error("add_tag failed: %d, %s",rv,wr_icco->err);
+					error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wog = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigGreenColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 			if ((wob = (icmXYZArray *)wr_icco->add_tag(
 			           wr_icco, icSigBlueColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->err);
+				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 
-			wor->size = wog->size = wob->size = 1;
-			wor->allocate((icmBase *)wor);	/* Allocate space */
-			wog->allocate((icmBase *)wog);
-			wob->allocate((icmBase *)wob);
+			wor->count = wog->count = wob->count = 1;
+			wor->allocate(wor);	/* Allocate space */
+			wog->allocate(wog);
+			wob->allocate(wob);
 			wor->data[0].X = d50m[0][0]; wor->data[0].Y = d50m[0][1]; wor->data[0].Z = d50m[0][2];
 			wog->data[0].X = d50m[1][0]; wog->data[0].Y = d50m[1][1]; wog->data[0].Z = d50m[1][2];
 			wob->data[0].X = d50m[2][0]; wob->data[0].Y = d50m[2][1]; wob->data[0].Z = d50m[2][2];
@@ -301,25 +299,25 @@ char *argv[]
 
 		if ((wor = (icmCurve *)wr_icco->add_tag(
 		           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
-			error("add_tag failed: %d, %s",rv,wr_icco->err);
-		wor->flag = icmCurveSpec;
-		wor->size = 1024;
-		wor->allocate((icmBase *)wor);	/* Allocate space */
-		for (i = 0; i < wor->size; i++)
-			wor->data[i] = gdv2dv(i/(wor->size-1.0));
+			error("add_tag failed: %d, %s",rv,wr_icco->e.m);
+		wor->ctype = icmCurveSpec;
+		wor->count = 1024;
+		wor->allocate(wor);	/* Allocate space */
+		for (i = 0; i < wor->count; i++)
+			wor->data[i] = gdv2dv(i/(wor->count-1.0));
 
 		/* Link other channels to the red */
 		if ((wog = (icmCurve *)wr_icco->link_tag(
 		           wr_icco, icSigGreenTRCTag, icSigRedTRCTag)) == NULL) 
-			error("link_tag failed: %d, %s",rv,wr_icco->err);
+			error("link_tag failed: %d, %s",rv,wr_icco->e.m);
 		if ((wob = (icmCurve *)wr_icco->link_tag(
 		           wr_icco, icSigBlueTRCTag, icSigRedTRCTag)) == NULL) 
-			error("link_tag failed: %d, %s",rv,wr_icco->err);
+			error("link_tag failed: %d, %s",rv,wr_icco->e.m);
 	}
 
 	/* Write the file out */
 	if ((rv = wr_icco->write(wr_icco,wr_fp,0)) != 0)
-		error ("Write file: %d, %s",rv,wr_icco->err);
+		error ("Write file: %d, %s",rv,wr_icco->e.m);
 	
 	wr_icco->del(wr_icco);
 	wr_fp->del(wr_fp);

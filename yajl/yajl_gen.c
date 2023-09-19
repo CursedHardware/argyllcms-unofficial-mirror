@@ -275,8 +275,12 @@ yajl_gen_integer(yajl_gen g, longlong number)
 
 #if (defined(_WIN32) || defined(WIN32)) && !defined(__GNUC__)
 #include <float.h>
-#define isnan _isnan
-#define isinf !_finite
+#ifndef isnan
+# define isnan _isnan
+#endif
+#ifndef isinf
+# define isinf !_finite
+#endif
 #endif
 
 yajl_gen_status

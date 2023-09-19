@@ -70,6 +70,7 @@ void usage(char *diag) {
 	fprintf(stderr," -i intent      a = absolute, r = relative colorimetric\n");
 	fprintf(stderr,"                p = perceptual, s = saturation, A = disp. abs. measurements\n");
 //  fprintf(stderr,"                P = absolute perceptual, S = absolute saturation\n");
+    fprintf(stderr,"                E = appearance, pE = percept. appce., sE = sat. appce.\n");
 	fprintf(stderr," -o order       n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"                r = reverse (priority: monochrome > matrix > lut)\n");
 	fprintf(stderr," -p oride       x = XYZ_PCS, X = XYZ * 100, l = Lab_PCS, L = LCh, y = Yxy, u = Lu'v'\n");
@@ -171,6 +172,7 @@ main(int argc, char *argv[]) {
 	int fa, nfa, mfa;				/* argument we're looking at */
 	char prof_name[MAXNAMEL+1];
 	icmFile *fp = NULL;
+	icmErr err = { 0, { '\000'} };
 	icc *icco = NULL;
 	xicc *xicco = NULL;
 	xcal *cal = NULL;			/* If .cal rather than .icm/.icc, not NULL */
@@ -376,27 +378,22 @@ main(int argc, char *argv[]) {
 				fa = nfa;
     			switch (na[0]) {
 					case 'f':
-					case 'F':
 						func = icmFwd;
 						break;
 					case 'b':
-					case 'B':
 						func = icmBwd;
 						break;
 					case 'g':
-					case 'G':
 						func = icmGamut;
 						break;
 					case 'p':
-					case 'P':
 						func = icmPreview;
 						break;
 					case 'i':
-					case 'I':
 						invert = 1;
-						if (na[1] == 'f' || na[1] == 'F')
+						if (na[1] == 'f')
 							func = icmFwd;
-						else if (na[1] == 'b' || na[1] == 'B')
+						else if (na[1] == 'b')
 							func = icmBwd;
 						else
 							usage("Unknown parameter after flag -fi");
@@ -413,13 +410,23 @@ main(int argc, char *argv[]) {
 				absmeas = 0;
     			switch (na[0]) {
 					case 'p':
-						intent = icPerceptual;
+						if (na[1] == '\000')
+							intent = icPerceptual;
+						else if (na[1] == 'E')
+							intent = icxPerceptualAppearance;
+						else
+							usage("Unknown parameter after flag -ip");
 						break;
 					case 'r':
 						intent = icRelativeColorimetric;
 						break;
 					case 's':
-						intent = icSaturation;
+						if (na[1] == '\000')
+							intent = icSaturation;
+						else if (na[1] == 'E')
+							intent = icxSaturationAppearance;
+						else
+							usage("Unknown parameter after flag -is");
 						break;
 					case 'a':
 						intent = icAbsoluteColorimetric;
@@ -436,6 +443,11 @@ main(int argc, char *argv[]) {
 					case 'S':
 						intent = icmAbsoluteSaturation;
 						break;
+
+					case 'E':
+						intent = icxAppearance;
+						break;
+
 					default:
 						usage("Unknown parameter after flag -i");
 				}
@@ -523,11 +535,9 @@ main(int argc, char *argv[]) {
 				fa = nfa;
     			switch (na[0]) {
 					case 'n':
-					case 'N':
 						order = icmLuOrdNorm;
 						break;
 					case 'r':
-					case 'R':
 						order = icmLuOrdRev;
 						break;
 					default:
@@ -749,11 +759,11 @@ main(int argc, char *argv[]) {
 	}
 
 	/* Open up the profile for reading */
-	if ((fp = new_icmFileStd_name(prof_name,"r")) == NULL)
-		error ("Can't open file '%s'",prof_name);
+	if ((fp = new_icmFileStd_name(&err, prof_name,"r")) == NULL)
+		error ("Can't open file '%s' (0x%x, '%s')",prof_name,err.c,err.m);
 
-	if ((icco = new_icc()) == NULL)
-		error ("Creation of ICC object failed");
+	if ((icco = new_icc(&err)) == NULL)
+		error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	if (dovcgt) {
 		if ((rv = icco->read(icco,fp,0)) != 0)
@@ -789,7 +799,7 @@ main(int argc, char *argv[]) {
 				error("Must use -fb or -fif for grey axis plot");
 		}
 
-		if (icco->header->cmmId == str2tag("argl"))
+		if (icco->header->cmmId == icmstr2tag("argl"))
 			icco->allowclutPoints256 = 1;
 				
 		if (doplot) {
@@ -876,13 +886,13 @@ main(int argc, char *argv[]) {
 		/* Setup the viewing conditions in case we need them */
 		if (xicc_enum_viewcond(xicco, &vc, -1, NULL, 0, NULL) == -999) {
 			if (camclip || pcsor == icxSigJabData)		/* If it will be needed */
-				error("%d, %s",xicco->errc, xicco->err);
+				error("%d, %s",xicco->e.c, xicco->e.m);
 		}
 
 //xicc_dump_viewcond(&vc);
 		if (vc_e != -1)
 			if (xicc_enum_viewcond(xicco, &vc, vc_e, NULL, 0, NULL) == -999)
-				error ("%d, %s",xicco->errc, xicco->err);
+				error ("%d, %s",xicco->e.c, xicco->e.m);
 		if (vc_s >= 0)
 			vc.Ev = vc_s;
 		if (vc_wXYZ[1] > 0.0) {
@@ -950,7 +960,7 @@ main(int argc, char *argv[]) {
 		   | ICX_FAST_SETUP
 #endif
 		                                  , func, intent, pcsor, order, &vc, &ink)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 
 		/* Get details of conversion (Arguments may be NULL if info not needed) */
 		if (invert)
@@ -964,7 +974,7 @@ main(int argc, char *argv[]) {
 				if (func == icmFwd || func == icmBwd) {
 					if ((aluo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST,
 					     func == icmFwd ? icmBwd : icmFwd, intent, pcsor, order, &vc, &ink)) == NULL)
-					error ("%d, %s",xicco->errc, xicco->err);
+					error ("%d, %s",xicco->e.c, xicco->e.m);
 				}
 			} else {
 				aluo = luo;		/* We can use the same one */
@@ -977,7 +987,7 @@ main(int argc, char *argv[]) {
 			double inmin[MAX_CHAN], inmax[MAX_CHAN];
 			double outmin[MAX_CHAN], outmax[MAX_CHAN];
 
-			luo->get_native_ranges(luo, inmin, inmax, outmin,outmax);
+			luo->get_native_ranges(luo, inmin, inmax, outmin, outmax);
 			printf("Internal input value range: ");
 			for (j = 0; j < inn; j++) {
 				if (j > 0)
@@ -1094,8 +1104,8 @@ main(int argc, char *argv[]) {
 
 	if (verb > 1 && icco != NULL) {
 		icmFile *op;
-		if ((op = new_icmFileStd_fp(stdout)) == NULL)
-			error ("Can't open stdout");
+		if ((op = new_icmFileStd_fp(&err, stdout)) == NULL)
+			error ("Can't open stdout (0x%x, '%s')",err.c,err.m);
 		icco->header->dump(icco->header, op, 1);
 		op->del(op);
 	}
@@ -1117,7 +1127,7 @@ main(int argc, char *argv[]) {
 				/* Do the conversion */
 				if (func == icmBwd || invert) {
 					if ((rv = cal->inv_interp(cal, out, in)) != 0)
-						error ("%d, %s",cal->errc,cal->err);
+						error ("%d, %s",cal->e.c,cal->e.m);
 				} else {
 					cal->interp(cal, out, in);
 				}
@@ -1152,11 +1162,11 @@ main(int argc, char *argv[]) {
 				/* Do the conversion */
 				if (invert) {
 					if ((rv = luo->inv_lookup(luo, out, in)) > 1)
-						error ("%d, %s",xicco->errc,xicco->err);
+						error ("%d, %s",xicco->e.c,xicco->e.m);
 //printf("~1 %f: %f %f %f -> %f %f %f %f\n", ival, in[0], in[1], in[2], out[0], out[1], out[2], out[3]);
 				} else {
 					if ((rv = luo->lookup(luo, out, in)) > 1)
-						error ("%d, %s",xicco->errc,xicco->err);
+						error ("%d, %s",xicco->e.c,xicco->e.m);
 				}
 
 				xx[i] = 100.0 * ival; 
@@ -1229,6 +1239,8 @@ main(int argc, char *argv[]) {
 			}
 			if (i == 0)
 				break;
+			for (; i < MAX_CHAN; i++)
+				uout[i] = out[i] = in[i] = uin[i] = 0.0;
 
 			/* If device data and scale */
 			if( ins != icxSigJabData
@@ -1301,7 +1313,7 @@ main(int argc, char *argv[]) {
 			if (cal != NULL) {	/* .cal */
 				if (func == icmBwd || invert) {
 					if ((rv = cal->inv_interp(cal, out, in)) != 0)
-						error ("%d, %s",cal->errc,cal->err);
+						error ("%d, %s",cal->e.c,cal->e.m);
 				} else {
 					cal->interp(cal, out, in);
 					rv = 0;
@@ -1312,10 +1324,10 @@ main(int argc, char *argv[]) {
 					for (j = 0; j < MAX_CHAN; j++)
 						out[j] = in[j];		/* Carry any auxiliary value to out for lookup */
 					if ((rv = luo->inv_lookup(luo, out, in)) > 1)
-						error ("%d, %s",xicco->errc,xicco->err);
+						error ("%d, %s",xicco->e.c,xicco->e.m);
 				} else {
 					if ((rv = luo->lookup(luo, out, in)) > 1)
-						error ("%d, %s",xicco->errc,xicco->err);
+						error ("%d, %s",xicco->e.c,xicco->e.m);
 				}
 			}
 
@@ -1411,10 +1423,10 @@ main(int argc, char *argv[]) {
 						fprintf(stdout,"%f",uin[j]);
 				}
 				if (cal != NULL)
-					printf(" [%s] -> ", icx2str(icmColorSpaceSignature, ins));
+					printf(" [%s] -> ", icx2str(icmColorSpaceSig, ins));
 				else
-					printf(" [%s] -> %s -> ", icx2str(icmColorSpaceSignature, ins),
-					                          icm2str(icmLuAlg, alg));
+					printf(" [%s] -> %s -> ", icx2str(icmColorSpaceSig, ins),
+					                          icm2str(icmTransformLookupAlgorithm, alg));
 			}
 
 			for (j = 0; j < outn; j++) {
@@ -1424,7 +1436,7 @@ main(int argc, char *argv[]) {
 					fprintf(stdout,"%f",uout[j]);
 			}
 			if (verb > 0)
-				printf(" [%s]", icx2str(icmColorSpaceSignature, outs));
+				printf(" [%s]", icx2str(icmColorSpaceSig, outs));
 
 			if (verb > 0 && tlimit >= 0) {
 				double tot;	
@@ -1447,7 +1459,7 @@ main(int argc, char *argv[]) {
 				if (actual && aluo != NULL) {
 					double cin[MAX_CHAN], de;
 					if ((rv = aluo->lookup(aluo, cin, out)) > 1)
-						error ("%d, %s",xicco->errc,xicco->err);
+						error ("%d, %s",xicco->e.c,xicco->e.m);
 
 					for (de = 0.0, j = 0; j < inn; j++) {
 						de += (cin[j] - in[j]) * (cin[j] - in[j]);

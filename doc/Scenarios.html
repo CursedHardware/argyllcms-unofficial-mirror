@@ -207,6 +207,11 @@
 
 
 
+
+
+
+
+
       and profiling a display that doesn't have VideoLUT access</a>.<br>
     <br>
     <h3><a name="PM1b"></a>Adjusting and Calibrating Displays</h3>
@@ -217,13 +222,12 @@
     <u>Note</u> that if your display has a good luminous response
     characteristic, that you may get a better overall result by
     adjusting the display curves to your desired white point and
-    brightness using displcal, and then skipping the creation of
+    brightness using dispcal, and then skipping the creation of
     calibration curves. Apart from saving time, this may give an overall
-    smoother looking result, depending on the<br>
-    hardware resolution available in the 1D lookup tables used for
-    calibration. In this case, after adjusting the display, exit from
-    dispcal and skip to <a
-      href="file:///D:/src/argyll/doc/Scenarios.html#PM2">Profiling in
+    smoother looking result, depending on the hardware resolution
+    available in the 1D lookup tables used for calibration. In this
+    case, after adjusting the display, exit from dispcal and skip to <a
+      href="Scenarios.html#PM2">Profiling in
       several steps: Creating display test values</a>).<br>
     <br>
     The first step is to decide what the target should be for adjustment
@@ -241,6 +245,11 @@
     your display is currently set up. (you may have to run this as <span
       style="text-decoration: underline; color: rgb(204, 51, 204);">dispcal
 -yl
+
+
+
+
+
 
 
 
@@ -538,7 +547,9 @@
       href="colprof.html#d">-dmt</a> <a href="colprof.html#p1">DisplayA</a><br>
     <br>
     A fallback to using a specific source profile/gamut is to use a
-    general compression percentage as a gamut mapping:<br>
+    general compression percentage as a gamut mapping,<br>
+    although the result will not be as reliable and predictable as a
+    specific gamut.<br>
     <br>
     <a href="colprof.html">colprof</a> <a href="colprof.html#v">-v</a>
     <a href="colprof.html#E">-D"Display A"</a> <a href="colprof.html#q">-qm</a>
@@ -738,6 +749,11 @@
 
 
 
+
+
+
+
+
     (<span style="font-weight: bold;">-Iw</span>) changes by doing on
     the fly calibrations during the measurements. Instrument black level
     drift and display white level drift can be combined (<span
@@ -753,6 +769,11 @@
     displays,&nbsp; (ie. you have a Wide Gamut Display), then you may
     get disappointing results with a Colorimeter. One way of addressing
     this problem is to use a <a href="File_Formats.html#.ccmx">Colorimeter
+
+
+
+
+
 
 
 
@@ -1039,6 +1060,11 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-digita
 
 
 
+
+
+
+
+
       SG</a> charts:<br>
     <br>
     <img src="DC.jpg" alt="GretagMacbeth ColorChecker DC chart"
@@ -1057,6 +1083,11 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-passpo
       2px solid ; width: 200px; height: 140px;"><br>
     <br>
     Also supported is the <a href="http://www.hutchcolor.com/hct.htm">HutchColor
+
+
+
+
+
 
 
 
@@ -1254,6 +1285,11 @@ href="https://www.xrite.com/categories/calibration-profiling/colorchecker-passpo
 
 
 
+
+
+
+
+
       Imaging DCPro Target</a>:<br>
     <br>
     <img style="width: 153px; height: 122px;" alt="LaserSoft DCPro
@@ -1342,6 +1378,11 @@ href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner
 
 
 
+
+
+
+
+
       Imaging ISO12641-2 reflective target</a>:<br>
     <br>
     <img src="ISO12641_2.jpg" alt="ISO12641-2 reflection target"
@@ -1349,6 +1390,11 @@ href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner
     <br>
     and the <a
 href="https://www.silverfast.com/buyonline/en.html?type=&amp;productline=scanner&amp;special=it8order_no_sf&amp;filter=it8">LaserSoft
+
+
+
+
+
 
 
 
@@ -1529,8 +1575,18 @@ href="https://www.bhphotovideo.com/c/product/286652-REG/QP_Card_GQP201.html">QPc
 
 
 
+
+
+
+
+
       201</a>:&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <a
 href="https://www.bhphotovideo.com/c/product/849459-REG/QP_Card_GQP202_QP_Card_202.html">QPcard
+
+
+
+
+
 
 
 
@@ -1770,6 +1826,11 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
 
 
 
+
+
+
+
+
         header</a>, and appending <a href="SG_footer.txt">this footer</a>,
       making sure there are no blank lines inserted in the process. Name
       the resulting file <b>ColorCheckerSG.cie</b>.<br>
@@ -1859,10 +1920,10 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
       file should be used, and the spectral .txt file provided with the
       chart&nbsp; should be converted to a cie reference file:<br>
       &nbsp;&nbsp;&nbsp; <a
-        href="file:///D:/src/argyll/doc/txt2ti3.html">txt2ti3</a> "CMP
+        href="txt2ti3.html">txt2ti3</a> "CMP
       DT-SE 100 Spectral.txt" temp<br>
       &nbsp;&nbsp;&nbsp; <a
-        href="file:///D:/src/argyll/doc/spec2cie.html">spec2cie</a>
+        href="spec2cie.html">spec2cie</a>
       temp.ti3 CMP_DT-SE_100_Spectral.cie<br>
       It is probably best to roughly crop this target to only contain
       the right hand side before using with scanin.<br>
@@ -1876,6 +1937,11 @@ href="http://xritephoto.com/documents/apps/public/digital_colorchecker_sg_l_a_b.
         website</a>.<br>
       <br>
       For the LaserSoft <b>ISO 12641-2</b> reflective chart, the <b>ref/ISO12641_2_1.cht
+
+
+
+
+
 
 
 
@@ -1945,6 +2011,11 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
 
 
 
+
+
+
+
+
       </span>file made from measuring a sample chart is also available.
       Alternately you could create your own reference file by
       transcribing the <a
@@ -1966,6 +2037,11 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     For any other type of chart, a chart recognition template file will
     need to be created (this is beyond the scope of the current
     documentation, although see&nbsp; the <a href="cht_format.html">.cht_format
+
+
+
+
+
 
 
 
@@ -2529,6 +2605,11 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
 
 
 
+
+
+
+
+
         scanner or camera must be configured and used exactly the same
         as it was when it was profiled.</span></big><br>
     <br>
@@ -2635,6 +2716,11 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
 
 
 
+
+
+
+
+
       parameter</a>. <br>
     <br>
     If you are creating a profile for a specific purpose, intending to
@@ -2645,6 +2731,11 @@ href="https://www.datacolor.com/wp-content/uploads/2018/01/SpyderCheckr_Color_Da
     going to be used with a "smart" CMM (e.g. <a href="collink.html">collink</a>
     <a href="collink.html#g">-g</a> or <a href="collink.html#G">-G</a>),
 then
+
+
+
+
+
 
 
 
@@ -2812,6 +2903,11 @@ then
     profile (using <a href="colprof.html#q">-ql</a> <a
       href="colprof.html#b">-b</a> <a href="colprof.html#ni">-no</a>, <a
       href="colprof.html#no">-ni</a> and no <a href="colprof.html#S">-S</a>),
+
+
+
+
+
 
 
 
@@ -3167,7 +3263,11 @@ then
     create color, but the printer itself turns the incoming RGB into the
     native print colorspace, so for this reason we are careful to tell
     targen to use the "Print RGB" colorspace, so that it knows to create
-    step wedges from media white to full colorant values.<br>
+    step wedges from media white to full colorant values. [ Note that
+    per channel calibration is much more applicable to CMYK printers
+    than RGB. Applying calibration to "RGB" printers may have less or no
+    benefit, due to the synthetic nature of each R, G and B channel
+    response. ]<br>
     <br>
     For instance, to create a 50 steps per channel calibration test
     chart for our RGB and CMYK devices, the following would be
@@ -3382,6 +3482,11 @@ chart,
 
 
 
+
+
+
+
+
     and/or to have it included in .ti3 file.<br>
     &nbsp;&nbsp;&nbsp; <a href="cctiff.html#p2">cctiff</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 To
@@ -3473,8 +3578,18 @@ an
 
 
 
+
+
+
+
+
     image file.<br>
     &nbsp;&nbsp;&nbsp; <a href="applycal.html#p1">applycal</a>&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
 
 
 
@@ -3647,6 +3762,11 @@ a
 
 
 
+
+
+
+
+
     profile chart.<br>
     <br>
     <br>
@@ -3718,6 +3838,12 @@ a
       href="targen.html#c">targen -c</a>, then use the PrinterA.icm
     profile, <b>NOT</b> PrinterA_c.icm that has calibration curves
     applied.<br>
+    <br>
+    Because there are several options to actually use the resulting
+    calibration (native printer calibration, cctiff, applycal), colprof
+    does <u><b>NOT</b></u><b><u></u></b> apply the calibration curves
+    to the resulting ICC profile, even though it is given this
+    information.<br>
     <h4><a name="PC6"></a>How profile ink limits are handled when
       calibration is being used.</h4>
     Even though the profiling process is carried out on top of the
@@ -3954,9 +4080,12 @@ a
     <h3><a name="FR1"></a>Using fakeread to re-create profiles</h3>
     <p>Sometimes you have a profile of a particular table type such as a
       matrix profile, and would like to re-create the profile with some
-      other table type such as cLUT, so that you can implement various
-      intents in the cLUTs.<br>
-      <a href="fakeread.html">fakeread</a> provides a path to doing
+      other table type such as cLUT so that you can implement various
+      intents in the cLUTs, but you don't have any sample data (.ti3) to
+      create the profile from in the normal way. (But check if your ICC
+      profile has such data in it using <a moz-do-not-send="true"
+        href="extractttag.html">extractttag</a>.)</p>
+    <p> <a href="fakeread.html">fakeread</a> provides a path to doing
       this. fakeread takes the place of measuring a test chart, instead
       using the absolute colorimetric behavior of an ICC profile to
       provide the characterization. So the procedure for creating a
@@ -4016,6 +4145,11 @@ a
     encoding range setting will operate. This can give some quality
     benefits due to MadVR's use of dithering. To display patches using
     MadVR rather than Argyll, start madTPG and then use the option "<b>-d
+
+
+
+
+
 
 
 
@@ -4130,6 +4264,11 @@ a
 
 
 
+
+
+
+
+
         interactive adjustment mode can be used to set the white point.
         Note that while adjusting the neutral axis for neutrality may
         help, the Device Link will override the transfer curve
@@ -4152,6 +4291,11 @@ a
         taken, then the resulting calibration file should be provided to
         dispread as the <a href="dispcal.html#k">-k parameter</a> or <a
           href="dispcal.html#K">-K parameter</a>.&nbsp; See also below <b>Choice
+
+
+
+
+
 
 
 
@@ -4704,9 +4848,19 @@ a
 
 
 
+
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-H
+
+
+
+
+
 
 
 
@@ -4811,9 +4965,19 @@ a
 
 
 
+
+
+
+
+
         TV.cal </tt>EBU3213_PAL.icm TV.icm SD_PAL.icm</tt><tt><br>
     </tt><tt> </tt><tt><br>
     </tt><tt> &nbsp;&nbsp;&nbsp; collink -v -3m -et -Et -Ib -b -G -ir </tt><tt><tt>-a
+
+
+
+
+
 
 
 

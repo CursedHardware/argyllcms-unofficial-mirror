@@ -205,7 +205,7 @@ main(int argc, char *argv[]) {
 			if ((cx = new_ccmx()) == NULL)
 				error("new_ccmx failed");
 			if (cx->buf_read_ccmx(cx, xf->buf, xf->len)) {
-				error("Reading '%s' failed with '%s'\n",xf->name,cx->err);
+				error("Reading '%s' failed with '%s'\n",xf->name,cx->e.m);
 			}
 			if (cx->dtech == disptech_unknown)
 				warning("'%s' has an unknown display technology set",xf->name);
@@ -219,7 +219,7 @@ main(int argc, char *argv[]) {
 			if ((ss = new_ccss()) == NULL)
 				error("new_ccss failed");
 			if (ss->buf_read_ccss(ss, xf->buf, xf->len)) {
-				error("Reading '%s' failed with '%s'\n",xf->name,ss->err);
+				error("Reading '%s' failed with '%s'\n",xf->name,ss->e.m);
 			}
 			if (ss->refrmode < 0)
 				warning("'%s' doesn't contain DISPLAY_TYPE_REFRESH field :- non-refresh will be assumed!",xf->name);

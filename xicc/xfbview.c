@@ -14,7 +14,6 @@
  *
  * Should reject device link profiles ?
  *
- *
  */
 
 #include <stdio.h>
@@ -79,6 +78,7 @@ void usage(void) {
 	fprintf(stderr," -a          Do all values, not just clipped ones\n");
 	fprintf(stderr," -l tlimit   set total ink limit, 0 - 400%% (estimate by default)\n");
 	fprintf(stderr," -L klimit   set black ink limit, 0 - 100%% (estimate by default)\n");
+	fprintf(stderr," [[ output is infile.wrl ]]\n");
 	exit(1);
 }
 
@@ -103,6 +103,7 @@ main(
 	char *xl, out_name[100];
 	icmFile *rd_fp;
 	icc *rd_icco;
+	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 	int inn;							/* Number of device values */
@@ -195,15 +196,15 @@ main(
 	xl[0] = '\000';				/* Remove extension */
 
 	/* Open up the file for reading */
-	if ((rd_fp = new_icmFileStd_name(in_name,"r")) == NULL)
-		error ("Read: Can't open file '%s'",in_name);
+	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
+		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
 
-	if ((rd_icco = new_icc()) == NULL)
-		error ("Read: Creation of ICC object failed");
+	if ((rd_icco = new_icc(&err)) == NULL)
+		error ("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 
 	/* Read the header and tag list */
 	if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
-		error ("Read: %d, %s",rv,rd_icco->err);
+		error ("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Run the target Lab values through the bwd and fwd tables, */
 	/* to compute the overall error. */
@@ -252,7 +253,7 @@ main(
 		/* Get a Device to PCS conversion object */
 		if ((luo = xicco->get_luobj(xicco, FLAGS, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
 			if ((luo = xicco->get_luobj(xicco, FLAGS, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
-				error ("%d, %s",rd_icco->errc, rd_icco->err);
+				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
 		/* Get details of conversion */
 		luo->spaces(luo, &ins, &inn, &outs, NULL, NULL, NULL, NULL, NULL);
@@ -309,14 +310,14 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev, in)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (doclip && rv2 != 1)	/* Not clip */
 							continue;
 
 						/* Device -> PCS */
 						if ((rv1 = luo->lookup(luo, out, dev)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (verb) 
 							printf("."), fflush(stdout);
@@ -389,14 +390,14 @@ main(
 
 						/* PCS -> ideal Device */
 						if ((rv2 = luo->inv_lookup(luo, dev, in)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (doclip && rv2 != 1)	/* Not clip */
 							continue;
 
 						/* Device -> PCS check value - not used */
 						if ((rv1 = luo->lookup(luo, check, dev)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						/* - - - - - - - - - - - - - - - */
 						/* Now do average in device space of two points */
@@ -410,7 +411,7 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev0, in4)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						adev[0] = 0.25 * dev0[0];
 						adev[1] = 0.25 * dev0[1];
@@ -427,7 +428,7 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev1, in4)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						adev[0] += 0.25 * dev1[0];
 						adev[1] += 0.25 * dev1[1];
@@ -444,7 +445,7 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev2, in4)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						adev[0] += 0.25 * dev2[0];
 						adev[1] += 0.25 * dev2[1];
@@ -461,7 +462,7 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luo->inv_lookup(luo, dev3, in4)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						adev[0] += 0.25 * dev3[0];
 						adev[1] += 0.25 * dev3[1];
@@ -470,7 +471,7 @@ main(
 
 						/* Average device -> PCS */
 						if ((rv1 = luo->lookup(luo, out, adev)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (verb)
 							printf("."), fflush(stdout);
@@ -514,7 +515,7 @@ main(
 			                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
 				if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icmDefaultIntent,
 				                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
-					error ("%d, %s",rd_icco->errc, rd_icco->err);
+					error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 			}
 
 			if (verb)
@@ -548,14 +549,14 @@ main(
 
 						/* PCS -> Device */
 						if ((rv2 = luoB->lookup(luoB, dev, in)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (doclip && rv2 != 1)	/* Not clip */
 							continue;
 
 						/* Device -> PCS */
 						if ((rv1 = luo->lookup(luo, out, dev)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (verb)
 							printf("."), fflush(stdout);
@@ -604,11 +605,11 @@ main(
 			                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL) {
 				if ((luoB = xicco->get_luobj(xicco, FLAGS, icmBwd, icmDefaultIntent,
 				                             icSigLabData, icmLuOrdNorm, NULL, &ink)) == NULL)
-					error ("%d, %s",rd_icco->errc, rd_icco->err);
+					error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 			}
 
 			if (verb)
-				printf("Adding differenve between inv(a2b) and b2a cliped vectors\n");
+				printf("Adding difference between inv(a2b) and b2a cliped vectors\n");
 
 			i = 0;
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {
@@ -639,21 +640,21 @@ main(
 						/* Do reference lookup using inverse a2b */
 						/* PCS -> Device */
 						if ((rv1 = luo->inv_lookup(luo, dev, in)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						/* Device -> PCS */
 						if (luo->lookup(luo, check, dev) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 
 						/* Do B2A table lookup */
 						/* PCS -> Device */
 						if ((rv2 = luoB->lookup(luoB, dev, in)) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						/* Device -> PCS */
 						if (luo->lookup(luo, out, dev) > 1)
-							error ("%d, %s",rd_icco->errc,rd_icco->err);
+							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 		
 						if (doclip && rv1 != 1 && rv2 != 1)	/* Not clip */
 							continue;

@@ -368,7 +368,7 @@ int main(int argc, char *argv[]) {
 	free(setel);
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	/* Clean up */
 	ocg->del(ocg);

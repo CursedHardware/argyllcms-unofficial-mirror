@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
 				printf("Writing output values to file '%s'\n",datout_name);
 				
 			if (ocg->write_name(ocg, datout_name))
-				error("Write error to '%s' : %s",datout_name,ocg->err);
+				error("Write error to '%s' : %s",datout_name,ocg->e.m);
 	
 			ocg->del(ocg);		/* Clean up */
 
@@ -617,7 +617,7 @@ int main(int argc, char *argv[])
 			icg = new_cgats();			/* Create a CGATS structure */
 			icg->add_other(icg, "CTI2"); 	/* Calibration Target Information 2 */
 			if (icg->read_name(icg, datin_name))
-				error("CGATS file '%s' read error : %s",datin_name,icg->err);
+				error("CGATS file '%s' read error : %s",datin_name,icg->e.m);
 	
 			if (icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 				error("Input file '%s' isn't a CTI2 format file",datin_name);
@@ -657,7 +657,7 @@ int main(int argc, char *argv[])
 			ocg = new_cgats();			/* Create a CGATS structure */
 			ocg->add_other(ocg, "CTI3"); 	/* Calibration Target Information 3 */
 			if (ocg->read_name(ocg, datout_name))
-				error("CGATS file '%s' read error : %s",datout_name,ocg->err);
+				error("CGATS file '%s' read error : %s",datout_name,ocg->e.m);
 	
 			if (ocg->t[0].tt != tt_other || ocg->t[0].oi != 0)
 				error("Input file '%s' isn't a CTI3 format file",datout_name);
@@ -744,7 +744,7 @@ int main(int argc, char *argv[])
 				printf("Writing output values to file '%s'\n",datout_name);
 				
 			if (ocg->write_name(ocg, datout_name))
-				error("Write error to file '%s' : %s",datout_name,ocg->err);
+				error("Write error to file '%s' : %s",datout_name,ocg->e.m);
 	
 			ocg->del(ocg);		/* Clean up */
 			icg->del(icg);		/* Clean up */
@@ -755,8 +755,9 @@ int main(int argc, char *argv[])
 			cgats *icg;			/* input .ti2 cgats structure */
 			cgats *ocg;			/* input/output .ti3 cgats structure */
 			icmFile *rd_fp = NULL;	/* Image to CIE lookup */
+	icmErr err = { 0, { '\000'} };
 			icc *rd_icco = NULL;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 			mpp *mlu = NULL;
 			time_t clk = time(0);
 			struct tm *tsp = localtime(&clk);
@@ -775,7 +776,7 @@ int main(int argc, char *argv[])
 			icg->add_other(icg, "CAL"); 	/* There may be a calibration too */
 		
 			if (icg->read_name(icg, datin_name))
-				error("CGATS file '%s' read error : %s",datin_name,icg->err);
+				error("CGATS file '%s' read error : %s",datin_name,icg->e.m);
 		
 			if (icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 				error("Input file '%s' isn't a CTI2 format file",datin_name);
@@ -792,7 +793,7 @@ int main(int argc, char *argv[])
 			if (colm > 1) {		/* Appending information to .ti3 */
 
 				if (ocg->read_name(ocg, datout_name))
-					error("CGATS file read error on '%s': %s",datout_name, ocg->err);
+					error("CGATS file read error on '%s': %s",datout_name, ocg->e.m);
 		
 				if (ocg->t[0].tt != tt_other || ocg->t[0].oi != 0)
 					error("Input file '%s' isn't a CTI3 format file",datout_name);
@@ -846,11 +847,11 @@ int main(int argc, char *argv[])
 							error("new_xcal failed");
 						}
 						if (cal->read_cgats(cal, icg, tab, datin_name) != 0)  {
-							error("%s",cal->err);
+							error("%s",cal->e.m);
 						}
 			
 						if (cal->write_cgats(cal, ocg)) {
-							error("%s",cal->err);
+							error("%s",cal->e.m);
 						}
 			
 						cal->del(cal);
@@ -1011,23 +1012,28 @@ int main(int argc, char *argv[])
 				int rv;
 
 				/* Open up the file for reading */
-				if ((rd_fp = new_icmFileStd_name(prof_name,"r")) == NULL)
-					error("Write: Can't open file '%s'",prof_name);
+				if ((rd_fp = new_icmFileStd_name(&err,prof_name,"r")) == NULL)
+					error("Write: Can't open file '%s' (0x%x, '%s')",prof_name,err.c,err.m);
 		
-				if ((rd_icco = new_icc()) == NULL)
-					error("Read: Creation of ICC object failed");
+				if ((rd_icco = new_icc(&err)) == NULL)
+					error("Read: Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 		
 				/* Read the header and tag list */
 				if ((rv = rd_icco->read(rd_icco,rd_fp,0)) == 0) {
+					icmCSInfo ini, outi;
 		
 					/* Get the Fwd table, absolute with XYZ override */
-					if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric,
+					if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric,
 					                              icSigXYZData, icmLuOrdNorm)) == NULL) {
-						error("%d, %s",rd_icco->errc, rd_icco->err);
+						error("%d, %s",rd_icco->e.c, rd_icco->e.m);
 					}
 
 					/* Get details of conversion */
-					luo->spaces(luo, &ins, &inn, &outs, &outn, NULL, NULL, NULL, NULL, NULL);
+					luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+					ins = ini.sig;
+					inn = ini.nch;
+					outs = outi.sig;
+					outn = outi.nch;
 
 					/* Check that it matches what we expect */
 
@@ -1102,7 +1108,7 @@ int main(int argc, char *argv[])
 
 								/* Convert to XYZ */
 								if (luo != NULL)
-									luo->lookup(luo, xyz, P);
+									luo->lookup_fwd(luo, xyz, P);
 								else
 									mlu->lookup(mlu, xyz, P);
 
@@ -1153,7 +1159,7 @@ int main(int argc, char *argv[])
 				printf("Writing output values to file '%s'\n",datout_name);
 				
 			if (ocg->write_name(ocg, datout_name))
-				error("File '%s' write error : %s",datout_name,ocg->err);
+				error("File '%s' write error : %s",datout_name,ocg->e.m);
 		
 			if (luo != NULL)
 				luo->del(luo);
@@ -1190,7 +1196,7 @@ int main(int argc, char *argv[])
 			icg = new_cgats();			/* Create a CGATS structure */
 			icg->add_other(icg, ""); 	/* Accept any type */
 			if (icg->read_name(icg, datin_name))
-				error("CGATS file '%s' read error : %s",datin_name,icg->err);
+				error("CGATS file '%s' read error : %s",datin_name,icg->e.m);
 	
 			/* ~~ should accept ti2 file and convert RGB to XYZ using    */
 			/*    device cal., to make W/RGB/CMYK ->XYZ reading chart ~~ */
@@ -1427,7 +1433,7 @@ int main(int argc, char *argv[])
 				printf("Writing output values to file '%s'\n",datout_name);
 				
 			if (ocg->write_name(ocg, datout_name))
-				error("Output file '%s' write error : %s",datout_name, ocg->err);
+				error("Output file '%s' write error : %s",datout_name, ocg->e.m);
 	
 			free(idhash);
 			free(setel);

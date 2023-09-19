@@ -450,9 +450,12 @@ char **pnames		/* List of process names to try and kill before opening */
 		OSVERSIONINFO osver;
 
 		if (config != 1) {
-			/* Nothing currently needs it, so we haven't implemented it yet... */
+			/* NT defaults to config 1, and nothing currently needs any other config, */
+			/* so we haven't implemented selecting a config yet... */
 			a1loge(p->log, ICOM_NOTS, "usb_open_port: native driver cant handle config %d\n",config);
 			return ICOM_NOTS;
+
+			msec_sleep(50);		/* Allow device some time to configure */
 		}
 
 		/* Do open retries */

@@ -19,7 +19,7 @@
 # include "dtp41.h"
 # include "dtp51.h"
 # include "ss.h"
-#endif
+#endif /* ALLINSTS */
 
 #ifdef ENABLE_FAST_SERIAL
 # include "specbos.h"

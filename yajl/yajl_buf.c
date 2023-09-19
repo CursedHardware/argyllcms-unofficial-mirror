@@ -14,11 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_buf.h"
-
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "yajl_buf.h"
 
 #define YAJL_BUF_INIT_SIZE 2048
 

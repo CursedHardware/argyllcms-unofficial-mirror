@@ -216,6 +216,7 @@ int native,						/* X0 = use current per channel calibration curve */
 								/* 1X = disable color management cLUT (MadVR) */
 int *noramdac,					/* Return nz if no ramdac access. native is set to X0 */
 int *nocm,						/* Return nz if no CM cLUT access. native is set to 0X */
+double icalmax,					/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,					/* 1 = use RGB Video Level encoding */
 int fullscreen,					/* NZ if whole screen should be filled with black */
 int verb,						/* NZ for verbose prompts */
@@ -244,6 +245,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->height = height;
 	p->nowin = nowin;
 	p->native = native;
+	p->icalmax = icalmax;
 	p->out_tvenc = 0;
 	p->fullscreen = fullscreen;
 	p->ddebug = ddebug;
@@ -269,7 +271,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->native &= ~1;
 #endif
 
-	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5;	/* Set Grey as the initial test color */
+	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5 * icalmax;	/* Set Grey as the initial test color */
 
 	dispwin_set_default_delays(p);
 

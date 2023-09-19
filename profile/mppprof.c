@@ -262,7 +262,7 @@ make_output_mpp(
 	icg->add_other(icg, "CTI3"); 	/* our special input type is Calibration Target Information 3 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI3 format file");
@@ -587,7 +587,7 @@ make_output_mpp(
 
 	/* create and write the cgats profile */
 	if (p->write_mpp(p, outname, dolab))
-		error("Write error : %s",p->err);
+		error("Write error : %s",p->e.m);
 
 	/* Check the forward profile accuracy against the data points */
 	if (verb || verify) {
@@ -762,7 +762,7 @@ make_output_mpp(
 			error("Failed to create an mpp");
 
 		if (p2->read_mpp(p2, outname))
-			error("Read error : %s",p2->err);
+			error("Read error : %s",p2->e.m);
 
 		{
 			/* Set just PCS and use XYZ model */
@@ -921,7 +921,7 @@ make_output_mpp(
 		}
 
 		if (p2->write_mpp(p2, "xxxx.mpp", dolab))
-			error("Write error : %s",p2->err);
+			error("Write error : %s",p2->e.m);
 
 		p2->del(p2);
 	}

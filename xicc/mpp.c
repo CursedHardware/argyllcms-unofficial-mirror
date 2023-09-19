@@ -281,7 +281,7 @@ int dolab		/* If NZ, write Lab values rather than XYZ */
 
 	if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL) {
 		free(ident);
-		sprintf(p->err,"write_mpp: malloc of setel failed");
+		sprintf(p->e.m,"write_mpp: malloc of setel failed");
 		return 1;
 	}
 
@@ -340,7 +340,7 @@ int dolab		/* If NZ, write Lab values rather than XYZ */
 
 	/* Write it */
 	if (ocg->write_name(ocg, outname)) {
-		strcpy(p->err, ocg->err);
+		strcpy(p->e.m, ocg->e.m);
 		return 1;
 	}
 
@@ -362,29 +362,29 @@ char *inname	/* Filename to read from */
 
 	/* Open and look at the .mpp model printer profile */
 	if ((icg = new_cgats()) == NULL) {		/* Create a CGATS structure */
-		sprintf(p->err, "read_mpp: new_cgats() failed");
+		sprintf(p->e.m, "read_mpp: new_cgats() failed");
 		return 2;
 	}
 	icg->add_other(icg, "MPP");		/* our special type is Model Printer Profile */
 
 	if (icg->read_name(icg, inname)) {
-		strcpy(p->err, icg->err);
+		strcpy(p->e.m, icg->e.m);
 		icg->del(icg);
 		return 1;
 	}
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0) {
-		sprintf(p->err, "read_mpp: Input file '%s' isn't a MPP format file",inname);
+		sprintf(p->e.m, "read_mpp: Input file '%s' isn't a MPP format file",inname);
 		icg->del(icg);
 		return 1;
 	}
 	if (icg->ntables != 1) {
-		sprintf(p->err, "Input file '%s' doesn't contain exactly one table",inname);
+		sprintf(p->e.m, "Input file '%s' doesn't contain exactly one table",inname);
 		icg->del(icg);
 		return 1;
 	}
 	if ((ti = icg->find_kword(icg, 0, "COLOR_REP")) < 0) {
-		sprintf(p->err, "read_mpp: Input file '%s' doesn't contain keyword COLOR_REP",inname);
+		sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain keyword COLOR_REP",inname);
 		icg->del(icg);
 		return 1;
 	}
@@ -395,7 +395,7 @@ char *inname	/* Filename to read from */
 	p->nnn2 = p->n * p->nn/2;
 
 	if (p->n == 0) {
-		sprintf(p->err, "read_mpp: COLOR_REP '%s' invalid from file '%s' (No matching devmask)",
+		sprintf(p->e.m, "read_mpp: COLOR_REP '%s' invalid from file '%s' (No matching devmask)",
 		        icg->t[0].kdata[ti], inname);
 		icg->del(icg);
 		return 1;
@@ -403,7 +403,7 @@ char *inname	/* Filename to read from */
 
 	/* See if it is the expected device class */
 	if ((ti = icg->find_kword(icg, 0, "DEVICE_CLASS")) < 0) {
-		sprintf(p->err, "read_mpp: Input file '%s' doesn't contain keyword DEVICE_CLASS",inname);
+		sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain keyword DEVICE_CLASS",inname);
 		icg->del(icg);
 		return 1;
 	}
@@ -418,14 +418,14 @@ char *inname	/* Filename to read from */
 		}
 
 		if ((ti = icg->find_kword(icg, 0, "TARGET_INSTRUMENT")) < 0) {
-			sprintf(p->err, "read_mpp: Can't find keyword TARGET_INSTRUMENT in file '%s'", inname);
+			sprintf(p->e.m, "read_mpp: Can't find keyword TARGET_INSTRUMENT in file '%s'", inname);
 			icg->del(icg);
 			return 1;
 		}
 	
 		if ((p->itype = inst_enum(icg->t[0].kdata[ti])) == instUnknown
 		 &&  icg->find_kword(icg, 0, "SPECTRAL_BANDS") >= 0) {
-			sprintf(p->err, "read_mpp: Unrecognised target instrument '%s' in file '%s'",
+			sprintf(p->e.m, "read_mpp: Unrecognised target instrument '%s' in file '%s'",
 			        icg->t[0].kdata[ti], inname);
 			icg->del(icg);
 			return 1;
@@ -441,7 +441,7 @@ char *inname	/* Filename to read from */
 
 	} else {
 		/* Don't know anything else at the moment */
-		sprintf(p->err, "read_mpp: Input file '%s' has unknown DEVICE_CLASS '%s'",
+		sprintf(p->e.m, "read_mpp: Input file '%s' has unknown DEVICE_CLASS '%s'",
 		        inname, icg->t[0].kdata[ti]);
 		icg->del(icg);
 		return 1;
@@ -449,14 +449,14 @@ char *inname	/* Filename to read from */
 
 	/* Read the number of device linearisation orders */
 	if ((ti = icg->find_kword(icg, 0, "TRANSFER_ORDERS")) < 0) {
-		sprintf(p->err, "read_mpp: Input file '%s' doesn't contain keyword TRANSFER_ORDERS",
+		sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain keyword TRANSFER_ORDERS",
 		        inname);
 		icg->del(icg);
 		return 1;
 	}
 	p->cord = atoi(icg->t[0].kdata[ti]);
 	if (p->cord < 1 || p->cord > MPP_MXTCORD) {
-		sprintf(p->err, "read_mpp: Input file '%s' has out of range TRANSFER_ORDERS %d",
+		sprintf(p->e.m, "read_mpp: Input file '%s' has out of range TRANSFER_ORDERS %d",
 		        inname, p->cord);
 		icg->del(icg);
 		return 1;
@@ -508,13 +508,13 @@ char *inname	/* Filename to read from */
 
 		/* Get the field indexes */
 		if ((ci = icg->find_field(icg, 0, "PARAMETER")) < 0) {
-			sprintf(p->err, "read_mpp: Input file '%s' doesn't contain field PARAMETER",
+			sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain field PARAMETER",
 			        inname);
 			icg->del(icg);
 			return 1;
 		}
 		if (icg->t[0].ftype[ci] != nqcs_t) {
-			sprintf(p->err, "read_mpp: Input file '%s' field PARAMETER is wrong type",
+			sprintf(p->e.m, "read_mpp: Input file '%s' field PARAMETER is wrong type",
 			        inname);
 			icg->del(icg);
 			return 1;
@@ -525,7 +525,7 @@ char *inname	/* Filename to read from */
 				break;
 			}
 			if (icg->t[0].ftype[spi[i]] != r_t) {
-				sprintf(p->err, "read_mpp: Input file '%s' field %s is wrong type",
+				sprintf(p->e.m, "read_mpp: Input file '%s' field %s is wrong type",
 				        inname, buf);
 				icg->del(icg);
 				return 1;
@@ -536,13 +536,13 @@ char *inname	/* Filename to read from */
 			islab = 1;
 			for (i = 0; i < 3; i++) {	/* XYZ fields */
 				if ((spi[i] = icg->find_field(icg, 0, labfname[i])) < 0) {
-					sprintf(p->err, "read_mpp: Input file '%s' doesn't contain field %s or %s",
+					sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain field %s or %s",
 					        inname, xyzfname[i], labfname[i]);
 					icg->del(icg);
 					return 1;
 				}
 				if (icg->t[0].ftype[spi[i]] != r_t) {
-					sprintf(p->err, "read_mpp: Input file '%s' field %s is wrong type",
+					sprintf(p->e.m, "read_mpp: Input file '%s' field %s is wrong type",
 					        inname, buf);
 					icg->del(icg);
 					return 1;
@@ -562,13 +562,13 @@ char *inname	/* Filename to read from */
 				sprintf(buf,"SPEC_%03d",nm);
 	
 				if ((spi[3+j] = icg->find_field(icg, 0, buf)) < 0) {
-					sprintf(p->err, "read_mpp: Input file '%s' doesn't contain field %s",
+					sprintf(p->e.m, "read_mpp: Input file '%s' doesn't contain field %s",
 					        buf,inname);
 					icg->del(icg);
 					return 1;
 				}
 				if (icg->t[0].ftype[spi[3+j]] != r_t) {
-					sprintf(p->err, "read_mpp: Input file '%s' field %s is wrong type",
+					sprintf(p->e.m, "read_mpp: Input file '%s' field %s is wrong type",
 					        inname, buf);
 					icg->del(icg);
 					return 1;
@@ -707,8 +707,8 @@ int           use_fwa			/* NZ to involke FWA. */
 		return 0;
 		
 	if (p->spec_n == 0) {
-		p->errc = 1;
-		sprintf(p->err,"No Spectral Data in MPP");
+		p->e.c = 1;
+		sprintf(p->e.m,"No Spectral Data in MPP");
 		return 1;
 	}
 
@@ -3681,15 +3681,15 @@ static int create(
 
 	/* MPP limit is less than XICC */
 	if (p->n > MPP_MXINKS) {
-		p->errc = 1;
-		sprintf(p->err,"MPP Can't handle %d colorants",p->n);
+		p->e.c = 1;
+		sprintf(p->e.m,"MPP Can't handle %d colorants",p->n);
 		return 1;
 	}
 
 	/* MPP limit is less than XSPECT */
 	if (spec_n > MPP_MXBANDS) {
-		p->errc = 1;
-		sprintf(p->err,"MPP Can't handle %d spectral bands",spec_n);
+		p->e.c = 1;
+		sprintf(p->e.m,"MPP Can't handle %d spectral bands",spec_n);
 		return 1;
 	}
 

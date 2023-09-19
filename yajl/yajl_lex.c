@@ -14,13 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "yajl_lex.h"
-#include "yajl_buf.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+
+#include "yajl_lex.h"
+#include "yajl_buf.h"
 
 #ifdef YAJL_LEXER_DEBUG
 static const char *

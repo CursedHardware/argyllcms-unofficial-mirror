@@ -199,8 +199,8 @@ struct _pcpt {
 	/* ICC profile based */
 	icmFile *fp;
 	icc   *icco;
-	icmLuBase *luo;		/* Device -> rLab conversion */
-	icmLuBase *luo2;	/* Device -> XYZ conversion */
+	icmLuSpace *luo;		/* Device -> rLab conversion */
+	icmLuSpace *luo2;	/* Device -> XYZ conversion */
 
 	/* MPP profile based */
 	mpp *mlu;			/* Device -> XYZ */
@@ -236,7 +236,7 @@ pcpt_to_XYZ(pcpt *s, double *out, double *in) {
 			inv[e] = 1.0 - icx_powlike(in[e], s->ixpow);
 	}
 	if (s->luo2 != NULL)
-		s->luo2->lookup(s->luo2, out, inv);
+		s->luo2->lookup_fwd(s->luo2, out, inv);
 	else if (s->mlu != NULL)
 		s->mlu->lookup(s->mlu, out, inv);
 	else  if (s->clu != NULL)
@@ -266,7 +266,7 @@ pcpt_to_rLab(pcpt *s, double *out, double *in) {
 			inv[e] = 1.0 - icx_powlike(in[e], s->ixpow);
 	}
 	if (s->luo != NULL)
-		s->luo->lookup(s->luo, out, inv);
+		s->luo->lookup_fwd(s->luo, out, inv);
 	else if (s->mlu != NULL) {
 		s->mlu->lookup(s->mlu, out, inv);
 		icmXYZ2Lab(&icmD50, out, out);
@@ -300,7 +300,7 @@ pcpt_to_nLab(pcpt *s, double *out, double *in) {
 		double lab[3];
 
 		if (s->luo != NULL)
-			s->luo->lookup(s->luo, lab, inv);
+			s->luo->lookup_fwd(s->luo, lab, inv);
 		else if (s->mlu != NULL) {
 			s->mlu->lookup(s->mlu, lab, inv);
 			icmXYZ2Lab(&icmD50, lab, lab);
@@ -596,7 +596,7 @@ static void set_nlin(void *cbntx, double *out, double *in) {
 	}
 
 	if (s->luo != NULL) {
-		s->luo->lookup(s->luo, lab, dev);
+		s->luo->lookup_fwd(s->luo, lab, dev);
 	} else if (s->mlu != NULL) {
 		s->mlu->lookup(s->mlu, lab, dev);
 		icmXYZ2Lab(&icmD50, lab, lab);
@@ -656,6 +656,7 @@ double demph,			/* Dark emphasis, 1.0 - 4.0. < 0.0 for default == none */
 double xpow				/* Extra device power, default = none */
 ) {
 	int e;
+	icmErr err = { 0, { '\000'} };
 	pcpt *s;
 
 	if ((s = (pcpt *)calloc(1, sizeof(pcpt))) == NULL) {
@@ -696,37 +697,39 @@ double xpow				/* Extra device power, default = none */
 		int rv = 0;
 		
 		/* Try and open the file as an ICC profile */
-		if ((s->fp = new_icmFileStd_name(profName,"r")) == NULL)
-			error ("Can't open device profile '%s'",profName);
+		if ((s->fp = new_icmFileStd_name(&err,profName,"r")) == NULL)
+			error ("Can't open device profile '%s' (0x%x, '%s')",profName,err.c,err.m);
 	
-	
-		if ((s->icco = new_icc()) == NULL)
-			error ("Creation of ICC object failed");
+		if ((s->icco = new_icc(&err)) == NULL)
+			error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 		if ((rv = s->icco->read(s->icco,s->fp,0)) == 0) {
+			icmCSInfo ini, outi;
 			icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 			xcal *cal = NULL;					/* Device calibration curves */
 
 			/* Get a conversion object for relative Lab */
-			if ((s->luo = s->icco->get_luobj(s->icco, icmFwd, icRelativeColorimetric,
+			if ((s->luo = (icmLuSpace *)s->icco->get_luobj(s->icco, icmFwd, icRelativeColorimetric,
 			                                 icSigLabData, icmLuOrdNorm)) == NULL) {
-				if ((s->luo = s->icco->get_luobj(s->icco, icmFwd, icmDefaultIntent,
+				if ((s->luo = (icmLuSpace *)s->icco->get_luobj(s->icco, icmFwd, icmDefaultIntent,
 				                                 icSigLabData, icmLuOrdNorm)) == NULL) {
-					error ("%d, %s",s->icco->errc, s->icco->err);
+					error ("%d, %s",s->icco->e.c, s->icco->e.m);
 				}
 			}
 
 			/* Get a conversion object for absolute XYZ */
-			if ((s->luo2 = s->icco->get_luobj(s->icco, icmFwd, icAbsoluteColorimetric,
+			if ((s->luo2 = (icmLuSpace *)s->icco->get_luobj(s->icco, icmFwd, icAbsoluteColorimetric,
 			                                 icSigXYZData, icmLuOrdNorm)) == NULL) {
-				if ((s->luo2 = s->icco->get_luobj(s->icco, icmFwd, icmDefaultIntent,
+				if ((s->luo2 = (icmLuSpace *)s->icco->get_luobj(s->icco, icmFwd, icmDefaultIntent,
 				                                 icSigXYZData, icmLuOrdNorm)) == NULL) {
-					error ("%d, %s",s->icco->errc, s->icco->err);
+					error ("%d, %s",s->icco->e.c, s->icco->e.m);
 				}
 			}
 		
 			/* Get details of conversion (Arguments may be NULL if info not needed) */
-			s->luo->spaces(s->luo, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL, NULL);
+			s->luo->spaces(s->luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			ins = ini.sig;
+			outs = outi.sig;
 
 //printf("~1 xmask = 0x%x, ins = %s\n",xmask,icm2str(icmColorSpaceSignature, ins));
 			if (icx_colorant_comb_match_icc(xmask, ins) == 0) {
@@ -780,7 +783,7 @@ double xpow				/* Extra device power, default = none */
 				error ("Creation of MPP object failed");
 
 			if ((rv = s->mlu->read_mpp(s->mlu, profName)) != 0)
-				error ("%d, %s",rv,s->mlu->err);
+				error ("%d, %s",rv,s->mlu->e.m);
 
 			s->mlu->get_info(s->mlu, &imask, NULL, &dlimit, NULL, NULL, NULL, NULL, NULL);
 
@@ -886,7 +889,7 @@ usage(int level, char *diag, ...) {
 	fprintf(stderr,"  -i              Use device space body centered cubic grid for full spread\n");
 	fprintf(stderr,"  -I              Use perceptual space body centered cubic grid for full spread\n");
 	fprintf(stderr,"  -a angle        Simplex grid angle 0.0 - 0.5 for B.C.C. grid, default %f\n",DEFANGLE);
-	fprintf(stderr,"  -A adaptation   Degree of adaptation of OFPS 0.0 - 1.0 (default 0.1, -c profile used 1.0)\n");
+	fprintf(stderr,"  -A adaptation   Degree of adaptation of OFPS 0.0 - 1.0 (default 0.1, -c profile uses 1.0)\n");
 /* Research options: */
 /*	fprintf(stderr,"  -A pPERCWGHT    Device (0.0) ... Perceptual (1.0) weighting\n"); */
 /*	fprintf(stderr,"  -A cCURVEWGHT   Curvature weighting  0.0 = none ... "); */
@@ -894,8 +897,8 @@ usage(int level, char *diag, ...) {
 	fprintf(stderr," -p power         Optional power-like value applied to all device values.\n");
 	fprintf(stderr," -c profile       Optional device ICC or MPP pre-conditioning profile filename\n");
 	fprintf(stderr,"                  (Use \"none\" to turn off any conditioning)\n");
-	fprintf(stderr," -N nemphasis     Degree of neutral axis patch concentration 0.0-1.0 (default %.2f)\n",NEMPH_DEFAULT);
-	fprintf(stderr," -V demphasis     Degree of dark region patch concentration 1.0-4.0 (default %.2f = none)\n",DEMPH_DEFAULT);
+	fprintf(stderr," -N emphasis      Degree of neutral axis patch concentration 0.0-1.0 (default %.2f)\n",NEMPH_DEFAULT);
+	fprintf(stderr," -V emphasis      Degree of dark region patch concentration 1.0-4.0 (default %.2f = none)\n",DEMPH_DEFAULT);
 	fprintf(stderr," -F L,a,b,rad     Filter out samples outside Lab sphere.\n");
 	fprintf(stderr," -O               Don't re-order display RGB patches for minimum delay\n");
 	fprintf(stderr," -U               Don't filter out duplicate patches\n");
@@ -2843,7 +2846,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (pp->write_name(pp, fname))
-		error("Write error : %s",pp->err);
+		error("Write error : %s",pp->e.m);
 
 #ifdef VRML_DIAG		/* Dump a VRML/X3D of the resulting points */
 	if (dumpvrml & 1) {	/* Lab space */

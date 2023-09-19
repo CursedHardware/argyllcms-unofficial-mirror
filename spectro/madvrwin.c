@@ -2,7 +2,7 @@
 
 /* 
  * Argyll Color Management System
- * Web Display target patch window
+ * madVR Display target patch window
  *
  * Author: Graeme W. Gill
  * Date:   3/4/12
@@ -33,7 +33,6 @@
 #define ENABLE_RAMDAC
 
 #undef DEBUG
-//#define STANDALONE_TEST
 
 #ifdef DEBUG
 #define errout stderr
@@ -56,6 +55,9 @@
 #endif
 
 /* ----------------------------------------------- */
+/* To work, MadTPG.exe has to be running           */
+/* ----------------------------------------------- */
+
 /* MadVR functions */
 
 #ifndef KEY_WOW64_32KEY
@@ -111,6 +113,7 @@ static int initMadVR(dispwin *p) {
 
 	if ((HcNetDll = LoadLibraryW(dllname)) == NULL) {
 		HKEY hk1;
+		debugr2((errout,"MadVR LoadLibrary('%ls') failed - looking up registry\n",dllname));
     	if (RegOpenKeyExW(HKEY_CLASSES_ROOT, L"CLSID\\{E1A8B82A-32CE-4B0D-BE0D-AA68C772E423}\\InprocServer32", 0, KEY_QUERY_VALUE | KEY_WOW64_32KEY, &hk1) == ERROR_SUCCESS) {
 			DWORD size;
 			LPWSTR us1;
@@ -131,80 +134,79 @@ static int initMadVR(dispwin *p) {
 					}
 				wcscat(us1, dllname);
 				HcNetDll = LoadLibraryW(us1);
+				if (HcNetDll != NULL)
+					debugr2((errout,"MadVR LoadLibrary('%ls') suceeded\n",us1));
+				else
+					debugr2((errout,"MadVR LoadLibrary('%ls') failed\n",us1));
 			}
 			LocalFree(us1);
 			RegCloseKey(hk1);
 		}
 	}
-	if (HcNetDll != NULL) {
-		HRESULT (WINAPI *dllgetver)(ADLLVERSIONINFO2 *) = NULL;
 
-		*(FARPROC*)&dllgetver = GetProcAddress(HcNetDll, "DllGetVersion");
 
-		if (dllgetver != NULL) {
-			ADLLVERSIONINFO2 ver;
-
-			ver.info1.cbSize = sizeof(ADLLVERSIONINFO2);
-			dllgetver(&ver);
-
-			v1 = 0xffff & (ver.ullVersion >> 48);
-			v2 = 0xffff & (ver.ullVersion >> 32);
-			v3 = 0xffff & (ver.ullVersion >> 16);
-			v4 = 0xffff & ver.ullVersion;
-
-		} else  {
-			debugr2((errout,"MadVR DllGetVersion failed - can't determine DLL version\n"));
-		}
-	}
-
-	if (HcNetDll != NULL) {
-		*(FARPROC*)&madVR_BlindConnect       = GetProcAddress(HcNetDll, "madVR_BlindConnect");
-		*(FARPROC*)&madVR_GetVersion         = GetProcAddress(HcNetDll, "madVR_GetVersion");
-		*(FARPROC*)&madVR_SetOsdText         = GetProcAddress(HcNetDll, "madVR_SetOsdText");
-		*(FARPROC*)&madVR_Disable3dlut       = GetProcAddress(HcNetDll, "madVR_Disable3dlut");
-		*(FARPROC*)&madVR_GetDeviceGammaRamp = GetProcAddress(HcNetDll, "madVR_GetDeviceGammaRamp");
-		*(FARPROC*)&madVR_SetDeviceGammaRamp = GetProcAddress(HcNetDll, "madVR_SetDeviceGammaRamp");
-		*(FARPROC*)&madVR_GetPatternConfig   = GetProcAddress(HcNetDll, "madVR_GetPatternConfig");
-		*(FARPROC*)&madVR_SetPatternConfig   = GetProcAddress(HcNetDll, "madVR_SetPatternConfig");
-		*(FARPROC*)&madVR_ShowRGB            = GetProcAddress(HcNetDll, "madVR_ShowRGB");
-		*(FARPROC*)&madVR_SetProgressBarPos  = GetProcAddress(HcNetDll, "madVR_SetProgressBarPos");
-		*(FARPROC*)&madVR_Disconnect         = GetProcAddress(HcNetDll, "madVR_Disconnect");
-	
-		if (madVR_BlindConnect
-		 && madVR_GetVersion
-		 && madVR_SetOsdText
-		 && madVR_Disable3dlut
-		 && madVR_GetDeviceGammaRamp
-		 && madVR_SetDeviceGammaRamp
-		 && madVR_GetPatternConfig
-		 && madVR_SetPatternConfig
-		 && madVR_ShowRGB
-		 && madVR_SetProgressBarPos
-		 && madVR_Disconnect) {
-			DWORD ver = 0;
-			/* Return value is unclear */
-			if (!madVR_GetVersion(&ver))
-				debugr2((errout,"MadVR_GetVersion failed - can't determine MadVR version\n"));
-
-			debugr2((errout,"Found all required functions in %ls V%d.%d.%d.%d MadVR V%x.%x.%x.%x functions\n",dllname,v1,v2,v3,v4, 0xff & (ver >> 24), 0xff & (ver >> 16), 0xff & (ver >> 8), 0xff & ver));
-			return 0;
-		}
-		debugr2((errout,"Failed to locate MadVR function in %ls %d.%d.%d.%d\n",dllname,v1,v2,v3,v4));
-		FreeLibrary(HcNetDll);
-	} else {
+	if (HcNetDll == NULL) {
 		debugr2((errout,"Failed to load %ls\n",dllname));
+		return 1;
 	}
+
+	*(FARPROC*)&madVR_BlindConnect       = GetProcAddress(HcNetDll, "madVR_BlindConnect");
+	*(FARPROC*)&madVR_GetVersion         = GetProcAddress(HcNetDll, "madVR_GetVersion");
+	*(FARPROC*)&madVR_SetOsdText         = GetProcAddress(HcNetDll, "madVR_SetOsdText");
+	*(FARPROC*)&madVR_Disable3dlut       = GetProcAddress(HcNetDll, "madVR_Disable3dlut");
+	*(FARPROC*)&madVR_GetDeviceGammaRamp = GetProcAddress(HcNetDll, "madVR_GetDeviceGammaRamp");
+	*(FARPROC*)&madVR_SetDeviceGammaRamp = GetProcAddress(HcNetDll, "madVR_SetDeviceGammaRamp");
+	*(FARPROC*)&madVR_GetPatternConfig   = GetProcAddress(HcNetDll, "madVR_GetPatternConfig");
+	*(FARPROC*)&madVR_SetPatternConfig   = GetProcAddress(HcNetDll, "madVR_SetPatternConfig");
+	*(FARPROC*)&madVR_ShowRGB            = GetProcAddress(HcNetDll, "madVR_ShowRGB");
+	*(FARPROC*)&madVR_SetProgressBarPos  = GetProcAddress(HcNetDll, "madVR_SetProgressBarPos");
+	*(FARPROC*)&madVR_Disconnect         = GetProcAddress(HcNetDll, "madVR_Disconnect");
+	
+	if (madVR_BlindConnect
+	 && madVR_GetVersion
+	 && madVR_SetOsdText
+	 && madVR_Disable3dlut
+	 && madVR_GetDeviceGammaRamp
+	 && madVR_SetDeviceGammaRamp
+	 && madVR_GetPatternConfig
+	 && madVR_SetPatternConfig
+	 && madVR_ShowRGB
+	 && madVR_SetProgressBarPos
+	 && madVR_Disconnect) {
+		DWORD ver = 0;
+
+		/* Return value is unclear */
+		if (!madVR_GetVersion(&ver))
+			debugr2((errout,"MadVR_GetVersion failed - can't determine MadVR version\n"));
+
+		debugr2((errout,"Found all required functions in %ls V%d.%d.%d.%d MadVR V%x.%x.%x.%x functions\n",dllname,v1,v2,v3,v4, 0xff & (ver >> 24), 0xff & (ver >> 16), 0xff & (ver >> 8), 0xff & ver));
+		return 0;
+	}
+	debugr2((errout,"Failed to locate MadVR function in %ls %d.%d.%d.%d\n",dllname,v1,v2,v3,v4));
+	FreeLibrary(HcNetDll);
+	HcNetDll = NULL;
+
 	return 1;
 }
 
+
 static void deinitMadVR(dispwin *p) {
+
 	if (HcNetDll != NULL) {
-		FreeLibrary(HcNetDll);
+
+		madVR_Disconnect();
+
+		/* This seems to crash in madHcNet64.dll32/64.dll when a lot */
+		/* of patches have been displayed ( > 11500 ?) */
+		// FreeLibrary(HcNetDll);
+
 		HcNetDll = NULL;
 	}
 }
 
 /* ----------------------------------------------- */
+
+// ~~~ this needs fixing to allow for new madVR having more than 256 entries ?
 
 /* Get RAMDAC values. ->del() when finished. */
 /* Return NULL if not possible */
@@ -262,7 +264,7 @@ static ramdac *madvrwin_get_ramdac(dispwin *p) {
 		}
 	}
 #endif // ENABLE_RAMDAC
-	debugr2((errout,"madvrwin_get_ramdac returning 0x%x\n",r));
+	debugr2((errout,"madvrwin_get_ramdac returning %p\n",r));
 
 	return r;
 }
@@ -338,8 +340,10 @@ double r, double g, double b	/* Color values 0.0 - 1.0 */
 
 	debugr("madvrwin_set_color called\n");
 
-	if (p->nowin)
+	if (p->nowin) {
+		debugr2((errout,"no window\n"));
 		return 1;
+	}
 
 	orgb[0] = p->rgb[0]; p->rgb[0] = r;
 	orgb[1] = p->rgb[1]; p->rgb[1] = g;
@@ -460,6 +464,7 @@ int native,						/* X0 = use current per channel calibration curve */
 								/* 1X = disable color management cLUT (MadVR) */
 int *noramdac,					/* Return nz if no ramdac access. native is set to X0 */
 int *nocm,						/* Return nz if no CM cLUT access. native is set to 0X */
+double icalmax,					/* Scale instrument calibration test values by this (0.0 .. 1.0) */
 int out_tvenc,					/* 1 = use RGB Video Level encoding */
 int fullscreen,					/* NZ if whole screen should be filled with black */
 int verb,						/* NZ for verbose prompts */
@@ -470,7 +475,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	const char *options[3];
 	char port[50];
 
-	debug("new_madvrwin called with native = %d\n");
+	debug("new_madvrwin called\n");
 
 	if (out_tvenc) {
 		if (ddebug) fprintf(stderr,"new_madvrwin failed because out_tvenc set\n");
@@ -488,6 +493,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->height = height;
 	p->nowin = nowin;
 	p->native = native;
+	p->icalmax = icalmax;
 	p->out_tvenc = 0;
 	p->fullscreen = fullscreen;
 	p->ddebug = ddebug;
@@ -513,7 +519,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	p->native &= ~1;
 #endif
 
-	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5;	/* Set Grey as the initial test color */
+	p->rgb[0] = p->rgb[1] = p->rgb[2] = 0.5 * icalmax;	/* Set Grey as the initial test color */
 
 	dispwin_set_default_delays(p);
 

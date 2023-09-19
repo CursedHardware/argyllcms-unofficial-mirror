@@ -1555,9 +1555,10 @@ static void dump_command(ex1 *p, ORD8 *buf, int len, int deblev) {
 		a1logd(p->log, 0, " checksum not used\n");
 	} else if (chstype == EX1_CHSUM_MD5) {
 		icmMD5 *md5;
+		icmErr err = { 0, { '\000'} };
 
-		if ((md5 = new_icmMD5()) == NULL) {
-			a1logd(p->log, 0, " new_icmMD5 failed\n");
+		if ((md5 = new_icmMD5(&err)) == NULL) {
+			a1logd(p->log, 0, " new_icmMD5 failed (0x%x, '%s')\n",err.c,err.m);
 		} else {
 			ORD8 chsum[16];
 			int i;
@@ -1713,9 +1714,10 @@ int nd				/* nz to disable debug messages */
 
 	if (chstype == EX1_CHSUM_MD5) {
 		icmMD5 *md5;
+		icmErr err = { 0, { '\000'} };
 
-		if ((md5 = new_icmMD5()) == NULL) {
-			a1logd(p->log, 1, "new_icmMD5 failed\n");
+		if ((md5 = new_icmMD5(&err)) == NULL) {
+			a1logd(p->log, 1, "new_icmMD5 failed (0x%x, '%s')\n",err.c,err.m);
 			merrno = EX1_INTERNAL_ERROR;
 		} else {
 			ORD8 chsum[16];
@@ -1872,9 +1874,10 @@ int nd				/* nz to disable debug messages */
 	/* Then the checksum */
 	if (chstype == EX1_CHSUM_MD5) {
 		icmMD5 *md5;
+		icmErr err = { 0, { '\000'} };
 
-		if ((md5 = new_icmMD5()) == NULL) {
-			a1logd(p->log, 1, "new_icmMD5 failed\n");
+		if ((md5 = new_icmMD5(&err)) == NULL) {
+			a1logd(p->log, 1, "new_icmMD5 failed (0x%x, '%s')\n",err.c,err.m);
 			rv = EX1_INTERNAL_ERROR;
 			goto done;
 		} else {

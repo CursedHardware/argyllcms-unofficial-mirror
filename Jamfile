@@ -4,8 +4,8 @@
 # Overall optization state and configuration. Overrides sub-Jamfiles
 # See Jamtop and Jambase for other details.
 
-PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
-#PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
+#PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
+PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS	+= $(CCHEAPDEBUG) ;		# Heap Debugging & Debugging flags
 #PREF_LINKFLAGS	+= $(LINKOPTFLAG) ;		# Link optimization flags
 PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
@@ -13,6 +13,15 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
 #PREF_LINKFLAGS	+= $(LINKPROFFLAG) ;    # Profile flags
 
 # Include all the sub-directory Jamfiles
+
+# Compile date
+Always compiledate.h ;
+if [ GLOB $(PATH) : awk awk.exe ] {
+	GenFileNND compiledate.h : "awk 'BEGIN {srand();print \"#define COMPILEDATE \" srand()}' > compiledate.h" ; 
+} else {
+	# make sure compilation fails if there is no awk and compiledate.h is needed
+	GenFileNND compiledate.h : $(RM) compiledate.h ; 
+}
 
 SubInclude numlib ;
 SubInclude plot ;

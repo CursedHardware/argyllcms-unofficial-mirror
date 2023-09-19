@@ -27,7 +27,7 @@ int serial_get_paths(icompaths *p, icom_type mask) {
 	LONG stat;
 	HKEY sch;		/* Serial coms handle */
 
-	a1logd(p->log, 7, "serial_get_paths: called with mask = %d\n",mask);
+	a1logd(p->log, 7, "serial_get_paths: called with mask = 0x%x\n",mask);
 
 	// (Beware KEY_WOW64_64KEY ?)
 

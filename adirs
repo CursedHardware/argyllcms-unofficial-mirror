@@ -1,4 +1,7 @@
 .
+doc
+ref
+h
 numlib
 usb
 plot
@@ -19,9 +22,6 @@ ucmm
 jcnf
 yajl
 lib
-h
-ref
-doc
 zlib
 tiff
 jpeg

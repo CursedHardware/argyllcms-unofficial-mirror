@@ -195,6 +195,7 @@ void usage(int flag, char *diag, ...) {
 	fprintf(stderr," -Z nbits             Quantize test values to fit in nbits\n");
 	fprintf(stderr," -J                   Run instrument calibration first (used rarely)\n");
 	fprintf(stderr," -N                   Disable initial calibration of instrument if possible\n");
+	fprintf(stderr," -h scale             Scale instrument calibration patch values (default 1.0)\n");
 	fprintf(stderr," -H                   Use high resolution spectrum mode (if available)\n");
 //	fprintf(stderr," -V                   Use adaptive measurement mode (if available)\n");
 	fprintf(stderr," -w                   Disable normalisation of white to Y = 100\n");
@@ -228,6 +229,7 @@ int main(int argc, char *argv[]) {
 	disppath *disp = NULL;				/* Display being used */
 	double hpatscale = 1.0, vpatscale = 1.0;	/* scale factor for test patch size */
 	double ho = 0.0, vo = 0.0;			/* Test window offsets, -1.0 to 1.0 */
+	double icalmax = 1.0;				/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc = 0;					/* 1 to use RGB Video Level encoding */
 	int qbits = 0;						/* Quantization bits, 0 = not set */
 	int fullscreen = 0;            		/* NZ if whole screen should be filled with black */
@@ -290,7 +292,7 @@ int main(int argc, char *argv[]) {
 	int dim = 0;						/* Dimensionality - 1, 3, or 4 */
 	int npat;							/* Number of patches/colors */
 	int xpat = 0;						/* Set to number of extra patches */
-	int wpat;							/* Set to index of white patch */
+	int wpat = -1;						/* Set to index of white patch */
 	int si;								/* Sample id index */
 	int ti;								/* Temp index */
 	int fi;								/* Colorspace index */
@@ -491,6 +493,14 @@ int main(int argc, char *argv[]) {
 			/* Full screen black background */
 			} else if (argv[fa][1] == 'F') {
 				fullscreen = 1;
+
+			/* Instrument calibration patch value scale */
+			} else if (argv[fa][1] == 'h') {
+				fa = nfa;
+				if (na == NULL) usage(0,"Expected argument to -h");
+				icalmax = atof(na);
+				if (icalmax < 1e-6 || icalmax > 1.0)
+					usage(0,"Argument to -h must be > 0.0 and <= 1.0");
 
 			/* Video encoded output */
 			} else if (argv[fa][1] == 'E') {
@@ -732,7 +742,7 @@ int main(int argc, char *argv[]) {
 #ifdef NT
 			                         madvrdisp,
 #endif
-			                         dummydisp, out_tvenc, fullscreen, override,
+			                         dummydisp, icalmax, out_tvenc, fullscreen, override,
 			                         100.0 * hpatscale, 100.0 * vpatscale, ho, vo,
 		                             g_log)) != 0) {
 			error("docalibration failed with return value %d\n",rv);
@@ -750,7 +760,7 @@ int main(int argc, char *argv[]) {
 	icg->add_other(icg, "CTI1"); 	/* our special input type is Calibration Target Information 1 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file '%s' isn't a CTI1 format file",inname);
@@ -850,20 +860,22 @@ int main(int argc, char *argv[]) {
 	} else
 		error ("Input file '%s' keyword COLOR_REP has illegal value (RGB colorspace expected)",inname);
 
-	/* Check that there is a white patch, and if not, add one, */
-	/* so that we can normalize the values to white. */
-	for (wpat = 0; wpat < npat; wpat++) {
-		if (cols[wpat].r > 0.9999999 && 
-		    cols[wpat].g > 0.9999999 && 
-		    cols[wpat].b > 0.9999999) {
-			break;
+	if (donorm) {
+		/* Check that there is a white patch, and if not, add one, */
+		/* so that we can normalize the values to white. */
+		for (wpat = 0; wpat < npat; wpat++) {
+			if (cols[wpat].r > 0.9999999 && 
+			    cols[wpat].g > 0.9999999 && 
+			    cols[wpat].b > 0.9999999) {
+				break;
+			}
 		}
-	}
-	if (wpat >= npat) {	/* Create a white patch */
-		if (verb)
-			printf("Adding one white patch\n");
-		xpat = 1;
-		cols[wpat].r = cols[wpat].g = cols[wpat].b = 1.0;
+		if (wpat >= npat) {	/* Create a white patch */
+			if (verb)
+				printf("Adding one white patch\n");
+			xpat = 1;
+			cols[wpat].r = cols[wpat].g = cols[wpat].b = 1.0;
+		}
 	}
 
 	/* Setup a display calibration set if we are given one */
@@ -876,7 +888,7 @@ int main(int argc, char *argv[]) {
 		ccg->add_other(ccg, "CAL"); /* our special calibration type */
 	
 		if (ccg->read_name(ccg, calname))
-			error("CGATS calibration file read error %s on file '%s'",ccg->err,calname);
+			error("CGATS calibration file read error %s on file '%s'",ccg->e.m,calname);
 	
 		if (ccg->ntables == 0 || ccg->t[0].tt != tt_other || ccg->t[0].oi != 0)
 			error ("Calibration file isn't a CAL format file");
@@ -945,7 +957,7 @@ int main(int argc, char *argv[]) {
 
 	if ((dr = new_disprd(&errc, ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, noautocal, noplace,
 	                     highres, refrate, native, &noramdac, &nocm, cal, ncal, disp,
-		                 out_tvenc, fullscreen, override, webdisp, ccid,
+		                 icalmax, out_tvenc, fullscreen, override, webdisp, ccid,
 #ifdef NT
 						 madvrdisp,
 #endif
@@ -964,7 +976,7 @@ int main(int argc, char *argv[]) {
 	if (ccs != NULL)
 		ccs->del(ccs);
 
-	/* Test the CRT with all of the test points */
+	/* Test the display with all of the test points */
 	if ((rv = dr->read(dr, cols, npat + xpat, 1, npat + xpat, 1, 0, instNoClamp)) != 0) {
 		dr->del(dr);
 		error("dispd->read returned error code %d\n",rv);
@@ -1008,7 +1020,7 @@ int main(int argc, char *argv[]) {
 
 		/* Make sure there is a copy of the white patch beyond npat, */
 		/* so that it can be left absolute. */
-		if (wpat != npat) {
+		if (wpat >= 0 && wpat != npat) {
 			cols[npat].r = cols[npat].g = cols[npat].b = 1.0;
 			cols[npat].XYZ[0] = cols[wpat].XYZ[0];
 			cols[npat].XYZ[1] = cols[wpat].XYZ[1];
@@ -1101,7 +1113,7 @@ int main(int argc, char *argv[]) {
 	free(setel);
 
 	/* If we have the absolute brightness of the display, record it */
-	if (cols[wpat].XYZ_v != 0) {
+	if (wpat >= 0 && cols[wpat].XYZ_v != 0) {
 		char buf[100];
 
 		sprintf(buf,"%f %f %f", cols[wpat].XYZ[0], cols[wpat].XYZ[1], cols[wpat].XYZ[2]);
@@ -1153,7 +1165,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	if (verb)
 		printf("Written '%s'\n",outname);

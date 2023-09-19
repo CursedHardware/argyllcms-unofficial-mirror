@@ -43,6 +43,7 @@
 
 #undef HALF_HACK /* 27.0 */		/* Crude cutting plane */
 
+
 void usage(char *diag, ...) {
 	fprintf(stderr,"View gamuts Version %s\n",ARGYLL_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
@@ -316,6 +317,7 @@ main(int argc, char *argv[]) {
 	if (ng < 2)
 		usage("Not enough arguments to specify output %s files",vrml_format());
 
+
 	strncpy(out_name, gds[--ng].in_name,MAXNAMEL); out_name[MAXNAMEL] = '\000';
 
 #ifdef DEBUG
@@ -348,7 +350,7 @@ main(int argc, char *argv[]) {
 		pp->add_other(pp, "GAMUT");
 	
 		if (pp->read_name(pp, gds[n].in_name))
-			error("Input file '%s' error : %s",gds[n].in_name, pp->err);
+			error("Input file '%s' error : %s",gds[n].in_name, pp->e.m);
 	
 		if (pp->t[0].tt != tt_other || pp->t[0].oi != 0)
 			error("Input file isn't a GAMUT format file");
@@ -478,6 +480,7 @@ main(int argc, char *argv[]) {
 		pp->del(pp);		/* Clean up */
 	}
 
+
 	/* Write the file out */
 	if (wrl->flush(wrl))
 		error("Closing output file '%s%s'\n",out_name,vrml_ext());
@@ -557,3 +560,5 @@ warning(char *fmt, ...)
 }
 
 #endif /* NEVER */
+
+

@@ -876,7 +876,7 @@ int main(int argc, char *argv[]) {
 	icg->add_other(icg, "CTI3"); 	/* our special input type is Calibration Target Information 3 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI3 format file");
@@ -955,7 +955,7 @@ int main(int argc, char *argv[]) {
 		tcg->add_other(tcg, "CAL"); 	/* our special input type is Calibration Target */
 
 		if (tcg->read_name(tcg, calname))
-			error("No cal target '%s' found for re-calibrate (%s)\n",calname,tcg->err);
+			error("No cal target '%s' found for re-calibrate (%s)\n",calname,tcg->e.m);
 
 		/* Check that this is an output cal file */
 		if ((ti = tcg->find_kword(tcg, 0, "DEVICE_CLASS")) < 0)
@@ -1605,7 +1605,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (initial || recal) {
+	if ((initial || recal) && pct->devmaxset) {
 		/* Compute an ideal power-like value for test target */
 		for (j = 0; j < devchan; j++) {
 			double hdv;			/* Half device value */
@@ -1679,12 +1679,16 @@ int main(int argc, char *argv[]) {
 
 		if (verb)  {
 			double avgpow = 0.0;
-			for (j = 0; j < devchan; j++) {
-				printf("Chan %d ideal targen power = %f\n",j,idpow[j]);
-				avgpow += idpow[j];
+			if (idpow[0] >= 0.0) {
+				for (j = 0; j < devchan; j++) {
+					printf("Chan %d ideal targen power = %f\n",j,idpow[j]);
+					avgpow += idpow[j];
+				}
+				avgpow /= (double)devchan;
+				printf("Average ideal targen power = %f\n",avgpow);
+			} else {
+				printf("No devmax, so can't compute ideal targen power.\n");
 			}
-			avgpow /= (double)devchan;
-			printf("Average ideal targen power = %f\n",avgpow);
 		}
 	}
 
@@ -2236,7 +2240,7 @@ int main(int argc, char *argv[]) {
 			free(setel);
 
 			if (ocg->write_name(ocg, outname))
-				error("Write error to file '%s': %s",outname,ocg->err);
+				error("Write error to file '%s': %s",outname,ocg->e.m);
 
 			if (verb)
 				printf("Written calibration file '%s'\n",outname);

@@ -421,7 +421,7 @@ main(int argc, char *argv[])
 	ocg->add_other (ocg, "SPECT");		/* Spectral file */
 
 	if (icg->read_name (icg, in_ti3_name))
-		error ("CGATS file read error: %s", icg->err);
+		error ("CGATS file read error: %s", icg->e.m);
 
 	if (icg->ntables < 1)
 		error ("Input file doesn't contain at least one table");
@@ -1074,7 +1074,7 @@ main(int argc, char *argv[])
 		}
 
 		if (ocg->write_name(ocg, out_ti3_name)) {
-			error ("Write error: %s", ocg->err);
+			error ("Write error: %s", ocg->e.m);
 		}
 
 		sp2cie->del (sp2cie);		/* Done with this */

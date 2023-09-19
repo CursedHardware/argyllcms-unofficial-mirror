@@ -78,6 +78,7 @@ main(int argc, char *argv[]) {
 	int  size = 0;
 	void *buf = NULL;
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 	
 	error_program = argv[0];
@@ -139,8 +140,8 @@ main(int argc, char *argv[]) {
 			error("unable to find ICC profile tag in TIFF file '%s'",in_name);
 		}
 	
-		if ((fp = new_icmFileStd_name(out_name, "w")) == NULL) {
-			error("unable to open output ICC profile '%s'",out_name);
+		if ((fp = new_icmFileStd_name(&err,out_name, "w")) == NULL) {
+			error("unable to open output ICC profile '%s' (0x%x, '%s')",out_name,err.c,err.m);
 		}
 	
 		if (fp->write(fp, buf, 1, size) != size) {
@@ -202,8 +203,8 @@ main(int argc, char *argv[]) {
 		jpeg_destroy_decompress(&rj);
 		fclose(rf);
 
-		if ((fp = new_icmFileStd_name(out_name, "w")) == NULL) {
-			error("unable to open output ICC profile '%s'",out_name);
+		if ((fp = new_icmFileStd_name(&err,out_name, "w")) == NULL) {
+			error("unable to open output ICC profile '%s' (0x%x, '%s')",out_name,err.c,err.m);
 		}
 	
 		if (fp->write(fp, buf, 1, size) != size) {

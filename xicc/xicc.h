@@ -28,7 +28,7 @@
  * the internal processing elements.
  *
  * This class bases much of it's functionality on that of the
- * underlying icclib icmLuBase.
+ * underlying icclib icmLuSpace.
  */
 
 #include "icc.h"		/* icclib ICC definitions */ 
@@ -62,6 +62,9 @@
 
 /* Pseudo intents, valid as parameter to xicc get_luobj(): */
 
+/* (The 'Abs' versions set the view conditions white point and flare to D50, */
+/*  to allow matching side-by side apperance.) */
+
 /* Default Color Appearance Space, based on absolute colorimetric */
 #define icxAppearance ((icRenderingIntent)994)
 
@@ -94,6 +97,19 @@
 /* Return a string description of the given enumeration value */
 const char *icx2str(icmEnumType etype, int enumval);
 
+
+/* ------------------------------------------------------------------------------ */
+/* icx error codes */
+
+#define ICX_ERR_OK				0			/* No error */
+#define ICX_ERR_MALLOC        	0x10000		/* A malloc failed. (errm could be NULL) */
+
+#define ICX_ERR_BAD_PCS     	0x10001		/* set_icxLuMatrix got PCS != XYZ */
+#define ICX_ERR_BAD_DEV     	0x10002		/* set_icxLuMatrix got dev != RGB or CMY */
+#define ICX_ERR_NO_WP     		0x10003		/* set_* couldn't find white point */
+
+#define ICX_ERR_XFIT_FAIL		0x1000a		/* set_* failed to create xfit object */
+#define ICX_ERR_XFIT_FIT_FAIL	0x1000b		/* set_* xfit fitting failed */
 
 /* ------------------------------------------------------------------------------ */
 
@@ -132,6 +148,11 @@ double scale		/* Amount to scale device values */
 /* ------------------------------------------------------------------------------ */
 /* Basic class keeps extra state for an icc, and provides the */
 /* expanded set of methods. */
+
+/* A selector for profile creation type */
+typedef enum {
+	icxTCT_V2V2  = 0		/* V2 profile with V2 transforms */
+} icxTransformCreateType;
 
 /* Black generation rule */
 /* The rule is all in terms of device K and L* values */
@@ -279,7 +300,7 @@ struct _xicc {
 
 										/* Set a xluobj and icc table from scattered data */
 										/* Return appropriate lookup object */
-										/* NULL on error, check errc+err for reason */
+										/* NULL on error, check e.c+e.m for reason */
 	/* "create" flags */
 #define ICX_SET_WHITE       0x00010000	/* find, set and make relative to the white point */
 #define ICX_SET_WHITE_US    0x00030000	/* find, set and make relative to the white point hue, */
@@ -291,48 +312,17 @@ struct _xicc {
 #define ICX_WRITE_WBL       0x00200000	/* Matrix: write White, Black & Luminance tags */
 #define ICX_CLIP_WB         0x00400000	/* Clip white and black to be < 1 and > 0 respectively */
 #define ICX_CLIP_PRIMS      0x00800000	/* Clip matrix primaries to be > 0 */
-#define ICX_NO_IN_SHP_LUTS  0x01000000	/* Lut/Mtx: Don't create input (Device) shaper curves. */
+#define ICX_NO_IN_SHP_LUTS  0x01000000	/* Lut: Don't create input (Device) shaper curves. */
 #define ICX_NO_IN_POS_LUTS  0x02000000	/* LuLut: Don't create input (Device) postion curves. */
 #define ICX_NO_OUT_LUTS     0x04000000	/* LuLut: Don't create output (PCS) curves. */
-//#define ICX_2PASSSMTH     0x08000000	/* If LuLut: Use Gaussian smoothing */
-//#define ICX_EXTRA_FIT     0x10000000	/* If LuLut: Counteract scat data point errors. */
+#define ICX_SINGLE_INTENT   0x08000000	/* Create A2B0 from scattered data rather than A2B1 */
+//#define ICX_2PASSSMTH     0x10000000	/* If LuLut: Use Gaussian smoothing REMOVE */
+//#define ICX_EXTRA_FIT     0x20000000	/* If LuLut: Counteract scat data point errors. REMOVE */
 /* And  ICX_VERBOSE         			   Turn on verboseness during creation */
-	struct _icxLuBase * (*set_luobj) (struct _xicc *p,
-	                                  icmLookupFunc func,		/* Functionality to set */
-	                                  icRenderingIntent intent,	/* Intent to set */
-	                                  icmLookupOrder order,		/* Search Order */
-	                                  int flags,				/* white/black point flags */
-	                                  int no,					/* Total Number of points */
-	                                  int nobw,					/* Number of points to look */
-																/* for white & black patches in */
-	                                  cow *points,				/* Array of input points */
-	                                  icxMatrixModel *skm, 		/* Optional skeleton model */
-	                                  double dispLuminance,		/* > 0.0 if display luminance */
-	                                                                    /* value and is known */
-	                                  double wpscale,			/* > 0.0 if input white pt is */
-	                                                                    /* is to be scaled */
-//									  double *bpo, 				/* != NULL black point override */
-	                                  double smooth,			/* RSPL smoothing factor, */
-	                                                                        /* -ve if raw */
-	                                  double avgdev,			/* Avge Dev. of points */
-	                                  double demph,				/* cLut dark emphasis factor */
-	                                  icxViewCond *vc,			/* Viewing Condition - only */
-	                                                            /* used if pcsor == CIECAM. */
-																/* or ICX_CAM_CLIP flag. */
-	                                  icxInk *ink,				/* inking details */
-	                                  struct _xcal *cal,		/* Optional cal Will override any */
-																/* existing, not deltd with xicc. */
-	                                  int quality);				/* Quality metric, 0..3 */
 
+//	int     (*get_viewcond)(struct _xicc *p, icxViewCond *vc);		/* Development code */
 
-								/* Return the devices viewing conditions. */
-								/* Return value 0 if it is well defined */
-								/* Return value 1 if it is a guess */
-								/* Return value 2 if it is not possible/appropriate */
-	int     (*get_viewcond)(struct _xicc *p, icxViewCond *vc);
-
-	char             err[512];			/* Error message */
-	int              errc;				/* Error code */
+	icmErr           e;					/* Error code & message */
 }; typedef struct _xicc xicc;
 
 /* ~~~~~ */
@@ -342,12 +332,80 @@ struct _xicc {
 xicc *new_xicc(icc *picc);
 
 /* ------------------------------------------------------------------------------ */
+
+/*
+int set_icxLuMono() goes here...
+*/
+
+/* Create icxLuMatrix and undelying tone reproduction curves and */
+/* colorant tags from the supplied scattered data points. */
+
+/* The scattered data is assumed to map Device -> native PCS (ie. dir = Fwd) */
+/* Set error code and message in icco on error. */
+/* Return the error code */
+int set_icxLuMatrix(
+icc               *icco,
+int                flags,			/* "create" flags */
+icxTransformCreateType icctype,		/* Profile creation type */
+int                nodp,			/* Number of points */
+int                nodpbw,			/* Number of points to look for white  & black patches in */
+cow                *ipoints,		/* Array of input points in XYZ space */
+icxMatrixModel     *skm,    		/* Optional skeleton model (not used here) */
+double             dispLuminance,	/* > 0.0 if display luminance value and is known */
+double             wpscale,			/* > 0.0 if input white point is to be scaled */
+int                quality,			/* Quality metric, 0..3 */
+double             smooth,			/* Curve smoothing, nominally 1.0 */
+int                isShTRC,			/* Matrix - NZ if shared TRCs */
+int                isGamma,			/* Matrix - NZ if gamma rather than shaper */
+int                isLinear,		/* Matrix - NZ if pure linear, gamma = 1.0 */
+int                inputEnt,		/* Num of in-table entries */
+int                inv_inputEnt		/* Num of inverse in-table entries */
+);
+
+
+/* Create icxLuLut and underlying fwd Lut from scattered data */
+/* The scattered data is assumed to map Device -> native PCS */
+int set_icxLuLut(
+icc                *icco,
+int                flags,			/* "create" flags etc. */
+icxTransformCreateType icctype,		/* Profile creation type */
+int                nodp,			/* Number of data points */
+int                nodpbw,			/* Number of data points to look for white & black patches in */
+cow                *ipoints,		/* Array of input points (Lab or XYZ normalized to 1.0) */
+icxMatrixModel     *skm,    		/* Optional skeleton model (used for input profiles) */
+double             dispLuminance,	/* > 0.0 if display luminance value and is known */
+double             wpscale,			/* > 0.0 if white point is to be scaled */
+double             smooth,			/* RSPL smoothing factor, -ve if raw */
+double             avgdev,			/* reading Average Deviation as a prop. of the input range */
+double             demph,			/* dark emphasis factor for cLUT grid res. */
+icxViewCond        *vc,				/* Viewing Condition (NULL if not using CAM) */
+icxInk             *ink,			/* inking details (NULL for default) */
+struct _xcal       *cal,			/* Optional cal (NULL for none) */
+int                quality,			/* Quality metric, 0..3 */
+int                ires,			/* Num of in-table entries */
+int                gres[MXDI],		/* RSPL/CLUT resolution */
+int	               ores				/* Num of out-table entries */
+);
+
+
+/* ------------------------------------------------------------------------------ */
+
+/* What type of icxLu we are */
+typedef enum {
+    icxLuMonoType    = 0,
+    icxLuMatrixType  = 1,	/* K is specified as output K target by PCS auxiliary */
+    icxLuLutType     = 2	/* K is specified as output K target by PCS auxiliary */
+} icxLuType;
+
+# define XLU_XFIT_FLAGS
+
 /* Expanded lookup object support */
 #define XLU_BASE_MEMBERS																\
 	/* Private: */																		\
+	icxLuType        lutype;				/* Full type of object */					\
 	int              trace;					/* Optional run time tracing flag */		\
 	struct _xicc    *pp;					/* Pointer to XICC we're a part of */		\
-	icmLuBase       *plu;					/* Pointer to icm Lu we are expanding */	\
+	icmLuSpace       *plu;					/* Pointer to icm Lu we are expanding */	\
 	int              flags;					/* Flags passed to get_luobj */				\
 	icmLookupFunc    func;					/* Function passed to get_luobj */			\
 	icRenderingIntent intent;				/* Effective/External Intent */				\
@@ -373,12 +431,10 @@ xicc *new_xicc(icc *picc);
 	icxcam      *cam;						/* CAM conversion */						\
 																						\
 	/* Attributes inhereted by ixcLu's */												\
-	int noisluts;	/* Flag - If LuLut: Don't create input (Device) shaper curves. */			\
-	int noipluts;	/* Flag - If LuLut: Don't create input (Device) position curves. */	\
-	int nooluts;	/* Flag - If LuLut: Don't create output (PCS) curves. */			\
+	XLU_XFIT_FLAGS																		\
 	int nearclip;	/* Flag - If clipping occurs, return the nearest solution, */		\
 	int mergeclut;	/* Flag - If LuLut: Merge output() and out_abs() into clut(). */	\
-	int camclip;	/* Flag - If LuLut: Use CIECAM for clut reverse lookup clipping */ \
+	int camclip;	/* Flag - If LuLut: Use CIECAM for clut reverse lookup clipping */	\
 	int intsep;		/* Flag - If LuLut: Do internal separation for 4d device */			\
 	int fastsetup;	/* Flag - If LuLut: Do fast setup at cost of slower throughput */	\
 																						\
@@ -393,11 +449,11 @@ xicc *new_xicc(icc *picc);
 								/* External effective colorspaces */       	    		\
 	void    (*spaces) (struct _icxLuBase *p, icColorSpaceSignature *ins, int *inn,		\
 	                                     icColorSpaceSignature *outs, int *outn,		\
-	                                     icmLuAlgType *alg, icRenderingIntent *intt,	 \
+	                                     icmLuAlgType *alg, icRenderingIntent *intt,	\
 	                                     icmLookupFunc *fnc, icColorSpaceSignature *pcs); \
 																						\
 	/* Get the Native input space and output space ranges */							\
-	void (*get_native_ranges) (struct _icxLuBase *p,										\
+	void (*get_native_ranges) (struct _icxLuBase *p,									\
 		double *inmin, double *inmax,		/* Maximum range of inspace values */		\
 		double *outmin, double *outmax);	/* Maximum range of outspace values */		\
 																						\
@@ -431,7 +487,7 @@ xicc *new_xicc(icc *picc);
 	/* A icxLuLut type must be icmFwd or icmBwd, */										\
 	/* and for icmFwd, the ink limit (if supplied) */									\
 	/* will be applied. */																\
-	/* Return NULL on error, check xicc errc+err for reason */							\
+	/* Return NULL on error, check xicc e.c+e.m for reason */							\
 	gamut * (*get_gamut) (struct _icxLuBase *plu,	/* xicc lookup object */			\
 	                      double detail);			/* gamut detail level, 0.0 = def */	\
 																						\
@@ -439,7 +495,7 @@ xicc *new_xicc(icc *picc);
 	/* Note that the PCS must be Lab or Jab. */											\
 	/* An icxLuLut type must be icmFwd, and the ink limit (if supplied) */				\
 	/* will be applied. */																\
-	/* Return NULL on error, check errc+err for reason */								\
+	/* Return NULL on error, check e.c+e.m for reason */								\
 	struct _icxCuspMap *(*get_cuspmap)(struct _icxLuBase *p, int res);					\
 																						\
 	/* The following two functions expose the relative colorimetric native ICC PCS */	\
@@ -467,6 +523,8 @@ struct _icxLuBase {
 struct _icxLuMono {
 	XLU_BASE_MEMBERS
 
+	int dir;
+
 	/* Overall lookups */
 	int (*fwd_lookup) (struct _icxLuBase *p, double *out, double *in);
 	int (*bwd_lookup) (struct _icxLuBase *p, double *out, double *in);
@@ -486,6 +544,8 @@ struct _icxLuMono {
 /* 3D Matrix Fwd & Bwd type object */
 struct _icxLuMatrix {
 	XLU_BASE_MEMBERS
+
+	int dir;
 
 	/* Overall lookups */
 	int (*fwd_lookup) (struct _icxLuBase *p, double *out, double *in);
@@ -508,12 +568,8 @@ struct _icxLuLut {
 	XLU_BASE_MEMBERS
 
 	/* private: */
-	icmLut *lut;							/* ICC Lut that is being used */
-	rspl	        *inputTable[MXDI];		/* The input lookups */
 	rspl	        *clutTable;				/* The multi dimention lookup */
 	rspl	        *cclutTable;			/* Alternate multi dimention lookup in CAM space */
-	rspl	        *outputTable[MXDO];		/* The output lookups */
-
 	/* Inverted RSPLs used to speed ink limit calculation */
 	/* input' -> input */
 	rspl *revinputTable[MXDI];
@@ -522,9 +578,6 @@ struct _icxLuLut {
 	int iol_out;	/* Non-zero if output lookup */
 	int iol_ch;		/* Channel */
 
-	/* In/Out inversion support */
-	double inputClipc[MXDI];	/* The input lookups clip center */
-	double outputClipc[MXDO];	/* The output lookups clip center */
 
 	/* clut inversion support */
 	double      icent[MXDI];		/* center of input gamut */
@@ -552,7 +605,7 @@ struct _icxLuLut {
 //	void *auxlinf_ctx;
 
 	/* Temporary icm fwd abs XYZ LuLut used for setting up icx clut */
-	icmLuBase *absxyzlu;
+	icmLuSpace *absxyzlu;
 
 	/* Optional function to compute the input chanel */
  	/* sum from the raw rspl input values. NULL if not used. */
@@ -597,13 +650,6 @@ struct _icxLuLut {
 	/* Get locus information for a clut (see xlut.c for details) */
 	int (*clut_locus)  (struct _icxLuLut *p, double *locus, double *out, double *in);
 
-	/* Get various types of information about the LuLut */
-	void (*get_info) (struct _icxLuLut *p, icmLut **lutp,
-	                 icmXYZNumber *pcswhtp, icmXYZNumber *whitep,
-	                 icmXYZNumber *blackp);
-
-	/* Get the matrix contents */
-	void (*get_matrix) (struct _icxLuLut *p, double m[3][3]);
 
 }; typedef struct _icxLuLut icxLuLut;
 
@@ -641,33 +687,7 @@ struct _profxinf {
 
 }; typedef struct _profxinf profxinf;
 
-/* Set an icc's Lut tables, and take care of auxiliary continuity problems. */
-/* Only useful if there are auxiliary device output chanels to be set. */
-int icxLut_set_tables_auxfix(
-icmLut *p,						/* Pointer to icmLut object */
-void   *cbctx,							/* Opaque callback context pointer value */
-icColorSpaceSignature insig, 			/* Input color space */
-icColorSpaceSignature outsig, 			/* Output color space */
-void (*infunc)(void *cbctx, double *out, double *in),
-						/* Input transfer function, inspace->inspace' (NULL = default) */
-double *inmin, double *inmax,			/* Maximum range of inspace' values */
-										/* (NULL = default) */
-void (*clutfunc)(void *cbntx, double *out, double *aux, double *auxr, double *pcs, double *in),
-						/* inspace' -> outspace' transfer function, also */
-						/* return the internal target PCS and the  (packed) auxiliary locus */
-						/* range as [min0, max0, min1, max1...], and the actual auxiliary */
-						/* target used. */
-void (*clutpcsfunc)(void *cbntx, double *out, double *aux, double *pcs),
-						/* Internal PCS + actual aux_target -> outspace' transfer function */
-void (*clutipcsfunc)(void *cbntx, double *pcs, double *olimit, double *auxv, double *in),
-						/* outspace' -> Internal PCS + auxv check function */
-double *clutmin, double *clutmax,		/* Maximum range of outspace' values */
-										/* (NULL = default) */
-void (*outfunc)(void *cbntx, double *out, double *in)
-						/* Output transfer function, outspace'->outspace (NULL = deflt) */
-);
 
-		
 /* Return an enumerated viewing condition */
 /* Return enumeration if OK, -999 if there is no such enumeration. */
 /* xicc may be NULL if just the description is wanted, */

@@ -2,6 +2,7 @@
 
 /*
  * Some system dependent convenience functions.
+ * (Some of this should be moved to numlib/numsup  - i.e. threading support ?)
  * Implemented in unixio.c and ntio.c
  */
 
@@ -254,6 +255,15 @@ kkill_nproc_ctx *kkill_nprocess(char **pname, a1log *log);
 #endif /* UNIX_APPLE || NT */
 
 #include "xdg_bds.h"
+
+/* - - - - - - - - - - - - - - - - - - -- */
+/* Some web functions */
+
+/* Destination should be strlen(s) * 3 + 1 */
+void encodeurl(char *d, char *s);
+
+/* Destination is smaller than src */
+void decodeurl(char *d, char *s);
 
 /* - - - - - - - - - - - - - - - - - - -- */
 /* Some compatibility functions */

@@ -4,6 +4,11 @@
 
 Echo "Argyll Jamtop has been read" ;
 
+# Development config.
+if [ GLOB $(TOP) : JamPrivate ] {
+	include $(TOP)/JamPrivate ;
+}
+
 # Default install base directory is same directory as Jamtop,
 # but can be overriden in the command line.
 DESTDIR ?= [ NormPaths  . ] ;
@@ -26,6 +31,9 @@ ANCHORED_PATH_VARS = DESTDIR ;
 # Tell standalone libraries that they are part of Argyll:
 DEFINES += ARGYLLCMS ;
 
+# Enable all instrument types by default
+DEFINES += ALLINSTS ;
+
 # enable serial instruments & support
 USE_SERIAL = true ;	
 
@@ -46,13 +54,17 @@ USE_VTPGLUT = false ;
 USE_PRINTER = false ;
 
 # enable CMF Measurement device and accessory support (if present)
-USE_CMFM = true ;	
+USE_CMFM = false ;	
 
 # Use ArgyllCMS version of libusb (deprecated - don't use)
 USE_LIBUSB = false ;	# [false]
 
 # Compile in graph plotting code (Not fully implemented)
 USE_PLOT = true ;		# [true] 
+
+# Enable UTF-8 code pages on MSWindows V 1903 or later,
+# to make executable language handling consistent across MSWin/OS X/Linux
+WIN_UTF8 = true ;		# [true]
 
 if $(USE_LIBUSB) = true {
 

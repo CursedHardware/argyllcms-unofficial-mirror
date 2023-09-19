@@ -295,7 +295,7 @@ char *argv[];
 	icg->add_other(icg, "CTI1"); 	/* our special input type is Calibration Target Information 1 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI1 format file");
@@ -409,7 +409,7 @@ char *argv[];
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	free(cols);
 	ocg->del(ocg);		/* Clean up */

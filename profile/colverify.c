@@ -131,6 +131,7 @@ int main(int argc, char *argv[])
 	ccmx *cmx = NULL;					/* Colorimeter Correction Matrix */
 	char gprofname[MAXNAMEL+1] = "\000";  /* Gamut limit profile name */
 	icmFile *fp = NULL;
+	icmErr err = { 0, { '\000'} };
 	icc *icco = NULL;
 	xicc *xicco = NULL;
 	icxLuBase *luo = NULL;
@@ -455,15 +456,15 @@ int main(int argc, char *argv[])
 	if (gprofname[0] != '\000') {
 		int rv;
 
-		if ((fp = new_icmFileStd_name(gprofname,"r")) == NULL)
-			error ("Can't open file '%s'",gprofname);
+		if ((fp = new_icmFileStd_name(&err,gprofname,"r")) == NULL)
+			error ("Can't open file '%s' (0x%x, '%s')",gprofname,err.c,err.m);
 	
-		if ((icco = new_icc()) == NULL)
-			error ("Creation of ICC object failed");
+		if ((icco = new_icc(&err)) == NULL)
+			error ("Creation of ICC object failed (0x%x, '%s')",err.c,err.m);
 	
 		if ((rv = icco->read(icco,fp,0)) != 0)
 			error("Reading profile '%s' failed failed with error %d:'%s'\n",
-		     	       gprofname, icco->errc,  icco->err);
+		     	       gprofname, icco->e.c,  icco->e.m);
 
 		if (icco->header->deviceClass != icSigInputClass
 		 && icco->header->deviceClass != icSigDisplayClass
@@ -477,7 +478,7 @@ int main(int argc, char *argv[])
 		/* Get a expanded color conversion object */
 		if ((luo = xicco->get_luobj(xicco, ICX_CLIP_NEAREST | ICX_FAST_SETUP,
 		    icmFwd, icRelativeColorimetric, icSigXYZData, icmLuOrdNorm, NULL, NULL)) == NULL)
-			error ("%d, %s",xicco->errc, xicco->err);
+			error ("%d, %s",xicco->e.c, xicco->e.m);
 	}
 
 	/* Colorimeter Correction Matrix */
@@ -486,7 +487,7 @@ int main(int argc, char *argv[])
 			error("new_ccmx failed\n");
 		if (cmx->read_ccmx(cmx,ccmxname))
 			error("Reading Colorimeter Correction Matrix file '%s' failed with error %d:'%s'\n",
-		     	       ccmxname, cmx->errc,  cmx->err);
+		     	       ccmxname, cmx->e.c,  cmx->e.m);
 	}
 
 
@@ -508,7 +509,7 @@ int main(int argc, char *argv[])
 		DBG(("Opening file '%s'\n",cg[n].name))
 
 		if (cgf->read_name(cgf, cg[n].name))
-			error("CGATS file '%s' read error : %s",cg[n].name,cgf->err);
+			error("CGATS file '%s' read error : %s",cg[n].name,cgf->e.m);
 	
 		if (cgf->ntables < 1)
 			error ("Input file '%s' doesn't contain at least one table",cg[n].name);

@@ -94,8 +94,11 @@ typedef enum {						/* XYZ units,      Spectral units */
 /* by a non-fluorescent stimulating D50 illuminant. */
 
 /* Reflective measurement conditions */
+/* [ It's tempting to colapse inst_meas_conditions and inst_opt_filter */
+/*   together, as they are closely related and almost identical. */
+/*   They could be disparate though, i.e. a neutral density filter. ] */
 typedef enum {
-	inst_mrc_none           = 0,	/* M0 - Default */
+	inst_mrc_none           = 0,	/* M0 - Default or n/a */
 	inst_mrc_D50            = 1,	/* M1 - D50 illuminant */
 	inst_mrc_D65            = 2,	/*      D65 Illuminant */
 	inst_mrc_uvcut          = 3,	/* M2 - U.V. Cut */ 
@@ -540,13 +543,16 @@ typedef enum {
 	inst_opt_get_cal_tile_sp    = 0x0023,	/* Return refl. white tile reference spectrum. */
 	                                        /* for current instrument filter. [*xspect tile] */
 
-	inst_opt_set_xcalstd        = 0x0024,	/* Set the X-Rite reflective calibration standard */
-											/*                             [xcalstd standard] */
-	inst_opt_get_xcalstd        = 0x0025,	/* Get the effective X-Rite ref. cal. standard */
-											/*                             [xcalstd *standard] */
-	inst_opt_lamp_remediate     = 0x0026,	/* Remediate i1Pro lamp           [double seconds] */
+	inst_opt_get_cal_sp_sens    = 0x0024,	/* Return raw and XYZ emissive spectral sensitivity */
+											/* curves.               [xspect cmf[3], cmfxyz[3]] */
 
-	inst_opt_set_averages       = 0x0027	/* Set the number of measurements to average [int] */
+	inst_opt_set_xcalstd        = 0x0025,	/* Set the X-Rite reflective calibration standard */
+											/*                             [xcalstd standard] */
+	inst_opt_get_xcalstd        = 0x0026,	/* Get the effective X-Rite ref. cal. standard */
+											/*                             [xcalstd *standard] */
+	inst_opt_lamp_remediate     = 0x0027,	/* Remediate i1Pro lamp           [double seconds] */
+
+	inst_opt_set_averages       = 0x0028	/* Set the number of measurements to average [int] */
 											/* 0 for default */
 
 
@@ -824,11 +830,12 @@ typedef struct _inst_meascondsel {
         inst_mode m);		/* Requested mode */								\
 																				\
 	/* Return array of display type selectors */								\
+	/* (The storage for the list is managed by the instrument) */				\
 	inst_code (*get_disptypesel)(												\
         struct _inst *p,														\
 		int *no_selectors,		/* Return number of display types */			\
 		inst_disptypesel **sels,/* Return the array of display types */			\
-								/* Either re-use the list or call inst_del_disptype_list() */	\
+								/* Either re-use the list or call inst_del_disptype_list() */ \
 		int allconfig,			/* nz to return list for all configs, not just current. */	\
 		int recreate);			/* nz to re-check for new ccmx & ccss files */	\
 																				\

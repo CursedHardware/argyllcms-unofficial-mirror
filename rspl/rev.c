@@ -9,7 +9,7 @@
  * Reverse interpolation support code.
  *
  * Author: Graeme W. Gill
- * Date:   30/1/00
+ * Date:   30/1/2000
  *
  * Copyright 1999 - 2008 Graeme W. Gill
  * All rights reserved.
@@ -305,9 +305,8 @@ static void rev_reduce_cache(size_t size) {
 	if (size > ram)
 		error("rev_reduce_cache: run out of rev virtual memory! (want %d, got %d)",size,ram);
 
-//printf("~1 size = %d, g_test_ram = %d\n",size,g_test_ram);
-//printf("~1 rev: Reducing cache because alloc of %d bytes failed. Reduced from %d to %d MB\n",
-//size, g_avail_ram/1000000, (ram - size)/1000000);
+//printf("~1 size = %" PFSTPREC "u, g_test_ram = %" PFSTPREC "u\n",size,g_test_ram);
+//printf("~1 rev: Reducing cache because alloc of %" PFSTPREC "u bytes failed. Reduced from %lu to %lu MB\n", size, (unsigned long)(g_avail_ram/1000000), (unsigned long)((ram - size)/1000000));
 	ram = g_avail_ram = ram - size;
 
 	/* Aportion the memory, and reduce the cache allocation to match */
@@ -320,7 +319,7 @@ static void rev_reduce_cache(size_t size) {
 			if (decrease_revcache(rc) == 0)
 				break;
 		}
-//printf("~1 rev instance ram = %d MB\n",rsi->sz/1000000);
+//printf("~1 rev instance ram = %lu MB\n",(unsigned long)(rsi->sz/1000000));
 	}
 	if (g_rev_instances != NULL && g_rev_instances->sb->s->verbose)
 		printf("%cThere %s %d rev cache instance%s with %lu Mbytes limit\n",
@@ -328,7 +327,7 @@ static void rev_reduce_cache(size_t size) {
 				g_no_rev_cache_instances > 1 ? "are" : "is",
                    g_no_rev_cache_instances,
 				g_no_rev_cache_instances > 1 ? "s" : "",
-                   (unsigned long)ram/1000000);
+                   (unsigned long)(ram/1000000));
 }
 
 /* Check that the requested allocation plus 20 M Bytes */
@@ -6430,7 +6429,7 @@ rspl *s		/* Pointer to rspl grid */
 								g_no_rev_cache_instances > 1 ? "are" : "is",
 			                    g_no_rev_cache_instances,
 								g_no_rev_cache_instances > 1 ? "s" : "",
-			                    (unsigned long)ram_portion/1000000);
+			                    (unsigned long)(ram_portion/1000000));
 		}
 	}
 
@@ -9457,7 +9456,7 @@ rspl *s
 				if (decrease_revcache(rc) == 0)
 					break;
 			}
-//printf("~1 rev instance ram = %d MB\n",rsi->sz/1000000);
+//printf("~1 rev instance ram = %lu MB\n",(unsigned long)(rsi->sz/1000000));
 		}
 		
 		if (s->verbose)
@@ -9466,7 +9465,7 @@ rspl *s
 								g_no_rev_cache_instances > 1 ? "are" : "is",
 			                    g_no_rev_cache_instances,
 								g_no_rev_cache_instances > 1 ? "s" : "",
-			                    (unsigned long)ram_portion/1000000);
+			                    (unsigned long)(ram_portion/1000000));
 	}
 
 #if defined(REVTABLESTATS) || defined(DEBUG)
@@ -11890,7 +11889,7 @@ rspl *s		/* Pointer to rspl grid */
 								g_no_rev_cache_instances > 1 ? "are" : "is",
 			                    g_no_rev_cache_instances,
 								g_no_rev_cache_instances > 1 ? "s" : "",
-			                    (unsigned long)ram_portion/1000000);
+			                    (unsigned long)(ram_portion/1000000));
 		}
 	}
 	s->rev.rev_valid = 0;
@@ -12309,9 +12308,12 @@ rspl *s
 				error("Unable to link to GlobalMemoryStatusEx()");
 			mstat.dwLength = sizeof(MEMORYSTATUSEX);
 			if ((*pGlobalMemoryStatusEx)(&mstat) != 0) {
+//printf("~1 ullTotalPhys = 0x%" PF64PREC "x\n",mstat.ullTotalPhys);
+//printf("~1 ullAvailPhys = 0x%" PF64PREC "x\n",mstat.ullAvailPhys);
 				if (sizeof(avail_ram) < 8 && mstat.ullTotalPhys > 0xffffffffL)
 					mstat.ullTotalPhys = 0xffffffffL;
 				avail_ram = mstat.ullTotalPhys;
+//printf("~1 avail_ram = %" PFSTPREC "u\n",avail_ram);
 			} else {
 				warning("%cWarning - Unable to get system memory size",cr_char);
 			}
@@ -12340,18 +12342,20 @@ rspl *s
 		}
 	#endif
 	#endif
-		DBG(("System RAM = %d Mbytes\n",avail_ram/1000000));
+		DBG(("System RAM = %lu Mbytes\n",(unsigned long)(avail_ram/1000000)));
 	
 		/* Make it sane */
 		if (avail_ram < (256 * 1024 * 1024)) {
-			warning("%cWarning - System RAM size seems very small (%d MBytes),"
-			        " assuming 256Mb instead",cr_char,avail_ram/1000000);
+			warning("%cWarning - System RAM size seems very small (%lu MBytes),"
+			        " assuming 256Mb instead",cr_char,(unsigned long)(avail_ram/1000000));
 			avail_ram = 256 * 1024 * 1024;
 		}
 		// avail_ram = -1;		/* Fake 4GB of RAM. This will swap! */
 	
 		ram1 = avail_ram;
 		ram2 = 0;
+
+		/* Don't be greedy, and limit to 1024 Mbytes */
 		if (ram1 > (1024 * 1024 * 1024)) {
 			ram1 = 1024 * 1024 * 1024;
 			ram2 = avail_ram - ram1;
@@ -12361,6 +12365,9 @@ rspl *s
 		g_avail_ram = (size_t)(REV_MAX_MEM_RATIO * ram1
 		            +          REV_MAX_MEM_RATIO2 * ram2);
 	
+//printf("~1 ram1 = %" PFSTPREC "u, ram2 = %" PFSTPREC "u\n",ram1,ram2);
+//printf("~1 g_avail_ram = %" PFSTPREC "u\n",g_avail_ram);
+
 		/* Many 32 bit systems have a virtual memory limit, so we'd better stay under it. */
 		/* This is slightly dodgy though, since we don't know how much memory other */
 		/* software will need to malloc. A more sophisticated approach would be to */
@@ -12412,12 +12419,12 @@ rspl *s
 					max_vmem += rsi->sz;
 			}
 			
-//fprintf(stdout,"~ Abs max VM = %d Mbytes\n",max_vmem/1000000);
+//fprintf(stdout,"~1 Abs max VM = %lu Mbytes\n",(unsigned long)(max_vmem/1000000));
 			safe_max_vmem = (size_t)(0.85 * max_vmem);
 			if (g_avail_ram > safe_max_vmem) {
 				g_avail_ram = safe_max_vmem;
 				if (s->verbose && repsr == 0)
-					fprintf(stdout,"%cTrimmed maximum cache RAM to %lu Mbytes to allow for VM limit\n",cr_char,(unsigned long)g_avail_ram/1000000);
+					fprintf(stdout,"%cTrimmed maximum cache RAM to %lu Mbytes to allow for VM limit\n",cr_char,(unsigned long)(g_avail_ram/1000000));
 			}
 		}
 	
@@ -12436,16 +12443,18 @@ rspl *s
 		}
 		if (max_vmem != 0 && g_avail_ram > max_vmem && repsr == 0) {
 			g_avail_ram = (size_t)(0.95 * max_vmem);
-			fprintf(stdout,"%cARGYLL_REV_CACHE_MULT * RAM trimmed to %lu Mbytes to allow for VM limit\n",cr_char,(unsigned long)g_avail_ram/1000000);
+			fprintf(stdout,"%cARGYLL_REV_CACHE_MULT * RAM trimmed to %lu Mbytes to allow for VM limit\n",cr_char,(unsigned long)(g_avail_ram/1000000));
 		}
 	}
 
+//printf("~1 g_avail_ram = %" PFSTPREC "u\n",g_avail_ram);
 	/* Default - this will get aportioned as more instances appear */
 	s->rev.max_sz = g_avail_ram;
 
-	DBG(("reverse cache max memory = %d Mbytes\n",s->rev.max_sz/1000000));
+//printf("~1 g_avail_ram = %" PFSTPREC "u\n",g_avail_ram);
+	DBG(("reverse cache max memory = %lu Mbytes\n",(unsigned long)(s->rev.max_sz/1000000)));
 	if (s->verbose && repsr == 0) {
-		fprintf(stdout, "%cRev cache RAM = %lu Mbytes\n",cr_char,(unsigned long)g_avail_ram/1000000);
+		fprintf(stdout, "%cRev cache RAM = %lu Mbytes\n",cr_char,(unsigned long)(g_avail_ram/1000000));
 		repsr = 1;
 	}
 

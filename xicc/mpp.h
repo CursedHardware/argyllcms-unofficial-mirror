@@ -180,8 +180,8 @@ struct _mpp {
 	xsp2cie *spc;			/* Spectral to CIE converter (NULL if using XYZ model) */
 
 	/* Houskeeping */
-	int errc;				/* Error code */
-	char err[200];			/* Error message */
+	icmErr e;				/* Error code & message */
+
 }; typedef struct _mpp mpp;
 
 /* Create a new, uninitialised mpp */

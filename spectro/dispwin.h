@@ -217,6 +217,7 @@ struct _dispwin {
 	double rgb[3];		/* Current color (full resolution, full range) */
 	double s_rgb[3];	/* Current color (possibly scaled range) */
 	double r_rgb[3];	/* Current color (raster value) */
+	double icalmax;		/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc;		/* 1 to use RGB Video Level encoding */
 	int patch_delay;	/* Measured patch update latency delay in msec, default 200 */
 	int inst_reaction;	/* Measured instrument reaction time delay in msec, default 0 */
@@ -417,6 +418,7 @@ dispwin *new_dispwin(
 									/* 1X = disable color management cLUT (MadVR) */
 	int *noramdac,					/* Return nz if no ramdac access. native is set to X0 */
 	int *nocm,						/* Return nz if no CM cLUT access. native is set to 0X */
+	double icalmax,					/* Scale inst. cal. test values by this (0.0 .. 1.0) */
 	int out_tvenc,					/* 1 = use RGB Video Level encoding */
 	int fullscreen,					/* NZ if whole screen should be filled with black */
 	int override,					/* NZ if override_redirect is to be used on X11 */

@@ -122,7 +122,7 @@ main(
 	cgf = new_cgats();			/* Create a CGATS structure */
 	cgf->add_other(cgf, "CTI3");/* our special input type is Calibration Target Information 3 */
 	if (cgf->read_name(cgf, in_name))
-		error("CGATS file read error %s on file '%s'",cgf->err, in_name);
+		error("CGATS file read error %s on file '%s'",cgf->e.m, in_name);
 
 	if (cgf->ntables == 0 || cgf->t[0].tt != tt_other || cgf->t[0].oi != 0)
 		error ("Profile file '%s' isn't a CTI3 format file",in_name);

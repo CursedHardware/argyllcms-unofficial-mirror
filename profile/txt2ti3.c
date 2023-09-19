@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
 	cmy->add_other(cmy, "ECI2002");			/* Gretag/Logo Target file */
 	cmy->add_other(cmy, ""); 				/* Wildcard */
 	if (cmy->read_name(cmy, devname))
-		error ("Read: Can't read dev file '%s'. Unknown format, missing or corrupted file ? (%s)",devname,cmy->err);
+		error ("Read: Can't read dev file '%s'. Unknown format, missing or corrupted file ? (%s)",devname,cmy->e.m);
 	if (cmy->ntables != 1)
 		warning("Input file '%s' doesn't contain exactly one table",devname);
 
@@ -840,7 +840,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	/* Create a dummy .ti2 file (used with scanin -r) */
 	if (out2) {
@@ -973,7 +973,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (ocg2->write_name(ocg2, outname2))
-			error("Write error : %s",ocg2->err);
+			error("Write error : %s",ocg2->e.m);
 
 	}
 

@@ -16,6 +16,7 @@
  */
 
 
+
 /* Gamut mapping object */
 struct _gammap {
 
@@ -41,7 +42,7 @@ struct _gammap {
 
 }; typedef struct _gammap gammap;
 
-#ifdef NEVER
+#ifdef NEVER		/* This is decalared in xicc.h */
 /* Method of black point adaptation */
 typedef enum {
 	gmm_BPadpt    = 0,		/* Adapt source black point to destination */

@@ -62,7 +62,6 @@ static icxLuBase *xicc_set_luobj(xicc *p, icmLookupFunc func, icRenderingIntent 
                             icmLookupOrder order, int flags, int no, int nobw, cow *points,
 							icxMatrixModel *skm,
                             double dispLuminance, double wpscale,
-//							double *bpo,
                             double smooth, double avgdev,
 							double demph, icxViewCond *vc, icxInk *ink, xcal *cal, int quality);
 static void icxLutSpaces(icxLuBase *p, icColorSpaceSignature *ins, int *inn,
@@ -77,9 +76,14 @@ static void icxLu_get_native_ranges (icxLuBase *p,
 static void icxLu_get_ranges (icxLuBase *p,
                               double *inmin, double *inmax, double *outmin, double *outmax);
 static void icxLuEfv_wh_bk_points(icxLuBase *p, double *wht, double *blk, double *kblk);
-int xicc_get_viewcond(xicc *p, icxViewCond *vc);
+//int xicc_get_viewcond(xicc *p, icxViewCond *vc);	/* Dev code */
 
-/* The different profile types are in their own source filesm */
+
+/* Convert error from lu to xlu */
+#define LUE2XLUE(PRV) ((PRV & icmPe_lurv_err) ? 2 : (PRV & icmPe_lurv_clip) ? 1 : 0)
+
+
+/* The different profile types are in their own source files, */
 /* and are included to keep their functions private. (static) */
 #include "xmono.c"
 #include "xmatrix.c"
@@ -98,7 +102,7 @@ int xicc_get_viewcond(xicc *p, icxViewCond *vc);
 /* Return a string description of the given enumeration value */
 const char *icx2str(icmEnumType etype, int enumval) {
 
-	if (etype == icmColorSpaceSignature) {
+	if (etype == icmColorSpaceSig) {
 		if (((icColorSpaceSignature)enumval) == icxSigJabData)
 			return "Jab";
 		else if (((icColorSpaceSignature)enumval) == icxSigJChData)
@@ -135,7 +139,19 @@ icxLutSpaces(
 	int *outn,						/* Return number of output components */
 	icColorSpaceSignature *pcs		/* Return PCS color space */
 ) {
-	p->plu->lutspaces(p->plu, ins, inn, outs, outn, pcs);
+	icmCSInfo ini, outi, pcsi;
+
+	p->plu->native_spaces(p->plu, &ini, &outi, &pcsi);
+	if (ins != NULL)
+		*ins = ini.sig;
+	if (inn != NULL)
+		*inn = ini.nch;
+	if (outs != NULL)
+		*outs = outi.sig;
+	if (outn != NULL)
+		*outn = outi.nch;
+	if (pcs != NULL)
+		*pcs = pcsi.sig;
 }
 
 /* Return information about the overall lookup in/out colorspaces, */
@@ -153,25 +169,31 @@ icxLuSpaces(
     icmLookupFunc *fnc,				/* Return the profile function being implemented */
 	icColorSpaceSignature *pcs		/* Return the effective PCS */
 ) {
-    icmLookupFunc function;
-	icColorSpaceSignature npcs;		/* Native PCS */
+	icmCSInfo ini, outi;
+	icmPeOp op;
+	int can_bwd;
 
-	p->plu->spaces(p->plu, NULL, inn, NULL, outn, alg, NULL, &function, &npcs, NULL);
+	p->plu->spaces(p->plu, &ini, &outi, NULL, NULL, NULL, fnc, NULL, &op, &can_bwd); 
+
+	if (ins != NULL)
+		*ins = p->ins;
+	if (inn != NULL)
+		*inn = ini.nch;
+
+	if (outs != NULL)
+		*outs = p->outs;
+	if (outn != NULL)
+		*outn = outi.nch;
 
 	if (intt != NULL)
 		*intt = p->intent;
 
-	if (fnc != NULL)
-		*fnc = function;
-
-	if (ins != NULL)
-		*ins = p->ins;
-
-	if (outs != NULL)
-		*outs = p->outs;
-
 	if (pcs != NULL)
 		*pcs = p->pcs;
+
+	/* Fake up alg from icmLuBase attributes */
+	if (alg != NULL)
+		*alg = icmSynthAlgType((icmLuBase *)p->plu);
 }
 
 /* Return the native (internaly visible) colorspace value ranges */
@@ -231,7 +253,7 @@ double *outmin, double *outmax		/* Return maximum range of outspace values */
 
 /* Structure to hold optimisation information */
 typedef struct {
-	icmLuBase *p;
+	icmLuSpace *p;
 	int kch;				/* K channel, -1 if none */
 	double tlimit, klimit;	/* Ink limit values */
 	int inn;				/* Number of input channels */
@@ -291,7 +313,7 @@ static double bpfindfunc(void *adata, double pv[]) {
 	}
 
 	/* Compute the Lab value: */
-	b->p->lookup(b->p, Lab, pv);
+	b->p->lookup_fwd(b->p, Lab, pv);
 	if (b->outs == icSigXYZData)
 		icmXYZ2Lab(&icmD50, Lab, Lab);
 
@@ -343,13 +365,12 @@ double *white,			/* XYZ Input, used for computing black */
 double *black,			/* XYZ Input & Output. Set if gblk NZ and can be computed */
 double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwise */
 ) {
-	icmLuBase *p = x->plu;
-	icmLuBase *op = p;			/* Original icmLu, in case we replace p */
+	icmLuSpace *p = x->plu;
+	icmLuSpace *op = p;			/* Original icmLu, in case we replace p */
 	icc *icco = p->icp;
 	icmHeader *h = icco->header;
 	icColorSpaceSignature ins, outs;
 	int inn, outn;
-	icmLuAlgType alg;
 	icRenderingIntent intt;
 	icmLookupFunc fnc;
 	icmLookupOrder ord;
@@ -366,7 +387,16 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 	kblack[2] = black[2];
 
 	/* Get the effective characteristics of the Lu */
-	p->spaces(p, &ins, &inn, &outs, &outn, &alg, &intt, &fnc, NULL, &ord);
+	{
+		icmCSInfo ini, outi, pcsi;
+
+		p->spaces(p, &ini, &outi, NULL, NULL, &intt, &fnc, &ord, NULL, NULL);
+
+		ins = ini.sig;
+		inn = ini.nch;
+		outs = outi.sig;
+		outn = outi.nch;
+	}
 
 	if (fnc == icmBwd) { /* Hmm. We've got PCS to device, and we want device to PCS. */
 
@@ -378,10 +408,19 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 #ifdef DEBUG
 		printf("~1 getting icmFwd\n");
 #endif
-		if ((p = icco->get_luobj(icco, icmFwd, intt, ins, ord)) == NULL)
+		if ((p = (icmLuSpace *)icco->get_luobj(icco, icmFwd, intt, ins, ord)) == NULL)
 			error("icxLu_comp_bk_point: assert: getting Fwd Lookup failed!");
 
-		p->spaces(p, &ins, &inn, &outs, &outn, &alg, &intt, &fnc, NULL, &ord);
+		{
+			icmCSInfo ini, outi, pcsi;
+	
+			p->spaces(p, &ini, &outi, NULL, NULL, &intt, &fnc, &ord, NULL, NULL);
+	
+			ins = ini.sig;
+			inn = ini.nch;
+			outs = outi.sig;
+			outn = outi.nch;
+		}
 	}
 
 	if (outs != icSigXYZData && outs != icSigLabData) {
@@ -389,7 +428,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 	}
 
 #ifdef DEBUG
-	printf("~1 icxLu_comp_bk_point called for inn = %d, ins = %s\n", inn, icx2str(icmColorSpaceSignature,ins));
+	printf("~1 icxLu_comp_bk_point called for inn = %d, ins = %s\n", inn, icx2str(icmColorSpaceSig,ins));
 #endif
 
 	switch (ins) {
@@ -426,11 +465,11 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 #endif
 			/* Check out 0 and 100% colorant */
 			dval[0] = 0.0;
-			p->lookup(p, minv, dval);
+			p->lookup_fwd(p, minv, dval);
 			if (outs == icSigXYZData)
 				icmXYZ2Lab(&icmD50, minv, minv);
 			dval[0] = 1.0;
-			p->lookup(p, maxv, dval);
+			p->lookup_fwd(p, maxv, dval);
 			if (outs == icSigXYZData)
 				icmXYZ2Lab(&icmD50, maxv, maxv);
 
@@ -455,7 +494,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 			dblack[1] = 0.0;
 			dblack[2] = 0.0;
 			dblack[3] = 1.0;
-			if (alg == icmLutType) {
+			if (x->lutype == icxLuLutType) {
 				icxLuLut *pp = (icxLuLut *)x;
 		
 				if (pp->ink.tlimit >= 0.0)
@@ -464,7 +503,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 			break;
 
 			/* Use a heursistic. */
-			/* This duplicates code in icxGetLimits() :-( */
+			/* This duplicates code in icxGuessBlackChan() :-( */
 			/* Colorant guessing should go in icclib ? */
 		case icSig2colorData:
     	case icSig3colorData:
@@ -497,7 +536,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 				/* First the no colorant value */
 				for (e = 0; e < inn; e++)
 					dval[e] = 0.0;
-				p->lookup(p, ncval, dval);
+				p->lookup_fwd(p, ncval, dval);
 				if (outs == icSigXYZData)
 					icmXYZ2Lab(&icmD50, ncval, ncval);
 
@@ -505,7 +544,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 				nlighter = ndarker = 0;
 				for (e = 0; e < inn; e++) {
 					dval[e] = 1.0;
-					p->lookup(p, cvals[e], dval);
+					p->lookup_fwd(p, cvals[e], dval);
 					if (outs == icSigXYZData)
 						icmXYZ2Lab(&icmD50, cvals[e], cvals[e]);
 					dval[e] = 0.0;
@@ -555,7 +594,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 					for (e = 0; e < inn; e++)
 						dblack[e] = 0.0;
 					dblack[kch] = 1.0;
-					if (alg == icmLutType) {
+					if (x->lutype == icxLuLutType) {
 						icxLuLut *pp = (icxLuLut *)x;
 			
 						if (pp->ink.tlimit >= 0.0)
@@ -586,7 +625,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 
 	/* Lookup the K only value */
 	if (kch >= 0) {
-		p->lookup(p, kblack, dblack);
+		p->lookup_fwd(p, kblack, dblack);
 		
 		/* We always return XYZ */
 		if (outs == icSigLabData)
@@ -603,7 +642,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 	}
 
 	/* Lookup the device black or K only value as a default */
-	p->lookup(p, black, dblack);		/* May be XYZ or Lab */
+	p->lookup_fwd(p, black, dblack);		/* May be XYZ or Lab */
 #ifdef DEBUG
 	printf("~1 Got default lu black %f %f %f, kch = %d\n", black[0],black[1],black[2],kch);
 #endif
@@ -635,7 +674,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 		bfs.klimit = -1.0;
 		bfs.toll = XICC_BLACK_POINT_TOLL;
 
-		if (alg == icmLutType) {
+		if (x->lutype == icxLuLutType) {
 			icxLuLut *pp = (icxLuLut *)x;
 
 			pp->kch = kch;
@@ -794,7 +833,7 @@ double *kblack			/* XYZ Output. Looked up if possible or set to black[] otherwis
 		printf("~1 got device black %f %f %f %f\n",dblack[0], dblack[1], dblack[2], dblack[3]);
 #endif
 
-		p->lookup(p, black, dblack);		/* Convert to PCS */
+		p->lookup_fwd(p, black, dblack);		/* Convert to PCS */
 	}
 
 	if (p != op)
@@ -825,17 +864,16 @@ double *kblk		/* K only black */
 	double white[3], black[3], kblack[3];
 
 	/* Get the Lu PCS converted to XYZ icc black and white points in XYZ */
-	if (p->plu->lu_wh_bk_points(p->plu, white, black)) {
+	if (p->plu->lu_wh_bk_points(p->plu, NULL, white, black))
+	{
 		/* Black point is assumed. We should determine one instead. */
 		/* Lookup K only black too */
 		icxLu_comp_bk_point(p, 1, white, black, kblack);
-
 	} else {
 		/* Lookup a possible K only black */
 		icxLu_comp_bk_point(p, 0, white, black, kblack);
 	}
 
-//printf("~1 white %f %f %f, black %f %f %f, kblack %f %f %f\n",white[0],white[1],white[2],black[0],black[1],black[2],kblack[0],kblack[1],kblack[2]);
 	/* Convert to possibl xicc override PCS */
 	switch ((int)p->pcs) {
 		case icSigXYZData:
@@ -854,7 +892,6 @@ double *kblk		/* K only black */
 			break;
 	}
 
-//printf("~1 icxLuEfv_wh_bk_points: pcsor %s White %f %f %f, Black %f %f %f\n", icx2str(icmColorSpaceSignature,p->pcs), white[0], white[1], white[2], black[0], black[1], black[2]);
 	if (wht != NULL) {
 		wht[0] = white[0];
 		wht[1] = white[1];
@@ -884,8 +921,7 @@ icc *picc		/* icc we are expanding */
 	p->pp = picc;
 	p->del           = xicc_del;
 	p->get_luobj     = xicc_get_luobj;
-	p->set_luobj     = xicc_set_luobj;
-	p->get_viewcond  = xicc_get_viewcond;
+	//p->get_viewcond  = xicc_get_viewcond;		/* Dev code */
 
 	/* Create an xcal if there is the right tag in the profile */
 	p->cal = xiccReadCalTag(p->pp);
@@ -918,7 +954,7 @@ int xiccIsIntentJab(icRenderingIntent intent) {
 
 /* Return an expanded lookup object, initialised */
 /* from the icc. */
-/* Return NULL on error, check errc+err for reason. */
+/* Return NULL on error, check e.c+e.m for reason. */
 /* Set the pcsor & intent to consistent and values if */
 /* Jab and/or icxAppearance has been requested. */
 /* Create the underlying icm lookup object that is used */
@@ -938,13 +974,13 @@ icmLookupOrder order,		/* Search Order */
 icxViewCond *vc,			/* Viewing Condition (may be NULL if pcsor is not CIECAM) */
 icxInk *ink					/* inking details (NULL for default) */
 ) {
-	icmLuBase *plu;
+	icmLuSpace *plu;
 	icxLuBase *xplu;
 	icmLuAlgType alg;
 	icRenderingIntent n_intent = intent;			/* Native Intent to request */
 	icColorSpaceSignature n_pcs = icmSigDefaultData;	/* Native PCS to request */
 
-//printf("~1 xicc_get_luobj got intent '%s' and pcsor '%s'\n",icx2str(icmRenderingIntent,intent),icx2str(icmColorSpaceSignature,pcsor));
+//printf("~1 xicc_get_luobj got intent '%s' and pcsor '%s'\n",icx2str(icmRenderingIntent,intent),icx2str(icmColorSpaceSig,pcsor));
 
 	/* Ensure that appropriate PCS is slected for an appearance intent */
 	if (xiccIsIntentJab(intent)) {		
@@ -991,17 +1027,24 @@ icxInk *ink					/* inking details (NULL for default) */
 	if (pcsor == icxSigJabData)	/* xicc override */
 		n_pcs = icSigXYZData;	/* Translate to XYZ */
 
-//printf("~1 xicc_get_luobj processed intent %s and pcsor %s\n",icx2str(icmRenderingIntent,intent),icx2str(icmColorSpaceSignature,pcsor));
-//printf("~1 xicc_get_luobj icclib intent %s and pcsor %s\n",icx2str(icmRenderingIntent,n_intent),icx2str(icmColorSpaceSignature,n_pcs));
+#ifdef NEVER
+	printf("xicc_get_luobj processed intent %s and pcsor %s\n",icx2str(icmRenderingIntent,intent),icx2str(icmColorSpaceSig,pcsor));
+	printf("xicc_get_luobj icclib intent %s and pcsor %s\n",icx2str(icmRenderingIntent,n_intent),icx2str(icmColorSpaceSig,n_pcs));
+#endif
 	/* Get icclib lookup object */
-	if ((plu = p->pp->get_luobj(p->pp, func, n_intent, n_pcs, order)) == NULL) {
-		p->errc = p->pp->errc;		/* Copy error */
-		strcpy(p->err, p->pp->err);
+	if ((plu = (icmLuSpace *)p->pp->get_luobj(p->pp, func, n_intent, n_pcs, order)) == NULL) {
+		p->e.c = p->pp->e.c;		/* Copy error */
+		strcpy(p->e.m, p->pp->e.m);
 		return NULL;
 	}
 
 	/* Figure out what the algorithm is */
-	plu->spaces(plu, NULL, NULL, NULL, NULL, &alg, NULL, NULL, &n_pcs, NULL);
+	{
+		icmCSInfo pcsi;
+		plu->spaces(plu, NULL, NULL, &pcsi, NULL, NULL, NULL, NULL, NULL, NULL);
+		n_pcs = pcsi.sig;
+		alg = icmSynthAlgType((icmLuBase *)plu);
+	}
 
 	/* make sure its "Abs CAM" */
 	if (vc!= NULL
@@ -1046,94 +1089,6 @@ icxInk *ink					/* inking details (NULL for default) */
 }
 
 
-/* Return an expanded lookup object, initialised */
-/* from the icc, and then overwritten by a conversion */
-/* created from the supplied scattered data points. */
-/* The Lut is assumed to be a device -> native PCS profile. */
-/* If the SET_WHITE and/or SET_BLACK flags are set, */
-/* discover the white/black point, set it in the icc, */
-/* and make the Lut relative to them. */
-/* Return NULL on error, check errc+err for reason */
-static icxLuBase *xicc_set_luobj(
-xicc *p,					/* this */
-icmLookupFunc func,			/* Functionality */
-icRenderingIntent intent,	/* Intent */
-icmLookupOrder order,		/* Search Order */
-int flags,					/* white/black point, verbose flags etc. */
-int no,						/* Number of points */
-int nobw,					/* Number of points to look for white & black patches in */
-cow *points,				/* Array of input points in target PCS space */
-icxMatrixModel *skm,   		/* Optional skeleton model (used for input profiles) */
-double dispLuminance,		/* > 0.0 if display luminance value and is known */
-double wpscale,				/* > 0.0 if input white point is to be scaled */
-//double *bpo,				/* != NULL for black point override XYZ */
-double smooth,				/* RSPL smoothing factor, -ve if raw */
-double avgdev,				/* reading Average Deviation as a proportion of the input range */
-double demph,				/* dark emphasis factor for cLUT grid res. */
-icxViewCond *vc,			/* Viewing Condition (NULL if not using CAM) */
-icxInk *ink,				/* inking details (NULL for default) */
-xcal *cal,                  /* Optional cal, will override any existing (not deleted with xicc)*/
-int quality					/* Quality metric, 0..3 */
-) {
-	icmLuBase *plu;
-	icxLuBase *xplu = NULL;
-	icmLuAlgType alg;
-
-	if (cal != NULL) {
-		if (p->cal != NULL && p->nodel_cal == 0)
-			p->cal->del(p->cal);
-		p->cal = cal;
-		p->nodel_cal = 1;	/* We were given it, so don't delete it */
-	}
-
-	if (func != icmFwd) {
-		p->errc = 1;
-		sprintf(p->err,"Can only create Device->PCS profiles from scattered data.");
-		xplu = NULL;
-		return xplu;
-	}
-
-	/* Get icclib lookup object */
-	if ((plu = p->pp->get_luobj(p->pp, func, intent, 0, order)) == NULL) {
-		p->errc = p->pp->errc;		/* Copy error */
-		strcpy(p->err, p->pp->err);
-		return NULL;
-	}
-
-	/* Figure out what the algorithm is */
-	plu->spaces(plu, NULL, NULL, NULL, NULL, &alg, NULL, NULL, NULL, NULL);
-
-	/* Call xiccLu wrapper creation */
-	switch (alg) {
-		case icmMonoFwdType:
-			p->errc = 1;
-			sprintf(p->err,"Setting Monochrome Fwd profile from scattered data not supported.");
-			plu->del(plu);
-			xplu = NULL;		/* Not supported yet */
-			break;
-
-    	case icmMatrixFwdType:
-			if (smooth < 0.0)
-				smooth = -smooth;
-			xplu = set_icxLuMatrix(p, plu, flags, no, nobw, points, skm, dispLuminance, wpscale,
-//			                       bpo,
-			                       quality, smooth);
-			break;
-
-    	case icmLutType:
-			/* ~~~ Should add check that it is a fwd profile ~~~ */
-			xplu = set_icxLuLut(p, plu, func, intent, flags, no, nobw, points, skm, dispLuminance,
-			                    wpscale,
-//			                    bpo,
-			                    smooth, avgdev, demph, vc, ink, quality);
-			break;
-
-		default:
-			break;
-	}
-
-	return xplu;
-}
 
 /* ------------------------------------------------------ */
 /* Viewing Condition Parameter stuff */
@@ -1214,6 +1169,7 @@ double Yb = -1.0;
 
 #endif /* NEVER */
 
+#ifdef NEVER		/* Development code */
 
 /* See if we can read or guess the viewing conditions */
 /* for an ICC profile. */
@@ -1251,7 +1207,7 @@ icxViewCond *vc		/* Viewing parameters to return */
 		icmXYZArray *luminanceTag;
 
 		if ((luminanceTag = (icmXYZArray *)pp->read_tag(pp, icSigLuminanceTag)) != NULL
-         && luminanceTag->ttype == icSigXYZType && luminanceTag->size >= 1) {
+         && luminanceTag->ttype == icSigXYZType && luminanceTag->count >= 1) {
 			Lve = luminanceTag->data[0].Y;	/* Copy structure */
 		} 
 	}
@@ -1271,14 +1227,12 @@ icxViewCond *vc		/* Viewing parameters to return */
 
 	/* Media White Point */
 	{
-		icmXYZArray *whitePointTag;
+		icmXYZNumber wp;
+		int wpassumed;
 
-		if ((whitePointTag = (icmXYZArray *)pp->read_tag(pp, icSigMediaWhitePointTag)) != NULL
-         && whitePointTag->ttype == icSigXYZType && whitePointTag->size >= 1) {
-			Wxyz[0] = whitePointTag->data[0].X;
-			Wxyz[1] = whitePointTag->data[0].Y;
-			Wxyz[2] = whitePointTag->data[0].Z;
-		}
+		if (pp->get_wb_points(pp, &wpassumed, &wp, NULL, NULL, NULL, NULL) == ICM_ERR_OK) {
+			icmXYZ2Ary(Wxyz, wp);
+		}  
 	}
 
 	/* ViewingConditions: */
@@ -1370,8 +1324,8 @@ icxViewCond *vc		/* Viewing parameters to return */
 	printf("Relative Flare Yf = %f\n",Yf);
 	printf("Relative Glare Yg = %f\n",Yg);
 	printf("Glare color %f %f %f\n",Gxyz[0], Gxyz[1], Gxyz[2]);
-	printf("Technology = %s\n",tag2str(tsig));
-	printf("deviceClass = %s\n",tag2str(devc));
+	printf("Technology = %s\n", icmtag2str(tsig));
+	printf("deviceClass = %s\n",icmtag2str(devc));
 	printf("Transparency = %d\n",trans);
 	// hk ? hkscale ?
 #endif
@@ -1611,6 +1565,7 @@ icxViewCond *vc		/* Viewing parameters to return */
 	return 1;
 }
 
+
 /* Write our viewing conditions to the underlying ICC profile, */
 /* using a private tag. */
 void xicc_set_viewcond(
@@ -1623,6 +1578,7 @@ icxViewCond *vc		/* Viewing parameters to return */
 }
 
 
+#endif /* NEVER */
 
 /* Return an enumerated viewing condition */
 /* Return enumeration if OK, -999 if there is no such enumeration. */
@@ -1634,7 +1590,7 @@ icxViewCond *vc,	/* Viewing parameters to return, May be NULL if desc is nz */
 int no,				/* Enumeration to return, -1 for default, -2 for none */
 char *as,			/* String alias to number, NULL if none */
 int desc,			/* NZ - Just return a description of this enumeration in vc */
-double *wp			/* Provide XYZ white point if xicc is NULL */
+double *wp			/* Provide XYZ white point if xicc is NULL or no White point tag */
 ) {
 
 	if (desc == 0) {	/* We're setting the viewing condition */
@@ -1652,22 +1608,44 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 			vc->Wxyz[2] = wp[2];
 		} else {
 	
+#ifdef NEVER
+			// ~8 this doesn't allow for ICCV4 style media chromatic adapation */
 			pp = p->pp;
 			if ((whitePointTag = (icmXYZArray *)pp->read_tag(pp, icSigMediaWhitePointTag)) != NULL
-	   	      && whitePointTag->ttype == icSigXYZType && whitePointTag->size >= 1) {
+	   	      && whitePointTag->ttype == icSigXYZType && whitePointTag->count >= 1) {
 				vc->Wxyz[0] = whitePointTag->data[0].X;
 				vc->Wxyz[1] = whitePointTag->data[0].Y;
 				vc->Wxyz[2] = whitePointTag->data[0].Z;
 			} else {
 				if (wp == NULL) { 
-					sprintf(p->err,"Enum VC: Failed to read Media White point");
-					p->errc = 2;
+					sprintf(p->e.m,"Enum VC: Failed to read Media White point");
+					p->e.c = 2;
 					return -999;
 				}
 				vc->Wxyz[0] = wp[0];
 				vc->Wxyz[1] = wp[1];
 				vc->Wxyz[2] = wp[2];
 			}
+#else
+			int wpassumed = 0;
+			icmXYZNumber twp;
+
+			pp = p->pp;
+			if (pp->get_wb_points(pp, &wpassumed, &twp, NULL, NULL, NULL, NULL) != ICM_ERR_OK) {
+				sprintf(p->e.m,"Enum VC: Failed to read Media White point");
+				p->e.c = 2;
+				return -999;
+			}  
+			if (!wpassumed) {
+				vc->Wxyz[0] = twp.X;
+				vc->Wxyz[1] = twp.Y;
+				vc->Wxyz[2] = twp.Z;
+			} else {					/* Use provided wp */
+				vc->Wxyz[0] = wp[0];
+				vc->Wxyz[1] = wp[1];
+				vc->Wxyz[2] = wp[2];
+			}
+#endif
 		}
 
 		/* Set a default Glare color */
@@ -1924,8 +1902,8 @@ double *wp			/* Provide XYZ white point if xicc is NULL */
 	}
 	else {
 		if (p != NULL) {
-			sprintf(p->err,"Enum VC: Unrecognised enumeration %d",no);
-			p->errc = 1;
+			sprintf(p->e.m,"Enum VC: Unrecognised enumeration %d",no);
+			p->e.c = 1;
 		}
 		return -999;
 	}
@@ -2457,7 +2435,7 @@ xcal *xiccReadCalTag(icc *p) {
 		if ((icg = new_cgats()) == NULL) {
 			return NULL;
 		}
-		if ((cgf = new_cgatsFileMem(ro->data, ro->size)) != NULL) {
+		if ((cgf = new_cgatsFileMem(ro->desc, ro->count)) != NULL) {
 			icg->add_other(icg, "CTI3");
 			oi = icg->add_other(icg, "CAL");
 
@@ -2535,30 +2513,34 @@ int icxGuessBlackChan(icc *p) {
 		case icSigMch6Data:
 		case icSigMch7Data:
 		case icSigMch8Data: {
-				icmLuBase *lu;
+				icmLuSpace *lu;
 				double dval[MAX_CHAN];
 				double ncval[3];
 				double cvals[MAX_CHAN][3];
 				int inn, e, nlighter, ndarker;
 
 				/* Grab a lookup object */
-				if ((lu = p->get_luobj(p, icmFwd, icRelativeColorimetric, icSigLabData, icmLuOrdNorm)) == NULL)
-					error("icxGetLimits: assert: getting Fwd Lookup failed!");
+				if ((lu = (icmLuSpace *)p->get_luobj(p, icmFwd, icRelativeColorimetric, icSigLabData, icmLuOrdNorm)) == NULL)
+					error("icxGuessBlackChan: assert: getting Fwd Lookup failed!");
 
-				lu->spaces(lu, NULL, &inn, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				{
+					icmCSInfo ini;
+					lu->spaces(lu, NULL, &ini, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+					inn = ini.nch;
+				}
 
 				/* Decide if the colorspace is aditive or subtractive */
 
 				/* First the no colorant value */
 				for (e = 0; e < inn; e++)
 					dval[e] = 0.0;
-				lu->lookup(lu, ncval, dval);
+				lu->lookup_fwd(lu, ncval, dval);
 
 				/* Then all the colorants */
 				nlighter = ndarker = 0;
 				for (e = 0; e < inn; e++) {
 					dval[e] = 1.0;
-					lu->lookup(lu, cvals[e], dval);
+					lu->lookup_fwd(lu, cvals[e], dval);
 					dval[e] = 0.0;
 					if (fabs(cvals[e][0] - ncval[0]) > 5.0) {
 						if (cvals[e][0] > ncval[0])
@@ -3074,6 +3056,7 @@ double icx_powlike(double vv, double pp) {
 double icx_powlike_needed(double src, double dst) {
 	double pp, g;
 
+//printf("~1 icx_powlike_needed got src %f dst %f\n",src,dst);
 	if (dst <= src) {
 		g = -((src - dst)/(dst * src - dst));
 		pp = (0.5 * g) + 1.0;
@@ -3081,6 +3064,7 @@ double icx_powlike_needed(double src, double dst) {
 		g = -((src - dst)/((dst - 1.0) * src));
 		pp = 1.0/(1.0 - 0.5 * g);
 	}
+//printf("~1 icx_powlike_needed returning %f\n",pp);
 
 	return pp;
 }

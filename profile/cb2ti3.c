@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	ncie->del(ncie);		/* Clean up */
 	cmy->del(cmy);

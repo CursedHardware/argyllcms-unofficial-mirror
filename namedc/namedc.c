@@ -493,7 +493,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 			xspect *sp = NULL;
 			double dev[MAX_CHAN];
 			int dev_n = 0;
-			icColorSpaceSignature devSig = icMaxEnumData;
+			icColorSpaceSignature devSig = icMaxEnumColorSpace;
 			
 			if (mxmlGetType(node) != MXML_ELEMENT) {
 				a1logd(p->log, DEB6, "read_cxf: skipping non element node type %d\n",mxmlGetType(node));
@@ -753,14 +753,14 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 				p->data[p->count].Lab_v = 1;
 			}
 
-			if (dev_n > 0 && devSig != icMaxEnumData) {
+			if (dev_n > 0 && devSig != icMaxEnumColorSpace) {
 				for (j = 0; j < dev_n; j++)
 					p->data[p->count].dev[j] = dev[j];
 				p->data[p->count].dev_n = dev_n;
 				p->data[p->count].devSig = devSig;
 			} else {
 				p->data[p->count].dev_n = 0;
-				p->data[p->count].devSig = icMaxEnumData;
+				p->data[p->count].devSig = icMaxEnumColorSpace;
 			}
 
 			a1logd(p->log, 8, "read_cxf: added color %d\n",p->count);
@@ -934,6 +934,7 @@ static int read_cxf(namedc *p, const char *filename, int options) {
 static int read_icc(namedc *p, const char *filename, int options) {
 	char *pfilename;
 	icmFile *fp;
+	icmErr err = { 0, { '\000'} };
 	icc *icco;
 
 	a1logd(p->log, 1, "read_icc: file '%s' options 0x%x\n",filename,options);
@@ -950,16 +951,16 @@ static int read_icc(namedc *p, const char *filename, int options) {
 	p->options = options;
 	
 	/* Open up the file for reading */
-	if ((fp = new_icmFileStd_name(p->filename,"r")) == NULL) {
-		snprintf(p->err, NAMEDC_ERRL, "Opening ICC file '%s' failed with %s",
-		                                     p->filename,strerror(errno));
+	if ((fp = new_icmFileStd_name(&err,p->filename,"r")) == NULL) {
+		snprintf(p->err, NAMEDC_ERRL, "Opening ICC file '%s' failed with %s (0x%x, '%s')",
+		                                     p->filename,strerror(errno),err.c,err.m);
 		a1logd(p->log, 1, "read_icc: %s\n",p->err);
 		return p->errc = 1;
 	}
 
-	if ((icco = new_icc()) == NULL) {
+	if ((icco = new_icc(&err)) == NULL) {
 		snprintf(p->err, NAMEDC_ERRL, "Creation ICC object failed");
-		a1logd(p->log, 1, "read_icc: %s\n",p->err);
+		a1logd(p->log, 1, "read_icc: %s (0x%x, '%s')\n",p->err,err.c,err.m);
 		fp->del(fp);
 		return p->errc = 1;
 	}
@@ -1028,7 +1029,7 @@ static int read_icc(namedc *p, const char *filename, int options) {
 		int Lab_v = 0;
 		double dev[MAX_CHAN];
 		int dev_n = 0;
-		icColorSpaceSignature devSig = icMaxEnumData;
+		icColorSpaceSignature devSig = icMaxEnumColorSpace;
 		int i, j;
 		
 #ifdef NEVER
@@ -1084,7 +1085,7 @@ static int read_icc(namedc *p, const char *filename, int options) {
 				dev[j] = tag->data[i].deviceCoords[j];
 
 			a1logd(p->log, DEB6, "read_icc: got %s value %s\n",
-			       icm2str(icmColorSpaceSignature, devSig), icmPdv(dev_n, dev));
+			       icm2str(icmColorSpaceSig, devSig), icmPdv(dev_n, dev));
 
 			/* Add an entry */
 			if (p->count >= p->count_a) {
@@ -1118,14 +1119,14 @@ static int read_icc(namedc *p, const char *filename, int options) {
 				p->data[p->count].Lab_v = 1;
 			}
 
-			if (dev_n > 0 && devSig != icMaxEnumData) {
+			if (dev_n > 0 && devSig != icMaxEnumColorSpace) {
 				for (j = 0; j < dev_n; j++)
 					p->data[p->count].dev[j] = dev[j];
 				p->data[p->count].dev_n = dev_n;
 				p->data[p->count].devSig = devSig;
 			} else {
 				p->data[p->count].dev_n = 0;
-				p->data[p->count].devSig = icMaxEnumData;
+				p->data[p->count].devSig = icMaxEnumColorSpace;
 			}
 
 			a1logd(p->log, 8, "read_icc: added color %d\n",p->count);
@@ -1465,8 +1466,8 @@ main(int argc, char *argv[]) {
 	for (i = 0; i < p->count; i++) {
 		printf("Color %d name '%s' = %f %f %f\n",
 		       i, p->data[i].name, p->data[i].Lab[0], p->data[i].Lab[1], p->data[i].Lab[2]);
-		if (p->data[i].devSig != icMaxEnumData) {
-			printf("%s = %s\n", icm2str(icmColorSpaceSignature, p->data[i].devSig),
+		if (p->data[i].devSig != icMaxEnumColorSpace) {
+			printf("%s = %s\n", icm2str(icmColorSpaceSig, p->data[i].devSig),
 			             icmPdv(p->data[i].dev_n, p->data[i].dev));
 		}
 	}

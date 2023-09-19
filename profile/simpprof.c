@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 	icg->add_other(icg, "CTI3"); 	/* our special input type is Calibration Target Information 3 */
 
 	if (icg->read_name(icg, inname))
-		error("CGATS file read error : %s",icg->err);
+		error("CGATS file read error : %s",icg->e.m);
 
 	if (icg->ntables == 0 || icg->t[0].tt != tt_other || icg->t[0].oi != 0)
 		error ("Input file isn't a CTI3 format file");
@@ -407,7 +407,7 @@ printf("~1 presid = %f, sresid = %f, dresid = %f\n",presid, sresid, dresid);
 		error ("Input file keyword COLOR_REPS has unknown value");
 
 	if (ocg->write_name(ocg, outname))
-		error("Write error : %s",ocg->err);
+		error("Write error : %s",ocg->e.m);
 
 	free(ed.cols);
 	ocg->del(ocg);		/* Clean up */

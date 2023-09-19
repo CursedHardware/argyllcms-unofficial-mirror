@@ -172,7 +172,6 @@ struct _xfit {
 		int gres[MXDI],			/* clut resolutions being optimised for/returned */
 		double out_min[MXDO],	/* Output value scaling/range minimum */
 		double out_max[MXDO],	/* Output value scaling/range maximum */
-//		co *bpo,				/* If != NULL, black point override in same spaces as ipoints */
 		double smooth,			/* clut rspl smoothing factor */
 		double oavgdev[MXDO],	/* Average output value deviation */
 		double demph,			/* dark emphasis factor for cLUT grid res. */

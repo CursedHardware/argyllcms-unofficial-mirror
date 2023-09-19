@@ -36,3 +36,5 @@ if $(OS) = MACOSX {
 # UI setup library
 Library libui.lib : ui.c ;
 
+#MainsFromSources t.c ;
+
