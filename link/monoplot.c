@@ -57,7 +57,7 @@ main(
 	icmFile *in_fp, *link_fp, *out_fp;
 	icmErr err = { 0, { '\000'} };
 	icc *in_icco, *link_icco, *out_icco;
-	icmLuBase *in_lu, *link_lu, *out_lu;
+	icmLuSpace *in_lu, *link_lu, *out_lu;
 	int rv = 0;
 
 	if (argc < 4)
@@ -134,18 +134,18 @@ main(
 
 
 	/* Get a PCS to Device conversion object */
-	if ((in_lu = in_icco->get_luobj(in_icco, icmBwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-		if ((in_lu = in_icco->get_luobj(in_icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+	if ((in_lu = (icmLuSpace *)in_icco->get_luobj(in_icco, icmBwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+		if ((in_lu = (icmLuSpace *)in_icco->get_luobj(in_icco, icmBwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
 			error ("%d, %s",in_icco->e.c, in_icco->e.m);
 	}
 
 	/* Get a Device to Device conversion object */
-	if ((link_lu = link_icco->get_luobj(link_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+	if ((link_lu = (icmLuSpace *)link_icco->get_luobj(link_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
 		error ("%d, %s",link_icco->e.c, link_icco->e.m);
 
 	/* Get a Device to PCS conversion object */
-	if ((out_lu = out_icco->get_luobj(out_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-		if ((out_lu = out_icco->get_luobj(out_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+	if ((out_lu = (icmLuSpace *)out_icco->get_luobj(out_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+		if ((out_lu = (icmLuSpace *)out_icco->get_luobj(out_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
 			error ("%d, %s",out_icco->e.c, out_icco->e.m);
 	}
 
@@ -165,16 +165,15 @@ main(
 				printf(" %f %f %f -> ",tt[0],tt[1],tt[2]);
 
 			/* PCS to input device space */
-			if ((rv = in_lu->lookup(in_lu, tt, tt)) > 1)
+			if ((rv = in_lu->lookup_fwd(in_lu, tt, tt)) & icmPe_lurv_err)
 				error ("%d, %s",in_icco->e.c,in_icco->e.m);
 
-
 			/* input device space to output device space */
-			if ((rv = link_lu->lookup(link_lu, tt, tt)) > 1)
+			if ((rv = link_lu->lookup_fwd(link_lu, tt, tt)) & icmPe_lurv_err)
 				error ("%d, %s",link_icco->e.c,link_icco->e.m);
 
 			/* output device space to PCS */
-			if ((rv = out_lu->lookup(out_lu, tt, tt)) > 1)
+			if ((rv = out_lu->lookup_fwd(out_lu, tt, tt)) & icmPe_lurv_err)
 				error ("%d, %s",out_icco->e.c,out_icco->e.m);
 
 			yy[i] = tt[0];

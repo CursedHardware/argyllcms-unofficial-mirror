@@ -43,6 +43,7 @@
 #include "counters.h"
 #include "vrml.h"
 
+
 static void diag_gamut(icxLuBase *p, double detail, int doaxes,
                        double tlimit, double klimit, char *outname);
 
@@ -393,6 +394,7 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	if (intent == -1) {
 		if (pcsor == icxSigJabData)
 			intent = icRelativeColorimetric;	/* Default to icxAppearance */
@@ -531,6 +533,7 @@ main(int argc, char *argv[]) {
 	if ((luo = xicco->get_luobj(xicco, fl, func, intent, pcsor, order, &vc, &ink)) == NULL)
 		error ("%d, %s",xicco->e.c, xicco->e.m);
 
+
 	if (special) {
 		if (func != icmFwd)
 			error("Must be forward direction for special plot");
@@ -540,6 +543,21 @@ main(int argc, char *argv[]) {
 		/* Creat a gamut surface */
 		if ((gam = luo->get_gamut(luo, gamres)) == NULL)
 			error ("%d, %s",xicco->e.c, xicco->e.m);
+
+		if (verb) {
+			double cs_wp[3], cs_bp[3];
+			double ga_wp[3], ga_bp[3];
+
+			if (gam->getwb(gam, cs_wp, cs_bp, NULL, ga_wp, ga_bp, NULL)) {
+				fprintf(stderr,"gamut map: Unable to read gamut white and black points\n");
+			} else {
+				printf(" Colorspace white/black are %f %f %f, %f %f %f\n",
+				cs_wp[0], cs_wp[1], cs_wp[2], cs_bp[0], cs_bp[1], cs_bp[2]);
+	
+				printf(" Gamut white/black are      %f %f %f, %f %f %f\n\n",
+				ga_wp[0], ga_wp[1], ga_wp[2], ga_bp[0], ga_bp[1], ga_bp[2]);
+			}
+		}
 
 		/* Expand gamut cylindrically */
 		if (expand != 1.0) {
@@ -741,4 +759,5 @@ char *outname		/* Output VRML/X3D file (no extension) */
 
 	wrl->del(wrl);
 }
+
 

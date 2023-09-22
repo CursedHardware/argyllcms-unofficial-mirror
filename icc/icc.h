@@ -8,15 +8,23 @@
  * Date:    1999/11/29
  * Version: 3.0.0
  *
- * Copyright 1997 - 2022 Graeme W. Gill
+ * Copyright 1997 - 2023 Graeme W. Gill
  *
  * This material is licensed with an "MIT" free use license:-
  * see the License4.txt file in this directory for licensing details.
  */
 
+/*
+ *	TTBD:
+ *
+ *	~8 should better separate into implementation and public interface -
+ *	i.e. all static functions should be implementation only etc.
+ */
+
 /* We can get some subtle errors if certain headers aren't included */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <fcntl.h>
 #include <math.h>
@@ -24,14 +32,35 @@
 #include <limits.h>
 #include <sys/types.h>
 
+#if defined (NT)
+# if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
+#  if defined _WIN32_WINNT
+#   undef _WIN32_WINNT
+#  endif
+#  define _WIN32_WINNT 0x0501
+# endif
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <io.h>
+#endif
+
+#if defined(UNIX)
+# include <unistd.h>
+# include <pthread.h>
+#endif
+
 #ifdef __cplusplus
 	extern "C" {
 #endif
 
+#define TEST_LU4					/* [def]  Test read/write of Lut1 code, new icmLu */
+
+#undef CHECK_LOOKUP_PARTS			/* [und] Check icmLu4 3 and 5 part lookups against overall lu */
+
 /* Version of icclib release */
 
-#define ICCLIB_VERSION 0x030000			/* Format is MaMiBf */  
-#define ICCLIB_VERSION_STR "3.0.0"
+#define ICCLIB_VERSION 0x030001			/* Format is MaMiBf */  
+#define ICCLIB_VERSION_STR "3.0.1"
 
 /*
  *  Note XYZ scaling to 1.0, not 100.0
@@ -68,7 +97,8 @@
 /* This needs checking for each different platform. */
 /* Using C99 and MSC covers a lot of cases, */
 /* and the fallback default is pretty reliable with modern compilers and machines. */
-/* Note that MSWin is LLP64 == 32 bit long, while OS X/Linux is LP64 == 64 bit long. */
+/* Modern 32/64 bit compilers all have int = 32 bits. */
+/* 64 bit MSWin is LLP64 == 32 bit long, while 64 bit OS X/Linux is LP64 == 64 bit long. */
 /* so long shouldn't be used in any code outside these #defines.... */
 
 /* Use __P64__ as cross platform 64 bit pointer #define */
@@ -84,19 +114,21 @@
 
 #include <stdint.h> 
 
-#define INR8   int8_t		/* 8 bit signed */
-#define INR16  int16_t		/* 16 bit signed */
-#define INR32  int32_t		/* 32 bit signed */
-#define INR64  int64_t		/* 64 bit signed - not used in icclib */
-#define ORD8   uint8_t		/* 8 bit unsigned */
-#define ORD16  uint16_t		/* 16 bit unsigned */
-#define ORD32  uint32_t		/* 32 bit unsigned */
-#define ORD64  uint64_t		/* 64 bit unsigned - not used in icclib */
+#define INR8   int8_t			/* 8 bit signed */
+#define INR16  int16_t			/* 16 bit signed */
+#define INR32  int32_t			/* 32 bit signed */
+#define INR64  int64_t			/* 64 bit signed - not used in icclib */
+#define ORD8   uint8_t			/* 8 bit unsigned */
+#define ORD16  uint16_t			/* 16 bit unsigned */
+#define ORD32  uint32_t			/* 32 bit unsigned */
+#define ORD64  uint64_t			/* 64 bit unsigned - not used in icclib */
 
 #define PNTR intptr_t
 
-#define PF64PREC "ll"		/* printf format precision specifier */
-#define CF64PREC "LL"		/* Constant precision specifier */
+#define PFSTPREC "z"        	/* size_t printf format precision specifier (ie %zu) */
+
+#define PF64PREC "ll"			/* 64 bit printf format precision specifier */
+#define CF64PREC(NNN) NNN##LL	/* 64 bit Constant precision specifier */
 
 #ifndef ATTRIBUTE_NORETURN
 # ifdef _MSC_VER
@@ -119,13 +151,15 @@
 #define ORD32  unsigned __int32		/* 32 bit unsigned */
 #define ORD64  unsigned __int64		/* 64 bit unsigned - not used in icclib */
 
-#define PNTR UINT_PTR
+#define PNTR UINT_PTR				/* Integer that can hold a pointer */
+
+#define PFSTPREC "I"                /* size_t printf format precision specifier (ie %Iu) */
+
+#define PF64PREC "I64"				/* 64 bit printf format precision specifier */
+#define CF64PREC(NNN) NNN##i64		/* 64 bit Constant precision specifier */
 
 #define vsnprintf _vsnprintf
 #define snprintf _snprintf
-
-#define PF64PREC "I64"				/* printf format precision specifier */
-#define CF64PREC "LL"				/* Constant precision specifier */
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __declspec(noreturn)
@@ -147,17 +181,17 @@
 # ifdef __LP64__	/* long long could be 128 bit ? */
 #  define INR64  long				/* 64 bit signed - not used in icclib */
 #  define ORD64  unsigned long		/* 64 bit unsigned - not used in icclib */
-#  define PF64PREC "l"				/* printf format precision specifier */
-#  define CF64PREC "L"				/* Constant precision specifier */
+#  define PF64PREC "l"				/* 64 bit printf format precision specifier */
+#  define CF64PREC(NNN) NNN##L		/* 64 bit Constant precision specifier */
 # else
 #  define INR64  long long			/* 64 bit signed - not used in icclib */
 #  define ORD64  unsigned long long	/* 64 bit unsigned - not used in icclib */
-#  define PF64PREC "ll"				/* printf format precision specifier */
-#  define CF64PREC "LL"				/* Constant precision specifier */
+#  define PF64PREC "ll"				/* 64 bit printf format precision specifier */
+#  define CF64PREC(NNN) NNN##LL		/* 64 bit Constant precision specifier */
 # endif /* !__LP64__ */
 #endif /* __GNUC__ */
 
-#define PNTR unsigned long 
+#define PNTR unsigned long			/* Integer that can hold a pointer */ 
 
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __attribute__((noreturn))
@@ -170,6 +204,14 @@
 typedef ORD32	icmUTF32;
 typedef ORD16	icmUTF16;
 typedef ORD8	icmUTF8;
+
+/* =========================================================== */
+#define ICM_SMALL_NUMBER    1.e-8		/* Matrix inversion limit */
+
+#define FMLA_MIN 1e-22		/* Formula and Parametric numerical limit */
+#define FMLA_MAX 1e+22
+
+/* =========================================================== */
 
 /* =========================================================== */
 #include "iccV44.h"	/* ICC Version 4.4 definitions. */ 
@@ -204,6 +246,9 @@ int icm_err_e(icmErr *e, int err, const char *format, ...);
 /* Same as above using a va_list */
 int icm_verr_e(icmErr *e, int err, const char *format, va_list vp);
 
+/* most useful version... */
+int icm_err(struct _icc *icp, int err, const char *format, ...);
+
 /* Clear any error and message */
 /* Ignored if e == NULL */
 void icm_err_clear_e(icmErr *e);
@@ -227,7 +272,53 @@ void icm_err_clear_e(icmErr *e);
 #define ICM_ERR_INTERNAL		        0x109	/* Internal inconsistency */
 #define ICM_ERR_BADCS     		        0x10a	/* Unsupported colorspace */
 #define ICM_ERR_BADCURVE   		        0x10b	/* Bad curve parameters */
-#define ICM_ERR_CLASSMISMATCH	        0x10c	/* Signature classes don't match */
+#define ICM_ERR_PURPMISMATCH	        0x10c	/* Signature purposes don't match */
+#define ICM_ERR_WFWENO	        		0x10d	/* set_WrFormatWarn_ENO out of space */
+#define ICM_ERR_FOREIGN_TTYPE			0x110	/* icc_copy_ttype given foreign dest ttype */
+#define ICM_ERR_UNIMP_TTYPE_COPY		0x111	/* icc_copy_ttype not implemented */
+#define ICM_ERR_UNIMP_TTYPE_NOTSAME		0x112	/* icc_compare_ttype types not the same */
+#define ICM_ERR_UNIMP_TTYPE_CMP			0x113	/* icc_compare_ttype not implemented */
+#define ICM_ERR_TTYPE_SLZE				0x114	/* TagType no serialise() */
+#define ICM_ERR_UNKNOWN_TTYPE			0x115	/* new_icmObject given unknown ttype */
+
+/* Processing element error error codes */
+#define ICM_ERR_PE_NOT_KNOWN			0x120	/* icmSigPe is unknown */
+#define ICM_ERR_PE_UNKNOWN_TTYPE		0x123	/* icmSigPe ttype is unexpected or unknown */
+#define ICM_ERR_NEW_PE_FAILED			0x124	/* icc_new_pe() returned NULL */
+#define ICM_ERR_LUT2_NO_MX_CH			0x125	/* icmLut2 matrix has input channels != 3 */
+#define ICM_ERR_LUT2_INOUT_CH			0x126	/* icmLut input and output channels don't match */
+
+#define ICM_ERR_PECONT_BOUND			0x130	/* icmPeContainer index out of bounds */
+
+#define ICM_ERR_PE_FMT_UNH_DEV			0x135	/* create_fmt() unhandled non-PCS */
+#define ICM_ERR_PE_FMT_UNH_SNORM		0x136	/* create_fmt() unhandled src normalized */
+#define ICM_ERR_PE_FMT_UNH_DNORM		0x137	/* create_fmt() unhandled dst normalized */
+#define ICM_ERR_PE_FMT_UNEXP_CASE		0x138	/* create_fmt() unexpected case */
+
+#define ICM_ERR_UNKNOWN_NORMSIG			0x139	/* new_icmNSig2NormPe got unhandled ColorSpace */
+
+#define ICM_ERR_CRM_XFORMS_BADSIG		0x13a	/* icc_create_mono_xforms got unexpected sig */
+#define ICM_ERR_CRM_XFORMS_BADTTYPE		0x13b	/* icc_create_mono_xforms got unexpected ttype */
+#define ICM_ERR_CRM_XFORMS_BADNCHAN		0x13c	/* icc_create_mono_xforms got unxpctd no channels */
+#define ICM_ERR_CRM_XFORMS_NOFWD		0x13d	/* icc_create_mono_xforms got no fwd table */
+
+#define ICM_ERR_CRX_XFORMS_BADSIG		0x140	/* icc_create_matrix_xforms got unexpected sig */
+#define ICM_ERR_CRX_XFORMS_BADTTYPE		0x141	/* icc_create_matrix_xforms got unexpected ttype */
+#define ICM_ERR_CRX_XFORMS_BADNCHAN		0x142	/* icc_create_matrix_xforms got unxpctd no channels or output space */
+#define ICM_ERR_CRX_XFORMS_NZCONST		0x142	/* icc_create_matrix_xforms got non-zero constant */
+#define ICM_ERR_CRX_XFORMS_NOFWD		0x144	/* icc_create_matrix_xforms got no fwd table */
+#define ICM_ERR_CRX_XFORMS_NOIMX		0x145	/* icc_create_matrix_xforms got can't invert mx */
+
+#define ICM_ERR_CRL_XFORMS_BAD_CLUTRES	0x148	/* icc_create_lut_xforms got non-equal clutPoints */
+#define ICM_ERR_CRL_XFORMS_BADSIG		0x149	/* icc_create_lut_xforms got unexpected sig */
+#define ICM_ERR_CRL_XFORMS_BADTTYPE		0x14a	/* icc_create_lut_xforms got unexpected ttype */
+#define ICM_ERR_CRL_XFORMS_C2MALLOC		0x14b	/* icc_create_lut_xforms got clut2 malloc */
+
+
+#define ICM_ERR_APPEND_PES_INTERNAL		0x150	/* icmPeContainer_append_pes unhandled case */
+#define ICM_ERR_SEARCH_PESEQ_INTERNAL	0x151	/* searcing icmPeSeq got unexpected icmPeSeq */
+
+#define ICM_ERR_UNEX_MINMAXLU_FAIL		0x152	/* lookup of full range min/max to pch failed */
 
 /* Format errors/warnings - plus sub-codes below */
 #define ICM_ERR_RD_FORMAT    	        0x200	/* Read ICC file format error */
@@ -236,6 +327,7 @@ void icm_err_clear_e(icmErr *e);
 /* Format/Transform sub-codes */
 #define ICM_FMT_MASK					0xff	/* Format sub code mask */
 
+#define ICM_FMT_TAGOLAP			        0x01	/* Tags overlap */
 #define ICM_FMT_SIG2TYPE			    0x03	/* Type unexpected for Tag */
 
 #define ICM_FMT_MAJV	    	        0x05	/* Header Major version error */
@@ -253,7 +345,7 @@ void icm_err_clear_e(icmErr *e);
 #define ICM_FMT_PLAT		   	        0x11	/* Platform Signature error */
 #define ICM_FMT_RMGAM		   	        0x12	/* Reference Medium Gamut Signature error */
 #define ICM_FMT_MESGEOM		   	        0x13	/* Measurement Geometry encoding error */
-#define ICM_FMT_INTENT		   	        0x14	/* Rendering intent sifnature error */
+#define ICM_FMT_INTENT		   	        0x14	/* Rendering intent signature error */
 #define ICM_FMT_SPSHAPE		   	        0x15	/* Spot Shape encoding error */
 #define ICM_FMT_STOBS		   	        0x16	/* Standard Observer encoding error */
 #define ICM_FMT_PRILL		   	        0x17	/* Predefined Illuminant encoding error */
@@ -282,21 +374,84 @@ void icm_err_clear_e(icmErr *e);
 
 #define ICM_FMT_LUICHAN   	            0x37	/* Lut input channels don't match colorspace */
 #define ICM_FMT_LUOCHAN   	            0x38	/* Lut output channels don't match colorspace */
+#define ICM_FMT_LUPURP 		  	        0x39	/* Lut unknown lut purpose */
+#define ICM_FMT_LU8IOENT   	            0x3a	/* Lut8 input or output table entries not 256*/
+#define ICM_FMT_LUIOENT   	            0x3b	/* Lut input or output table entries > 4096 */
 
-#define ICM_FMT_DATA_FLAG  	            0x39	/* Data type has unknown flag value */
-#define ICM_FMT_DATA_TERM  	            0x3a	/* ASCII data is not null terminated */
-#define ICM_FMT_TEXT_ANOTTERM           0x3b	/* Text ASCII string is not nul terminate */
-#define ICM_FMT_TEXT_ASHORT             0x3c	/* Text ASCII string shorter than space */
-#define ICM_FMT_TEXT_UERR           	0x3d	/* Text unicode string translation error */
-#define ICM_FMT_TEXT_SCRTERM            0x3f	/* Text scriptcode string not terminated */
+#define ICM_FMT_DATA_FLAG  	            0x40	/* Data type has unknown flag value */
+#define ICM_FMT_DATA_TERM  	            0x41	/* ASCII data is not null terminated */
+#define ICM_FMT_TEXT_ANOTTERM           0x42	/* Text ASCII string is not nul terminate */
+#define ICM_FMT_TEXT_ASHORT             0x43	/* Text ASCII string shorter than space */
+#define ICM_FMT_TEXT_UERR           	0x44	/* Text unicode string translation error */
+#define ICM_FMT_TEXT_SCRTERM            0x45	/* Text scriptcode string not terminated */
 
-#define ICM_FMT_MATRIX_SCALE            0x40	/* Matrix profile values have wrong scale */
+#define ICM_FMT_MATRIX_SCALE            0x48	/* Matrix profile values have wrong scale */
 
-#define ICM_FMT_REQUIRED_TAG            0x41	/* Missing a required tag for this profile class */
-#define ICM_FMT_UNEXPECTED_TAG          0x42	/* A tag is unexpected for this profile class */
-#define ICM_FMT_UNKNOWN_CLASS           0x43	/* Profile class is unknown */
+#define ICM_FMT_REQUIRED_TAG            0x49	/* Missing a required tag for this profile class */
+#define ICM_FMT_UNEXPECTED_TAG          0x4a	/* A tag is unexpected for this profile class */
+#define ICM_FMT_UNKNOWN_CLASS           0x4b	/* Profile class is unknown */
 
-#define ICM_TR_GAMUT_INTENT             0x80	/* Intent is unexpected for Gamut table */
+#define ICM_FMT_MLU_RECSIZED            0x4c	/* MultiLocalizedUnicode record size is != 12 */
+#define ICM_FMT_MLU_MISSINGSTRING       0x4d	/* MultiLocalizedUnicode has zero sized string */
+
+#define ICM_FMT_DICT_NAMELEN   	        0x53	/* Dict name is zero characters */
+#define ICM_FMT_DICT_NAMEUNQ   	        0x54	/* Dict name is not unique */ 
+#define ICM_FMT_DICTDISPTYPE   	        0x55	/* Dict display name/value wrong tagtype */ 
+
+#define ICM_FMT_FLARERANGE   	        0x5a	/* Measurement flare out of range */
+
+#define ICM_FMT_NCOL_NCHAN   	        0x5b	/* Named Color no. of chan doesn't match header */
+
+#define ICM_FMT_VCGT_FORMAT   	        0x60	/* Unknown VideoCardGamma format */
+#define ICM_FMT_VCGT_ENTRYSZ   	        0x61	/* Unknown VideoCardGamma table entry size */
+
+#define ICM_FMT_FCS_ENC					0x66	/* Unknown Formula Curve Segment encoding */
+#define ICM_FMT_CIIS_UNK				0x67	/* Unknown Colorimetric Intent Image State */
+#define ICM_FMT_RMGS_UNK				0x68	/* Unknown Reference Medium Gamut signature */
+
+#define ICM_FMT_PAR_TYPE_INVALID		0x69	/* Parent tagtype is invalid */ 
+#define ICM_FMT_SUB_TYPE_INVALID		0x6a	/* Sub tagtype is invalid */
+#define ICM_FMT_SUB_TYPE_UNKN			0x6b	/* Unknown sub-tagtype */ 
+#define ICM_FMT_SUB_MISSING				0x6c	/* Sub-tag is missing */
+
+#define ICM_FMT_CSET_SUBT				0x6e	/* icmPeCurveSet sub-tags are not correct. */
+
+#define ICM_FMT_CURV_CTYPE				0x6f	/* icmPeCurve ctype is not correct. */
+#define ICM_FMT_CURV_POIMATCH			0x70	/* icmPeCurve points don't match */
+#define ICM_FMT_CURV_POINTS				0x71	/* icmPeCurve no. points too small */
+
+#define ICM_FMT_CGRP_CHAN				0x72	/* icmPeCurveSegGroup in/out channel not 1 */
+#define ICM_FMT_CGRP_BKPTS				0x73	/* icmPeCurveSegGroup breakpoints are decreasing */
+#define ICM_FMT_CGRP_SUBT				0x74	/* icmPeCurveSegGroup sub-tags are not correct */
+#define ICM_FMT_CGRP_IBRMM				0x75	/* icmPeCurveSegGroup inverted breakpoint mismatch  */
+#define ICM_FMT_FMSG_CHAN				0x76	/* icmPeCurveFmlaSeg in/out channel not 1 */
+#define ICM_FMT_FMSG_PARM				0x77	/* icmPeCurveFmlaSeg has bad parameter */
+
+#define ICM_FMT_PACU_CHAN				0x78	/* icmPeParametricCurve in/out channel not 1 */
+#define ICM_FMT_PACU_PARM				0x79	/* icmPeParametricCurve has bad parameter */
+
+#define ICM_FMT_CURV_CHAN				0x7a	/* icmPeCurve in/out channel not 1 */
+
+#define ICM_FMT_MATX_CHAN				0x7b	/* icmPeMatrix in/out channel not 3 */
+#define ICM_FMT_MATX_CNST				0x7c	/* icmPeMatrix constant value != 0.0 */
+
+#define ICM_FMT_CLUT_RES				0x7d	/* icmPeClut_check table res is < 2 */
+
+
+#define ICM_FMT_A2B2A_CONFIG			0x86	/* AToB or BToA config is illegal */
+#define ICM_FMT_B2A_PCS					0x87	/* BToA only legal if PCS is XYZ or Lab */
+
+/* Any format error at or over this is fatal for the tag it happens in, irrespective */
+/* of icmCFlagRdFormatWarn or icmCFlagWrFormatWarn being set. */
+#define ICM_FMTF						0xf0	/* (fatal) */
+
+#define ICM_FMTF_VRANGE			    	0xf0	/* A file value is out of range (fatal) */
+#define ICM_FMTF_CLUT_LUTSIZE			0xf1	/* icmPeClut size overflowed (fatal) */
+#define ICM_FMTF_CSET_CHAN				0xf2	/* icmPeCurveSet in/out channel mismatch (fatal) */
+#define ICM_FMTF_CGRP_SEGS				0xf4	/* icmPeCurveSegGroup no. segs too small (fatal) */
+#define ICM_FMTF_CURV_CTYPE				0xf5	/* icmPeCurve ctype illegal (fatal) */
+#define ICM_FMTF_CURV_POINTS			0xf6	/* icmPeCurve no. points too small (fatal) */
+#define ICM_FMTF_LUT2_BPV				0xf7	/* LutA2B/B2A bpv value illegal (fatal) */
 
 /* Version errors/warnings - plus sub-codes below */
 #define ICM_ERR_RD_VERSION    	        0x400	/* Read ICC file format error */
@@ -308,11 +463,13 @@ void icm_err_clear_e(icmErr *e);
 #define ICM_VER_SIG2TYPEVERS		    0x03	/* Tag & TagType not valid comb. in prof. version */
 
 /* Higher level error codes */
-#define ICM_ERR_MAGIC_NUMBER	        0x601	/* ICC profile has bad magic number */
-#define ICM_ERR_HEADER_VERSION	        0x602	/* Header has invalid version number */
-#define ICM_ERR_HEADER_LENGTH	        0x603	/* Internal: Header is wrong legth */
-#define ICM_ERR_UNKNOWN_VERSION	        0x604	/* ICC Version is not known */
-#define ICM_ERR_UNKNOWN_COLORANT	    0x605	/* Unknown colorant */
+#define ICM_ERR_MAGIC_NUMBER	        0x801	/* ICC profile has bad magic number */
+#define ICM_ERR_HEADER_VERSION	        0x802	/* Header has invalid version number */
+#define ICM_ERR_HEADER_LENGTH	        0x803	/* Internal: Header is wrong legth */
+#define ICM_ERR_UNKNOWN_VERSION	        0x804	/* ICC Version is not known */
+#define ICM_ERR_UNKNOWN_COLORANT_ENUM	0x805	/* Unknown colorant enumeration */
+
+#define ICM_ERR_GAMUT_INTENT			0x820	/* Intent is unexpected for Gamut table */
 
 
 /* =========================================================== */
@@ -502,6 +659,52 @@ icmFile *new_icmFileMem(icmErr *e, void *base, size_t length);
 icmFile *new_icmFileMem_d(icmErr *e, void *base, size_t length);
 
 /* ================================= */
+/* Some useful utilities: */
+
+/* Default ICC profile file extension string */
+
+#if defined (UNIX) || defined(__APPLE__)
+#define ICC_FILE_EXT ".icc"
+#define ICC_FILE_EXT_ND "icc"
+#else
+#define ICC_FILE_EXT ".icm"
+#define ICC_FILE_EXT_ND "icm"
+#endif
+
+/* Return a string that represents a tag 32 bit value */
+/* as a 4 character string or hex number. */
+extern ICCLIB_API char *icmtag2str(unsigned int tag);
+
+/* Return a tag signature created from a string */
+extern ICCLIB_API unsigned int icmstr2tag(const char *str);
+
+/* Utility to define a non-standard tag, arguments are 4 character constants */
+#define icmMakeTag(A,B,C,D)	\
+	(   (((ORD32)(ORD8)(A)) << 24)	\
+	  | (((ORD32)(ORD8)(B)) << 16)	\
+	  | (((ORD32)(ORD8)(C)) << 8)	\
+	  |  ((ORD32)(ORD8)(D)) )
+
+/* Return the number of channels for the given color space. Return 0 if unknown. */
+extern ICCLIB_API unsigned int icmCSSig2nchan(icColorSpaceSignature sig);
+
+#define CSSigType_PCS   0x0001		/* icSigXYZData or icSigLabData */
+#define CSSigType_NDEV  0x0002		/* Not a device space (i.e. PCS, nPCS, Yxy, Luv etc.) */
+#define CSSigType_DEV   0x0004		/* A device space (AKA N-component) */
+#define CSSigType_NCOL  0x0008		/* An N-Color device space */
+
+#define CSSigType_EXT   0x0010		/* icclib Extension */
+#define CSSigType_gPCS  0x0020		/* full range or normalized PCS */
+#define CSSigType_nPCS  0x0040		/* Normalised but not full range PCS */
+#define CSSigType_gXYZ  0x0080		/* full range or normalized XYZ */
+#define CSSigType_gLab  0x0100		/* full range or normalized Lab */
+
+#define CSSigType_NORM  0x0200		/* Normalized/encoded space */
+
+/* Return a mask classifying the color space */
+extern ICCLIB_API unsigned int icmCSSig2type(icColorSpaceSignature sig);
+
+/* ================================= */
 /* Assumed constants                 */
 
 #define MAX_CHAN 15		/* Maximum number of color channels */
@@ -517,6 +720,7 @@ typedef ORD32 icmSig;	/* Otherwise un-enumerated 4 byte signature */
 /* (Unit matrix for default ICC, Bradford matrix for Argll default) */
 #define icmSigAbsToRelTransSpace ((icTagSignature) icmMakeTag('a','r','t','s'))
 
+
 /* ArgyllCMS ICCLIB extensions */
 
 /* Non-standard Color Space Signatures - will be incompatible outside icclib! */
@@ -527,23 +731,27 @@ typedef ORD32 icmSig;	/* Otherwise un-enumerated 4 byte signature */
 /* A non-specific monochrome colorsync space */
 #define icSigMch1Data ((icColorSpaceSignature) icmMakeTag('M','C','H','1'))
 
+
 /* Y'u'v' perceptual CIE 1976 UCS diagram Yu'v' */
 #define icmSigYuvData ((icColorSpaceSignature) icmMakeTag('Y','u','v',' '))
-
-/* A monochrome CIE L* space */
-#define icmSigLData ((icColorSpaceSignature) icmMakeTag('L',' ',' ',' '))
-
-/* A monochrome CIE Y space */
-#define icmSigYData ((icColorSpaceSignature) icmMakeTag('Y',' ',' ',' '))
 
 /* A modern take on Lab */
 #define icmSigLptData ((icColorSpaceSignature) icmMakeTag('L','p','t',' '))
 
 
 /* Pseudo Color Space Signatures - just used within icclib, not used in profiles. */
+/* These represent encode/normalised full range values */
 
-/* Pseudo PCS colospace of profile */
-#define icmSigPCSData ((icColorSpaceSignature) icmMakeTag('P','C','S',' '))
+/* Pseudo named colorspace */
+#define icmSigNamedData ((icColorSpaceSignature) icmMakeTag('N','a','m','e'))
+
+
+/* Pseudo PCS colospace to signal 8 bit (u1.7) XYZ */
+#define icmSigXYZ8Data ((icColorSpaceSignature) icmMakeTag('X','Y','Z','1'))
+
+/* Pseudo PCS colospace to signal 16 bit (u1.15) XYZ */
+#define icmSigXYZ16Data ((icColorSpaceSignature) icmMakeTag('X','Y','Z','2'))
+
 
 /* Pseudo PCS colospace to signal 8 bit Lab */
 #define icmSigLab8Data ((icColorSpaceSignature) icmMakeTag('L','a','b','8'))
@@ -551,17 +759,36 @@ typedef ORD32 icmSig;	/* Otherwise un-enumerated 4 byte signature */
 /* Pseudo PCS colospace to signal V2 16 bit Lab */
 #define icmSigLabV2Data ((icColorSpaceSignature) icmMakeTag('L','a','b','2'))
 
-/* Pseudo PCS colospace to signal V4 16 bit Lab */
-#define icmSigLabV4Data ((icColorSpaceSignature) icmMakeTag('L','a','b','4'))
+
+/* Pseudo device normalized encodings. These aren't actually defined by ICC... */
+#define icmSigLuv16Data ((icColorSpaceSignature) icmMakeTag('L','u','v','2'))
+#define icmSigYxy16Data ((icColorSpaceSignature) icmMakeTag('Y','x','y','2'))
+#define icmSigYCbCr16Data ((icColorSpaceSignature) icmMakeTag('Y','C','b','2'))
+
+#ifdef NEVER	/* Not fully implemented and not actually used */
+
+/* A monochrome CIE L* space */
+# define icmSigLData ((icColorSpaceSignature) icmMakeTag('L',' ',' ',' '))
+
+/* A monochrome CIE Y space */
+# define icmSigYData ((icColorSpaceSignature) icmMakeTag('Y',' ',' ',' '))
+
+
+/* Pseudo PCS colospace to signal 8 bit (u1.7) Y */
+# define icmSigY8Data ((icColorSpaceSignature) icmMakeTag('Y',' ',' ','1'))
+
+/* Pseudo PCS colospace to signal 16 bit (u1.15) Y */
+# define icmSigY16Data ((icColorSpaceSignature) icmMakeTag('Y',' ',' ','2'))
+
 
 /* Pseudo PCS colospace to signal 8 bit L */
-#define icmSigL8Data ((icColorSpaceSignature) icmMakeTag('L',' ',' ','8'))
+# define icmSigL8Data ((icColorSpaceSignature) icmMakeTag('L',' ',' ','8'))
 
 /* Pseudo PCS colospace to signal V2 16 bit L */
-#define icmSigLV2Data ((icColorSpaceSignature) icmMakeTag('L',' ',' ','2'))
+# define icmSigLV2Data ((icColorSpaceSignature) icmMakeTag('L',' ',' ','2'))
 
-/* Pseudo PCS colospace to signal V4 16 bit L */
-#define icmSigLV4Data ((icColorSpaceSignature) icmMakeTag('L',' ',' ','4'))
+
+#endif /* NEVER */
 
 
 /* Alias for icSigColorantTableType found in LOGO profiles (Byte swapped clrt !) */ 
@@ -570,12 +797,26 @@ typedef ORD32 icmSig;	/* Otherwise un-enumerated 4 byte signature */
 /* Non-standard Platform Signature for Linux and similiar */
 #define icmSig_nix ((icPlatformSignature) icmMakeTag('*','n','i','x'))
 
+/* Alias signature and tag type for shaper-monochrome transform */
+#define icmSigShaperMono icSigGrayTRCTag
+#define icmSigShaperMonoType icSigCurveType
+
+/* Alias signature and tag type for RGB shaper-matrix transform, */
+/* composed of icSigRedTRCTag, icSigGreenTRCTag, icSigBlueTRCTag, */
+/* icSigRedColorantTag, icSigGreenColorantTag, icSigBlueColorantTag */
+#define icmSigShaperMatrix icSigRedTRCTag
+#define icmSigShaperMatrixType icSigCurveType
+
+/* Tag signature, used to represent an unknown/not applicable */
+#define icmSigUnknown ((icTagSignature) 0)
+
 /* Tag Type signature, used to handle any tag that */
 /* isn't handled with a specific type object. */
 /* Also used in manufacturer & model header fields */
 /* Old: #define icmSigUnknownType ((icTagTypeSignature)icmMakeTag('?','?','?','?')) */
 #define icmSigUnknownType ((icTagTypeSignature) 0)
 
+#define icmMaxOff 0xffffffff		/* An impossible offset */
 
 typedef struct {
 	ORD32 l;			/* High and low components of signed 64 bit */
@@ -655,10 +896,14 @@ typedef struct {
 /* Overflow protected unsigned int arithmatic */
 /* These functions saturate rather than wrapping around */
 
+/* Unsigned */
 unsigned int sat_add(unsigned int a, unsigned int b);	/* a + b */
 unsigned int sat_sub(unsigned int a, unsigned int b);	/* a - b */
 unsigned int sat_mul(unsigned int a, unsigned int b);	/* a * b */
 unsigned int sat_pow(unsigned int a, unsigned int b);	/* a ^ b */
+
+/* Mixed sign */
+unsigned int sat_add_us(unsigned int a, int b);	/* a + b */
 
 /* Version that set the indicator flag if there was saturation, */
 /* else indicator is unchanged */
@@ -667,41 +912,8 @@ unsigned int sati_sub(int *ind, unsigned int a, unsigned int b);	/* a - b */
 unsigned int sati_mul(int *ind, unsigned int a, unsigned int b);	/* a * b */
 unsigned int sati_pow(int *ind, unsigned int a, unsigned int b);	/* a ^ b */
 
-
 /* Float comparisons to certain precision */
 int diff_u16f16(double a, double b);		/* u16f16 precision */
-
-/* =========================================================== */
-/* Parameters to icmGetNormFunc(): */
-
-typedef enum {			/* Direction */
-    icmGNtoCS     = 0,	/* Return conversion from Norm to Colorspace */
-    icmGNtoNorm   = 1,	/* Return conversion from Colorspace to Norm */
-} icmGNDir;
-
-typedef enum {			/* Lab version encoding */
-    icmGNV2 = 0,		/* ICC V2 */
-    icmGNV4 = 1,		/* ICC V4 */
-} icmGNVers;
-
-typedef enum {			/* Lab version representation */
-    icmGN8bit  = 0,		/* 8 bit unsigned int */
-    icmGN16bit = 1,		/* 16 bir unsigned int */
-} icmGNRep;
-
-/* Find appropriate conversion functions from the normalised */
-/* Lut data range 0.0 - 1.0 to/from a given colorspace value, */
-/* given the color space and Lut type. */
-/* If the signature specifies a specific Lab encoding, dir, ver & rep are ignored */
-/* Return 0 on success, 1 on match failure. */
-int icmGetNormFunc(
-	void (**nfunc)(double *out, double *in),	/* return function pointers */
-	void (**nfuncn)(double *out, double *in, unsigned int ch),
-	icColorSpaceSignature csig, 		/* Colorspace to convert to/from */
-	icmGNDir              dir,			/* Direction */
-	icmGNVers             ver,			/* Lab version */
-	icmGNRep              rep			/* Representation */
-);
 
 /* =========================================================== */
 
@@ -716,7 +928,7 @@ int icmGetNormFunc(
 	Non-fatal Version errors are treated as fatal unless set to Warn.
 
 	Quirks are errors that would normally be fatal, but if the Quirk flag
-	is set are repaired and treated as warnings.
+	is set are repaired or ignored and treated as warnings.
 */
 
 /* Flags that control the format & version checking behaviour. */
@@ -734,23 +946,26 @@ typedef unsigned int icmCompatFlags;
 #define icmCFlagWrVersionWarn ((icmCompatFlags)0x0008)
 					/* Warn if write version has incompatibility problem rather than error  */
 
-#define icmCFlagAllowUnknown ((icmCompatFlags)0x0010)
-					/* Allow unknown tags and tagtypes without warning or error. */
+#define icmCFlagRdAllowUnknown ((icmCompatFlags)0x0010)
+					/* Allow reading unknown tags and tagtypes without warning or error. */
 					/* Will warn if known tag uses unknown tagtype */
 
-#define icmCFlagAllowExtensions ((icmCompatFlags)0x0020)
+#define icmCFlagWrAllowUnknown ((icmCompatFlags)0x0020)
+					/* Allow writing unknown tags without warning or error. */
+
+#define icmCFlagAllowExtensions ((icmCompatFlags)0x0040)
 					/* Allow ICCLIB extensions without warning or error. */
 
-#define icmCFlagAllowQuirks ((icmCompatFlags)0x0040)
+#define icmCFlagAllowQuirks ((icmCompatFlags)0x0080)
 					/* Permit non-fatal deviations from spec., and allow for profile quirks */
 					/* and emit warnings. */
 
-#define icmCFlagAllowWrVersion ((icmCompatFlags)0x0080)
+#define icmCFlagAllowWrVersion ((icmCompatFlags)0x0100)
 					/* Allow out of version Tags & TagTypes on write without warnings */
 					/* over tag & tagtype version range defined by vcrange */
 					/* (Use icp->set_vcrange() to set/unset) */
 
-#define icmCFlagNoRequiredCheck ((icmCompatFlags)0x0100)
+#define icmCFlagNoRequiredCheck ((icmCompatFlags)0x0200)
 					/* Don't check for required tags on write */
 					/* (This is intended only for testing) */
 
@@ -766,17 +981,17 @@ typedef unsigned int icmCompatFlags;
 /* Operation that a serialisation routine should perform. */
 /* Note that icmSnOp & icmSnResize will be true for Resize or Read */
 typedef enum {
-	/* Component flags - test by anding with icmSnOp */
+	/* Component flags - test is (icmSnOp & icmSnDumyBuf) etc. */
 	icmSnDumyBuf   = 1,	/* A dummy buffer is used */
-	icmSnSerialise = 2,	/* Full serialisation is needed, not just arrays allocation/free */
-	icmSnAlloc     = 4,	/* Need to alloc/realloc storage */
+	icmSnSerialise = 2,	/* Full serialisation is needed, not just Size or Resize or Free */
+	icmSnAlloc     = 4,	/* Need to alloc/realloc storage in struct */
 
-	/* Individual states */
-    icmSnResize   = icmSnAlloc + icmSnDumyBuf,		/* 5 = Resize variable sized elements */
-    icmSnFree     = icmSnDumyBuf, 					/* 1 = Free variable sized elements */
-    icmSnSize     = icmSnSerialise + icmSnDumyBuf,	/* 3 = Return file size the element would use */
+	/* Individual states - test is (icmSnOp == icmSnResize) etc. */
+    icmSnResize   = icmSnAlloc + icmSnDumyBuf,		/* 5 = Allocate & resize variable elements */
+    icmSnSize     = icmSnSerialise + icmSnDumyBuf,	/* 3 = Compute file size elements would use */
     icmSnWrite    = icmSnSerialise,					/* 2 = Write elements */
-    icmSnRead     = icmSnAlloc + icmSnSerialise		/* 6 = Read elements */
+    icmSnRead     = icmSnAlloc + icmSnSerialise,	/* 6 = Allocate and read elements */
+    icmSnFree     = icmSnDumyBuf 					/* 1 = Free variable sized elements */
 } icmSnOp;
 
 
@@ -784,14 +999,17 @@ typedef enum {
 /* The serialisation functionaly uses this as a source or target. */
 struct _icmFBuf {
 	struct _icc *icp;	/* icc we're part of */
+	struct _icmFBuf *super;	/* If not-NULL, we are a sub-buffer */
 
 	icmSnOp op;			/* Operation being performed */
-	unsigned int size;	/* size of tag */ 
+	unsigned int size;	/* size of tag (determines buffer size) */ 
 	icmFile *fp;		/* Associated file */
 	unsigned int of;	/* File offset of buffer */
 	ORD8 *buf;			/* Pointer to buffer base */
 	ORD8 *bp;			/* Pointer to next location to read/write */
 	ORD8 *ep;			/* Pointer to location one past end of buffer */
+
+	/* buf, bp, ep are dummy pointers used to compute size if op & icmSnDumyBuf */
 
 	/* Offset the current buffer location by a relative amount */
 	void (* roff)(struct _icmFBuf *p, INR32 off);
@@ -802,163 +1020,21 @@ struct _icmFBuf {
 	/* Return the current absolute offset within the buffer */
 	ORD32 (* get_off)(struct _icmFBuf *p);
 
-	/* Return the currently available space  within the buffer */
+	/* Return the currently available space within the buffer */
 	ORD32 (* get_space)(struct _icmFBuf *p);
 
 	/* Finalise (ie. Write), free object and buffer, return error and size used */
 	ORD32 (* done)(struct _icmFBuf *p);
+
+	/* Return a sub-buffer based at the current offset. */
+	struct _icmFBuf * (* new_sub)(struct _icmFBuf *n, ORD32 size);
+
 }; typedef struct _icmFBuf icmFBuf;
 
-/* Create a new file buffer. */
-/* If op & icmSnDumyBuf, then f, of and size are ignored. */
-/* of is the offset of the buffer in the file */ 
-/* e may be NULL */
-/* Returns NULL on error, & fills in icp->e */
-icmFBuf *new_icmFBuf(struct _icc *icp, icmSnOp op, icmFile *fp, unsigned int of, ORD32 size);
-
-
-#ifdef NEVER		// Not used
-
-/* There is a serialisation base class that can be inhereted, */
-/* that provides the necessary serialisation support functionality. */
-/* (This need not be a base class for every serialisable object.) */
-
-#define ICM_SN																	\
-	int  (*serialise)(struct _icmSn *p, icmFBuf *fb);							\
-	int  (*resize)(struct _icmSn *p);											\
-
-/* Base serialisation class */
-struct _icmSn {
-	ICM_SN
-}; typedef struct _icmSn icmSn;
-
-#endif /* NEVER */
-
-/* Utility function: */
-/* Deal with a possibly non-fatal formatting error. */
-/* Return the current error code. This will be not ICM_ERROR_OK if fatal. */
-int icmFormatWarning(struct _icc *icp, int sub, const char *format, ...);
-
-/* Serialisation building blocks */
-void icmSn_pad(icmFBuf *b, ORD32 size);				/* Pad with size bytes */
-void icmSn_align(icmFBuf *b, ORD32 alignment);		/* Pad to give alignment */
-void icmSn_uc_UInt8(icmFBuf *b, unsigned char *p);
-void icmSn_us_UInt8(icmFBuf *b, unsigned short *p);
-void icmSn_ui_UInt8(icmFBuf *b, unsigned int *p);
-void icmSn_us_UInt16(icmFBuf *b, unsigned short *p);
-void icmSn_ui_UInt16(icmFBuf *b, unsigned int *p);
-void icmSn_ui_UInt32(icmFBuf *b, unsigned int *p);
-void icmSn_uii_UInt64(icmFBuf *b, icmUInt64 *p);
-void icmSn_d_U8Fix8(icmFBuf *b, double *p);
-void icmSn_d_U16Fix16(icmFBuf *b, double *p);
-void icmSn_c_SInt8(icmFBuf *b, signed char *p);
-void icmSn_s_SInt8(icmFBuf *b, short *p);
-void icmSn_i_SInt8(icmFBuf *b, int *p);
-void icmSn_s_SInt16(icmFBuf *b, short *p);
-void icmSn_i_SInt16(icmFBuf *b, int *p);
-void icmSn_i_SInt32(icmFBuf *b, int *p);
-void icmSn_ii_SInt64(icmFBuf *b, icmInt64 *p);
-void icmSn_d_S8Fix8(icmFBuf *b, double *p);
-void icmSn_d_S15Fix16(icmFBuf *b, double *p);
-void icmSn_d_NFix8(icmFBuf *b, double *p);
-void icmSn_d_NFix16(icmFBuf *b, double *p);
-void icmSn_d_NFix32(icmFBuf *b, double *p);
-
-/* - - - - - - - - - - - - - - - */
-/* Independent Check functions */
-
-int icmCheckVariableNullASCII(icmFBuf *b, char *p, int length);
-
-/* - - - - - - - - - - - - - - - */
-/* Encoding checked serialisation functions */
-
-void icmSn_Screening32(icmFBuf *b, icScreening *p);
-void icmSn_DeviceAttributes64(icmFBuf *b, icmUInt64 *p);
-void icmSn_ProfileFlags32(icmFBuf *b, icProfileFlags *p);
-void icmSn_AsciiOrBinary32(icmFBuf *b, icAsciiOrBinary *p);
-void icmSn_VideoCardGammaFormat32(icmFBuf *b, icVideoCardGammaFormat *p);
-void icmSn_TagSig32(icmFBuf *b, icTagSignature *p);
-void icmSn_TagTypeSig32(icmFBuf *b, icTagTypeSignature *p);
-void icmSn_ColorSpaceSig32(icmFBuf *b, icColorSpaceSignature *p);
-void icmSn_ProfileClassSig32(icmFBuf *b, icProfileClassSignature *p);
-void icmSn_PlatformSig32(icmFBuf *b, icPlatformSignature *p);
-void icmSn_DeviceManufacturerSig32(icmFBuf *b, icDeviceManufacturerSignature *p);
-void icmSn_DeviceModelSig32(icmFBuf *b, icDeviceModelSignature *p);
-void icmSn_CMMSig32(icmFBuf *b, icCMMSignature *p);
-void icmSn_ReferenceMediumGamutSig32(icmFBuf *b, icReferenceMediumGamutSignature *p);
-void icmSn_TechnologySig32(icmFBuf *b, icTechnologySignature *p);
-void icmSn_MeasurementGeometry32(icmFBuf *b, icMeasurementGeometry *p);
-void icmSn_MeasurementFlare32(icmFBuf *b, icMeasurementFlare *p);
-void icmSn_RenderingIntent32(icmFBuf *b, icRenderingIntent *p);
-void icmSn_SpotShape32(icmFBuf *b, icSpotShape *p);
-void icmSn_StandardObserver32(icmFBuf *b, icStandardObserver *p);
-void icmSn_PredefinedIlluminant32(icmFBuf *b, icIlluminant *p);
-void icmSn_LanguageCode16(icmFBuf *b, icEnumLanguageCode *p);
-void icmSn_RegionCode16(icmFBuf *b, icEnumRegionCode *p);
-void icmSn_DevSetMsftIDSig32(icmFBuf *b, icDevSetMsftIDSignature *p);
-void icmSn_DevSetMsftMedia32(icmFBuf *b, icDevSetMsftMedia *p);
-void icmSn_DevSetMsftDither32(icmFBuf *b, icDevSetMsftDither *p);
-void icmSn_MeasUnitsSig32(icmFBuf *b, icMeasUnitsSig *p);
-void icmSn_PhColEncoding(icmFBuf *b, icPhColEncoding *p);
-void icmSn_ParametricCurveFunctionType16(icmFBuf *b, icParametricCurveFunctionType *p);
-
-/* - - - - - - - - - - - - - - - */
-/* Compound serialisation blocks */
-
-void icmSn_xyCoordinate8b(icmFBuf *b, icmxyCoordinate *p);
-void icmSn_DateTimeNumber12b(icmFBuf *b, icmDateTimeNumber *p);
-void icmSn_VersionNumber32(icmFBuf *b, icmVers *p);
-void icmSn_FixedNullASCII(icmFBuf *b, char *p, unsigned int length);
-void icmSn_VariableNullASCII(icmFBuf *b, char *p, unsigned int length);
-
-void icmSn_XYZNumber12b(icmFBuf *b, icmXYZNumber *p);
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-/* Colorspace value serialiser class */
-/* Instances are assumed to be statically allocated */
-struct _icmCSSn {
-	/* Private: */
-	struct _icc *icp; 							/* icc - for allocator, error reporting etc. */
-	unsigned int n;								/* Number of elements */
-	void (*rdnfunc)(double *out, double *in);	/* Read normalising function */
-	void (*wrnfunc)(double *out, double *in);	/* Write normalising function */
-	void (*rdnfuncn)(double *out, double *in, unsigned int ch);
-												/* Read per-channel normalising function */
-	void (*wrnfuncn)(double *out, double *in, unsigned int ch);
-												/* Write per-channel normalising function */
-	void (*snfuncn)(icmFBuf *b, double *p);		/* per-channel Serialisation function */
-
-	/* Public: */
-	void (*sn)(struct _icmCSSn *p, icmFBuf *b, double *vp);
-	void (*snf)(struct _icmCSSn *p, icmFBuf *b, float *vp);
-	void (*snn)(struct _icmCSSn *p, icmFBuf *b, double *vp, unsigned int ch);
-}; typedef struct _icmCSSn icmCSSn;
-
-/* Macro to set ver parameter from icc object */
-#define PCSVER( mp ) ((mp)->header->vers.majv >= 4 ? icmGNV4 : icmGNV2)
-
-/* Initialise an icmCSSn instance for a particular colorspace and encoding */
-int init_icmCSSn(					/* Return error code */
-	icmCSSn              *p,		/* Object to initialise */
-	struct _icc          *icp, 		/* icc - for allocator, error reporting etc. */
-	icColorSpaceSignature csig, 	/* Colorspace to serialise */
-	icmGNVers             ver,		/* Lab version */
-	icmGNRep              rep		/* Representation */
-);
-
-/* Create an icmCSSn instance for a PCS colorspace and encoding */
-int init_icmPCSSn(					/* Return error code */
-	icmCSSn              *p,		/* Object to initialise */
-	struct _icc          *icp, 		/* icc - for allocator, error reporting etc. */
-	icColorSpaceSignature csig, 	/* Colorspace to serialise - must be XYZ or Lab! */
-	icmGNVers             ver,		/* Lab version */
-	icmGNRep              rep		/* Representation */
-);
 
 /* ==================================================== */
 /* Convenience functions and macro's, to help implement */
 /* tag types. */ 
-
 
 /* Seting up the right kind of file buffer for each method type */
 /* The buffer contains the type of processing flags. */
@@ -987,12 +1063,26 @@ int init_icmPCSSn(					/* Return error code */
 #define ICM_TAG_NEW_WRITE_BUFFER											\
 	icmFBuf *b;																\
 	if ((b = new_icmFBuf(p->icp, icmSnWrite,								\
-	            p->icp->wfp, of, size)) == NULL)							\
+	            p->icp->wfp, of, size + pad)) == NULL)						\
 		return p->icp->e.c;													\
 
 
-/* Implementation of array resizing utility function,         */
+/* Implementation of array management utility function,         */
 /* used to deal with the serialization actions on an array.   */
+
+/* The allocation is sanity checked against the remaining file buffer size, */
+/* so can't be used for allocations that aren't directly related to file contents. */
+
+/* NOTE :- there is a potential memory leak with the current system -
+ * any tagtype that has 2 or more levels of arrays will leak if
+ * a base array is reduced in allocation. This doesn't usually happen,
+ * since both icc_read and client API pattern is typically to only set or
+ * increase array size. The best fix would be to add an option destructor
+ * function argument to icmArrayRdAllocResize() and friends that is
+ * called on each elemnt of an array that is being freed due to an
+ * array size reduction. icmArrayRdAllocResize() could then
+ * replace ICMSNFREEARRAY. This would also avoid a mismatch between these two!!!
+ */
 
 /* Array allocation count type */
 typedef enum {
@@ -1000,54 +1090,137 @@ typedef enum {
     icmAResizeBySize      = 1   /* count set by available size */ 
 } icmAResizeCountType;
 
+/* The allocation is sanity checked against the remaining file buffer size, */
+/* so can't be used for allocations that aren't directly related to file contents. */
 /* Return zero on sucess, nz if there is an error */
-int icmArrayRdAllocResize(
+static int icmArrayRdAllocResize(
 	icmFBuf *b,					/* Buffer we're dealing with */
 	icmAResizeCountType ct,		/* explicit count or count from buffer size ? */
 
 	unsigned int *p_count,		/* Pointer to current count of items */
 	unsigned int *pcount,		/* Pointer to new count of items */
 	void **pdata,				/* Pointer to items memory allocation */
-	unsigned int *p_msize,		/* Pointer to previous memory size of each item (may be NULL) */
-	unsigned int msize,			/* Current memory size of each item */
+	unsigned int isize,			/* Memory size of each item */
 
 	unsigned int maxsize,		/* Maximum size permitted for buffer (use UINT_MAX if not needed) */
-	unsigned int fixedsize,		/* Fixed size to be allowed for in file buffer. */
+	int fixedsize,				/* Fixed size to be allowed for in file buffer. */
 	                            /* Buffer space allowed is min(maxsize, buf->space - fixedsize) */
-	unsigned int bsize,			/* File buffer size of each item */
+	unsigned int bsize,			/* File buffer (ie. serialized) size of each item */
 	char *tagdesc				/* Stringification of tag type used for warning/error reporting */
 );
 
+/* This version can be used where allocations aren't directly related to file contents. */
+/* Return zero on sucess, nz if there is an error */
+static int icmArrayAllocResize(
+	icmFBuf *b,					/* Buffer we're dealing with */
+
+	unsigned int *p_count,		/* Pointer to current count of items */
+	unsigned int *pcount,		/* Pointer to new count of items */
+	void **pdata,				/* Pointer to items allocation */
+	unsigned int isize,			/* Item size */
+
+	char *tagdesc				/* Stringification of tag type used for warning/error reporting */
+);
+
+/* Implement serialise() Array free functionality. */
+/* B is pointer to icmFBuf */
+/* _COUNT is the variable holding the allocated size of the array */
+/* DATA is the variable holding the array */
+/* (Should replace this with destructor argument to icmArrayRdAllocResize()) */
+#define ICMSNFREEARRAY(B, _COUNT, DATA)													\
+	{ if (b->op == icmSnFree) {															\
+		B->icp->al->free(B->icp->al, DATA);												\
+		DATA = NULL;																	\
+		_COUNT = 0;																		\
+	} }																					\
+
+
+/* This version does an immediate realloc. */
+/* Return zero on sucess, nz if there is an error */
+static int icmArrayResize(
+	struct _icc *icp,
+
+	unsigned int *p_count,		/* Pointer to current count of items */
+	unsigned int *pcount,		/* Pointer to new count of items */
+	void **pdata,				/* Pointer to items allocation */
+	unsigned int isize,			/* Item size */
+
+	char *tagdesc				/* Stringification of tag type used for warning/error reporting */
+);
+
+/* Implement immediate Array free functionality. */
+#define ICMFREEARRAY(ICP, _COUNT, DATA)													\
+		ICP->al->free(ICP->al, DATA);													\
+		DATA = NULL;																	\
+		_COUNT = 0;																		\
+
+#ifdef NEVER        // Not clear if this will get used...
+
+/* A general matrix resizing utility function,         */
+/* used within XXXX__serialise() functions.                   */
+
+/* Return zero on sucess, nz if there is an error */
+int icmMatrixRdAllocResize(
+	icmFBuf *b,					/* Buffer we're dealing with */
+
+	unsigned int *p_rcount,		/* Pointer to current row count */
+	unsigned int *prcount,		/* Pointer to new row count */
+	unsigned int *p_ccount,		/* Pointer to current column count */
+	unsigned int *pccount,		/* Pointer to new column count */
+	void ***pdata,				/* Pointer to matrix of items allocation */
+	unsigned int isize,			/* Item size */
+
+								/* Count value sanity check data: */
+	unsigned int maxsize,		/* Maximum size permitted for buffer (use UINT_MAX if not less than
+								/* remaining in buffer) */
+	unsigned int fixedsize,		/* Further fixed size from current location before variable */
+								/* elements. Space allowed for variable elements is */
+								/* avail = min(maxsize, buf->space - fixedsize) */
+	unsigned int bsize,			/* File buffer (ie. serialized) size of each item. */
+								/* Use minumum if variable ? */
+								/* Error if (*pcount * bsize) > avail */
+	char *tagdesc				/* Stringification of tag type used for warning/error reporting */
+);
+
+/* Implement serialise() Matrix free functionality. */
+/* B is pointer to icmFBuf */
+/* _ROWS and _COLUMNS are the variables holding the allocated dimensions of the matrix */
+/* DATA is the variable holding the matrix */
+/* (Should replace this with destructor argument to icmArrayRdAllocResize() ?) */
+#define ICMFREEMATRIX(B, _ROWS, _COLS, DATA)											\
+	{ if (b->op == icmSnFree) {															\
+		unsigned int j;																	\
+		for (j = 0; j < prcount; j++)													\
+			B->icp->al->free(B->icp->al, (DATA)[j]);									\
+		B->icp->al->free(B->icp->al, DATA);												\
+		DATA = NULL;																	\
+		_ROWS = _COLS = 0;																\
+	} }																					\
+
+#endif /* NEVER */
+
+
 /* On read, check the tag has been fully consumed */
+/* Note that we can't use this if there is no directory above us, since */
+/* we then don't know the expected size of this tag, */
+/* and we also can't use it if the sub-elements of this tag are randomly */
+/* seek'd to. (This implies that there must be a directory within the tag */
+/* for the sub-elements) */
 #define ICMRDCHECKCONSUMED(TAGTYPE)														\
 	if (b->op == icmSnRead) {															\
 		unsigned int tavail;															\
 		tavail = b->get_space(b);														\
 		if (tavail != 0) {																\
-			icmFormatWarning(b->icp, ICM_FMT_SHORTTAG,								\
+			icmFormatWarning(b->icp, ICM_FMT_SHORTTAG,									\
 			         #TAGTYPE " tag array doesn't occupy all of tag (%u bytes short)",	\
 			         tavail);															\
 		}																				\
 	}																					\
 
-/* Implement serialise() free functionality */
-/* BASE  is the icmBase TagType object for reference to DATA and COUNT */
-/* COUNT is the variable holding the size of the array */
-/* DATA is the variable holding the array */
-#define ICMFREEARRAY(BASE, COUNT, DATA)													\
-	if (b->op == icmSnFree) {															\
-		BASE->icp->al->free(BASE->icp->al, BASE->DATA);									\
-		BASE->_##COUNT = 0;																\
-	}																					\
-
 /* --------------------------------------------------- */
 
 /*
- * LEGACY method: serialise == NULL and the tagtype instance has to
- * implement the get_size, read, write, del & allocate methods.
- * (In this case the write(size) argument can be ignored.)
- *
- * NEW method: serialise is implemented and get_size, read, write, del & allocate methods
+ * Method serialise is implemented and get_size, read, write, del & allocate methods
  * are implemented by the icmGeneric* functions, which use serialise to
  * do all the work. 
  *
@@ -1057,111 +1230,124 @@ int icmArrayRdAllocResize(
  *  2 = system error
  */
 
-#define ICM_BASE_MEMBERS(TTYPE)		/* This tag type */										\
+#define ICM_BASE_MEMBERS(TCLASS)															\
 	/* Private: */																			\
 	icTagTypeSignature ttype;		/* The tag type signature of the object */				\
 	struct _icc    *icp;			/* Pointer to ICC we're a part of */					\
+	/* enum icmPeSignature */ unsigned int etype;											\
+									/* If an icmPe, the processing element sig. */			\
 	icTagSignature creatorsig;		/* tag that created this tagtype */						\
 									/* (shared tagtypes will have been linked to others) */	\
 	int	           touched;			/* Flag for write bookeeping */							\
     int            refcount;		/* Reference count for sharing tag instances */			\
+	int            dp;				/* dump() padding (if implemented) */					\
+	int			   emb;				/* nz if embedded-tag */								\
 																							\
-	void           (*serialise)(TTYPE *p, icmFBuf *b);										\
+	void           (*serialise)(TCLASS *p, icmFBuf *b);										\
 									/* Usual Read/Write/Del/Allocate implementation, */		\
-									/* NULL if not implemented */							\
-	unsigned int   (*get_size)(TTYPE *p);													\
+	unsigned int   (*get_size)(TCLASS *p);													\
 									/* Return number of bytes needed to write this tag */	\
-	int            (*read)(TTYPE *p, unsigned int size, unsigned int of);					\
+	int            (*read)(TCLASS *p, unsigned int size, unsigned int of);					\
 									/* size is expected size to read */						\
 									/* Offset is offset into file */						\
-	int            (*write)(TTYPE *p, unsigned int size, unsigned int of);					\
+	int            (*write)(TCLASS *p, unsigned int size, unsigned int of,					\
+					                  unsigned int pad);									\
 									/* size is expected size to write */					\
 									/* Offset is offset into file */						\
-	void           (*del)(TTYPE *p);														\
+									/* pad is padding needed */								\
+	TCLASS          *(*reference)(TCLASS *p);													\
+									/* Take a reference to this object. */					\
+									/* ->del() to remove reference. */						\
+																							\
+	void           (*del)(TCLASS *p);														\
 									/* Free this object */									\
 																							\
 	/* Public: */																			\
 	/* ?? should add get_ttype() so we can check ttype without looking at private ?? */		\
 																							\
-	void           (*dump)(TTYPE *p, icmFile *op, int verb);								\
+	void           (*dump)(TCLASS *p, icmFile *op, int verb);								\
 									/* Dump a human readable description of this */			\
 									/* object to the given output file. */					\
 									/* 0 = silent, 1 = minimal, 2 = moderate, 3 = all */	\
-	int            (*allocate)(TTYPE *p);													\
+	int            (*allocate)(TCLASS *p);													\
 									/* Re-allocate space needed acording to sizes */		\
 									/* in the object. Return an error code */				\
-	int            (*check)(TTYPE *p, icTagSignature sig);									\
+	int            (*check)(TCLASS *p, icTagSignature sig, int rd);							\
 									/* Perform check of tag values before write/after */	\
 	                                /* read for validity above that of the elements */		\
 	                                /* it is composed of. May be NULL. Ret E.C. */			\
+	                                /* rd flag NZ if reading, else writing */				\
+																							\
+	              /* Optional methods, NULL if none */										\
+	int           (*cmp)(TCLASS *dst, TCLASS *src);	/* Compare another with this */			\
+													/* (Used by icc_compare_ttype()) */		\
+	int           (*cpy)(TCLASS *dst, struct _icmBase *src);	/* Copy/translate another */	\
+	                                           /* to this. (used by icc->copy_ttype()) */	\
+
+/* Serialisable init */
+#define ICM_BASE_INIT(TCLASS, TSIG)														\
+	p->ttype     = TSIG;																\
+	p->icp       = icp;																	\
+	p->refcount  = 1;																	\
+	p->serialise = TCLASS##_serialise;													\
+	p->get_size  = (unsigned int (*)(TCLASS *p))	icmGeneric_get_size;				\
+	p->read      = (int (*)(TCLASS *p, unsigned int size, unsigned int of))				\
+	               icmGeneric_read;														\
+	p->write     = (int (*)(TCLASS *p, unsigned int size, unsigned int of, 				\
+	                unsigned int pad)) icmGeneric_write;								\
+	p->reference = (TCLASS *(*)(TCLASS *p)) icmGeneric_reference;						\
+	p->del       = (void (*)(TCLASS *p)) icmGeneric_delete;								\
+	p->dump      = TCLASS##_dump;														\
+	p->allocate  = (int (*)(TCLASS *p)) icmGeneric_allocate;							\
+	p->check     = TCLASS##_check;														\
+
+/* Non-serialisable init */
+#define ICM_BASE_NS_INIT(TCLASS)														\
+	p->ttype     = icmSigUnknownType;													\
+	p->icp       = icp;																	\
+	p->refcount  = 1;																	\
+	p->serialise = NULL;																\
+	p->get_size  = NULL;																\
+	p->read      = NULL;																\
+	p->write     = NULL;																\
+	p->reference = (TCLASS *(*)(TCLASS *p)) icmGeneric_reference;						\
+	p->del       = TCLASS##_del;														\
+	p->dump      = TCLASS##_dump;														\
+	p->allocate  = NULL;																\
+	p->check     = NULL;																\
+
+/* TagType class allocation and initialisation. */
+/* It's assumed that the parent class provides all methods. */
+/* By default we initialise to the generic implementation, */
+/* that assumes the presense of only the TCLASS##_serialise(), TCLASS##_dump() */
+/* and (optional) TCLASS##_check() methods. */
+/* returens NULL on error */
+#define ICM_BASE_ALLOCINIT(TCLASS, TSIG)												\
+	TCLASS *p = NULL;																	\
+	if (icp->e.c != ICM_ERR_OK)															\
+		return NULL;																	\
+	if ((p = (TCLASS *)icp->al->calloc(icp->al, 1, sizeof(TCLASS))) == NULL) {			\
+		icm_err(icp, ICM_ERR_MALLOC, "Allocating tag %s failed",#TCLASS);				\
+		return NULL;																	\
+	} else {																			\
+		ICM_BASE_INIT(TCLASS, TSIG)														\
+	}																					\
+
+#define ICM_BASE_NS_ALLOCINIT(TCLASS)													\
+	TCLASS *p = NULL;																	\
+	if (icp->e.c != ICM_ERR_OK)															\
+		return NULL;																	\
+	if ((p = (TCLASS *)icp->al->calloc(icp->al, 1, sizeof(TCLASS))) == NULL) {			\
+		icm_err(icp, ICM_ERR_MALLOC, "Allocating tag %s failed",#TCLASS);				\
+		return NULL;																	\
+	} else {																			\
+		ICM_BASE_NS_INIT(TCLASS)														\
+	}																					\
 
 /* Base tag element data object */
 struct _icmBase {
 	ICM_BASE_MEMBERS(struct _icmBase)
 }; typedef struct _icmBase icmBase;
-
-/* Default implementation of the tag type methods, that all use */
-/* serialise as their implementation. */
-unsigned int icmGeneric_get_size(icmBase *p);
-int icmGeneric_read(icmBase *p, unsigned int size, unsigned int of);
-int icmGeneric_write(icmBase *p, unsigned int size, unsigned int of);
-void icmGeneric_del(icmBase *p);
-int icmGeneric_allocate(icmBase *p);
-
-/* TagType class allocation and initialisation. */
-/* It's assumed that the parent class provides all methods. */
-/* By default we initialise to the generic implementation, */
-/* that assumes the presense of only the TTYPE##_serialise(), TTYPE##_dump() */
-/* and (optional) TTYPE##_check() methods. */
-/* p == NULL on error */
-#define ICM_TTYPE_ALLOCINIT(TTYPE, _sigttype)											\
-	TTYPE *p = NULL;																	\
-	if (icp->e.c == ICM_ERR_OK) {														\
-		if ((p = (TTYPE *)icp->al->calloc(icp->al, 1, sizeof(TTYPE))) == NULL) {		\
-			icm_err(icp, ICM_ERR_MALLOC, "Allocating tag %s failed",#TTYPE);			\
-		} else {																		\
-			ICM_TTYPE_INIT(TTYPE, _sigttype)											\
-		}																				\
-	}																					\
-
-#define ICM_TTYPE_INIT(TTYPE, _sigttype)												\
-	p->icp       = icp;																	\
-	p->ttype     = _sigttype;															\
-	p->refcount  = 1;																	\
-	p->serialise = TTYPE##_serialise;													\
-	p->get_size  = (unsigned int (*)(TTYPE *p))	icmGeneric_get_size;					\
-	p->read      = (int (*)(TTYPE *p, unsigned int size, unsigned int of))				\
-	               icmGeneric_read;														\
-	p->write     = (int (*)(TTYPE *p, unsigned int size, unsigned int of))				\
-	               icmGeneric_write;													\
-	p->del       = (void (*)(TTYPE *p)) icmGeneric_delete;								\
-	p->dump      = TTYPE##_dump;														\
-	p->allocate  = (int (*)(TTYPE *p)) icmGeneric_allocate;								\
-	p->check     = TTYPE##_check;														\
-
-/* The LEGACY init is assumed to have no serialize() or check() */						\
-#define ICM_TTYPE_ALLOCINIT_LEGACY(TTYPE, _sigttype)									\
-	TTYPE *p = NULL;																	\
-	if (icp->e.c == ICM_ERR_OK) {														\
-		if ((p = (TTYPE *)icp->al->calloc(icp->al, 1, sizeof(TTYPE))) == NULL) {		\
-			icm_err(icp, ICM_ERR_MALLOC, "Allocating tag %s failed",#TTYPE);			\
-		} else {																		\
-			ICM_TTYPE_INIT_LEGACY(TTYPE, _sigttype)										\
-		}																				\
-	}																					\
-
-#define ICM_TTYPE_INIT_LEGACY(TTYPE, _sigttype)											\
-	p->icp       = icp;																	\
-	p->ttype     = _sigttype;															\
-	p->refcount  = 1;																	\
-	p->serialise = NULL;																\
-	p->get_size  = TTYPE##_get_size;													\
-	p->read      = TTYPE##_read;														\
-	p->write     = TTYPE##_write;														\
-	p->del       = TTYPE##_delete;														\
-	p->dump      = TTYPE##_dump;														\
-	p->allocate  = TTYPE##_allocate;													\
-	p->check     = NULL;																\
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* Tag type to hold an unknown tag type, */
@@ -1176,6 +1362,7 @@ struct _icmUnknown {
 	icTagTypeSignature uttype;	/* The unknown tag type actual signature */
 	unsigned int	  count;	/* Allocated and used count of the array */
     unsigned char	  *data;  	/* tag data */
+
 }; typedef struct _icmUnknown icmUnknown;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
@@ -1269,78 +1456,77 @@ struct _icmXYZArray {
     icmXYZNumber	*data;		/* Pointer to array of data */ 
 }; typedef struct _icmXYZArray icmXYZArray;
 
-/* - - - - - - - - - - - - - - - - - - - - -  */
-/* Curve */
-typedef enum {
-    icmCurveUndef           = -1, /* Undefined curve */
-    icmCurveLin             = 0,  /* Linear transfer curve */
-    icmCurveGamma           = 1,  /* Gamma power transfer curve */
-    icmCurveSpec            = 2   /* Specified curve */
-} icmCurveStyle;
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Chromaticity */
 
-/* Curve reverse lookup information */
-typedef struct {
-	int inited;				/* Flag */
-	double rmin, rmax;		/* Range of reverse grid */
-	double qscale;			/* Quantising scale factor */
-	int rsize;				/* Number of reverse lists */
-	unsigned int **rlists;	/* Array of list of fwd values that may contain output value */
-							/* Offset 0 = allocated size */
-							/* Offset 1 = next free index */
-							/* Offset 2 = first fwd index */
-	unsigned int count;		/* Copy of forward table size */
-	double       *data;		/* Copy of forward table data */
-} icmRevTable;
-
-struct _icmCurve {
-	ICM_BASE_MEMBERS(struct _icmCurve)
+struct _icmChromaticity {
+	ICM_BASE_MEMBERS(struct _icmChromaticity)
 
 	/* Private: */
-	unsigned int   _count;		/* Size currently allocated */
-	icmRevTable  rt;			/* Reverse table information */
+	unsigned int       _count;	/* Count currently allocated */
 
 	/* Public: */
-    icmCurveStyle   flag;		/* Style of curve */
-	unsigned int	count;		/* Allocated and used size of the array */
-    double         *data;  		/* Curve data scaled to range 0.0 - 1.0 */
-								/* or data[0] = gamma value */
-	/* Translate a value through the curve, return warning flags */
-	int (*lookup_fwd) (struct _icmCurve *p, double *out, double *in);	/* Forwards */
-	int (*lookup_bwd) (struct _icmCurve *p, double *out, double *in);	/* Backwards */
+	icPhColEncoding enc;		/* Encoding of chromaticity coordinates */ 
+	unsigned int	   count;	/* Count of device channels */
+    icmxyCoordinate	  *data;  	/* Array of [count] Chromaticity coordinates */
 
-}; typedef struct _icmCurve icmCurve;
+								/* Setup the tag with a defined encoding */
+								/* Return error code. */
+	int (*setup)(struct _icmChromaticity *p);
+
+}; typedef struct _icmChromaticity icmChromaticity;
+
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* Data */
-typedef enum {
-    icmDataUndef           = -1, /* Undefined data */
-    icmDataASCII           = 0,  /* ASCII data */
-    icmDataBin             = 1   /* Binary data */
-} icmDataStyle;
 
 struct _icmData {
 	ICM_BASE_MEMBERS(struct _icmData)
 
 	/* Private: */
+	unsigned int    fcount;		/* Count in file (different if text lacks nul) */		\
 	unsigned int   _count;		/* Size currently allocated */
 
 	/* Public: */
-    icmDataStyle	flag;		/* Style of data */
+    icAsciiOrBinary	flag;		/* Type of data */
 	unsigned int	count;		/* Allocated and used size of the array (inc ascii null) */
     unsigned char	*data;  	/* data or string, NULL if size == 0 */
 }; typedef struct _icmData icmData;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
+/* Pseudo-ascii type that maps to icTextType or icSigTextDescriptionType, */
+/* and has a common base class definition. */
+
+#define COMMONTEXTDESCRIPTION_X
+
+/* Check a tagtype to see if it is a commontext type */
+# define ISCOMMONTEXT(ttype) 												\
+   (((ttype) == icSigTextType || (ttype) == icSigTextDescriptionType))
+
+
+#define icmSigCommonTextDescriptionType ((icTagTypeSignature)icmMakeTag('c','m','t','d'))
+
+/* Base class */ 
+#define ICM_CMTD_MEMBERS(TCLASS)		/* This tag type */										\
+	ICM_BASE_MEMBERS(TCLASS)																	\
+																							\
+	/* Private: */																			\
+	unsigned int     _count;		/* Count currently allocated */							\
+	unsigned int     fcount;		/* Count in file */										\
+	COMMONTEXTDESCRIPTION_X																	\
+																							\
+	/* Public: */																			\
+	unsigned int 	  count;		/* Allocated and used size of desc, inc null */			\
+	char              *desc;		/* ascii or utf-8 string (null terminated) */			\
+
+struct _icmCommonTextDescription {
+	ICM_CMTD_MEMBERS(struct _icmCommonTextDescription)
+}; typedef struct _icmCommonTextDescription icmCommonTextDescription;
+
+/* - - - - - - - - - - - - - - - - - - - - -  */
 /* text */
 struct _icmText {
-	ICM_BASE_MEMBERS(struct _icmText)
-
-	/* Private: */
-	unsigned int   _count;		/* Size currently allocated */
-
-	/* Public: */
-	unsigned int	 count;		/* Allocated and used size of data, inc null */
-	char             *data;		/* ascii string (null terminated), NULL if size==0 */
+	ICM_CMTD_MEMBERS(struct _icmText)
 
 }; typedef struct _icmText icmText;
 
@@ -1354,226 +1540,24 @@ struct _icmDateTime {
 
 }; typedef struct _icmDateTime icmDateTime;
 
-#ifdef NEW
-/* - - - - - - - - - - - - - - - - - - - - -  */
-/* DeviceSettings */
+/* ============================================== */
+/* icmProcessing Element declarations */
 
-/*
-   I think this all works like this:
+#include "icc_pe.h"
 
-Valid setting = (   (platform == platform1 and platform1.valid)
-                 or (platform == platform2 and platform2.valid)
-                 or ...
-                )
-
-where
-	platformN.valid = (   platformN.combination1.valid
-	                   or platformN.combination2.valid
-	                   or ...
-	                  )
-
-where
-	platformN.combinationM.valid = (    platformN.combinationM.settingstruct1.valid
-	                                and platformN.combinationM.settingstruct2.valid
-	                                and ...
-	                               )
-
-where
-	platformN.combinationM.settingstructP.valid = (   platformN.combinationM.settingstructP.setting1.valid
-	                                               or platformN.combinationM.settingstructP.setting2.valid
-	                                               or ...
-	                                              )
-
- */
-
-/* The Settings Structure holds an array of settings of a particular type */
-struct _icmSettingStruct {
-	ICM_BASE_MEMBERS(struct _icmSettingStruct)
-
-	/* Private: */
-	unsigned int   _num;				/* Size currently allocated */
-
-	/* Public: */
-	icSettingsSig       settingSig;		/* Setting identification */
-	unsigned int        numSettings; 	/* number of setting values */
-	union {								/* Setting values - type depends on Sig */
-		icUInt64Number      *resolution;
-		icDeviceMedia       *media;
-		icDeviceDither      *halftone;
-	}
-}; typedef struct _icmSettingStruct icmSettingStruct;
-
-/* A Setting Combination holds all arrays of different setting types */
-struct _icmSettingComb {
-	/* Private: */
-	unsigned int   _num;			/* number currently allocated */
-
-	/* Public: */
-	unsigned int        numStructs;   /* num of setting structures */
-	icmSettingStruct    *data;
-}; typedef struct _icmSettingComb icmSettingComb;
-
-/* A Platform Entry holds all setting combinations */
-struct _icmPlatformEntry {
-	/* Private: */
-	unsigned int   _num;			/* number currently allocated */
-
-	/* Public: */
-	icPlatformSignature platform;
-	unsigned int        numCombinations;    /* num of settings and allocated array size */
-	icmSettingComb      *data; 
-}; typedef struct _icmPlatformEntry icmPlatformEntry;
-
-/* The Device Settings holds all platform settings */
-struct _icmDeviceSettings {
-	/* Private: */
-	unsigned int   _num;			/* number currently allocated */
-
-	/* Public: */
-	unsigned int        numPlatforms;	/* num of platforms and allocated array size */
-	icmPlatformEntry    *data;			/* Array of pointers to platform entry data */
-}; typedef struct _icmDeviceSettings icmDeviceSettings;
-
-#endif /* NEW */
-
-/* - - - - - - - - - - - - - - - - - - - - -  */
-/* optimised simplex Lut lookup axis flipping structure */
-typedef struct {
-	double fth;		/* Flip threshold */
-	char bthff;		/* Below threshold flip flag value */
-	char athff;		/* Above threshold flip flag value */
-} sx_flip_info;
+/* ============================================== */
+/* lut */
  
 /* Set method flags */
+#define ICM_CREATE_FLAG_NONE 0x0000
+
 #define ICM_CLUT_SET_EXACT 0x0000	/* Set clut node values exactly from callback */
 #define ICM_CLUT_SET_APXLS 0x0001	/* Set clut node values to aproximate least squares fit */
 
-#define ICM_CLUT_SET_FILTER 0x0002	/* Post filter values (icmSetMultiLutTables() only) */
 
-
-/* lut */
-struct _icmLut {
-	ICM_BASE_MEMBERS(struct _icmLut)
-
-	/* Private: */
-	/* Cache appropriate normalization routines */
-	int dinc[MAX_CHAN];				/* Dimensional increment through clut (in doubles) */
-	int dcube[1 << MAX_CHAN];		/* Hyper cube offsets (in doubles) */
-	icmRevTable rit[MAX_CHAN];		/* Reverse input table information */
-	icmRevTable rot[MAX_CHAN];		/* Reverse output table information */
-	sx_flip_info finfo[MAX_CHAN];	/* Optimised simplex flip information */
-
-	unsigned int inputTable_size;	/* size allocated to input table */
-	unsigned int clutTable_size;	/* size allocated to clut table */
-	unsigned int outputTable_size;	/* size allocated to output table */
-
-	/* Optimised simplex orientation information. oso_ffa is NZ if valid. */
-	/* Only valid if inputChan > 1 && clutPoints > 1 */
-									/* oso_ff[01] will be NULL if not valid */
-	unsigned short *oso_ffa;		/* Flip flags for inputChan-1 dimensions, organised */
-									/* [inputChan 0, 0..cp-2]..[inputChan ic-2, 0..cp-2] */
-	unsigned short *oso_ffb;		/* Flip flags for dimemension inputChan-1, organised */
-									/* [0..cp-2] */
-	int odinc[MAX_CHAN];			/* Dimensional increment through oso_ffa */
-	
-	/* return the minimum and maximum values of the given channel in the clut */
-	void (*min_max) (struct _icmLut *pp, double *minv, double *maxv, int chan);
-
-	/* Translate color values through 3x3 matrix, input tables only, multi-dimensional lut, */
-	/* or output tables, */
-	int (*lookup_matrix)  (struct _icmLut *pp, double *out, double *in);
-	int (*lookup_input)   (struct _icmLut *pp, double *out, double *in);
-	int (*lookup_clut_nl) (struct _icmLut *pp, double *out, double *in);
-	int (*lookup_clut_sx) (struct _icmLut *pp, double *out, double *in);
-	int (*lookup_output)  (struct _icmLut *pp, double *out, double *in);
-
-	/* Public: */
-
-	/* return non zero if matrix is non-unity */
-	int (*nu_matrix) (struct _icmLut *pp);
-
-    unsigned int	inputChan;      /* Num of input channels */
-    unsigned int	outputChan;     /* Num of output channels */
-    unsigned int	clutPoints;     /* Num of grid points */
-    unsigned int	inputEnt;       /* Num of in-table entries (must be 256 for Lut8) */
-    unsigned int	outputEnt;      /* Num of out-table entries (must be 256 for Lut8) */
-    double			e[3][3];		/* 3 * 3 array */
-	double	        *inputTable;	/* The in-table: [inputChan * inputEnt] */
-	double	        *clutTable;		/* The clut: [(clutPoints ^ inputChan) * outputChan] */
-	double	        *outputTable;	/* The out-table: [outputChan * outputEnt] */
-	/* inputTable  is organized [inputChan 0..ic-1][inputEnt 0..ie-1] */
-	/* clutTable   is organized [inputChan 0, 0..cp-1]..[inputChan ic-1, 0..cp-1]
-	                                                                [outputChan 0..oc-1] */
-	/* outputTable is organized [outputChan 0..oc-1][outputEnt 0..oe-1] */
-
-	/* Helper function to setup a Lut tables contents */
-	int (*set_tables) (
-		struct _icmLut *p,						/* Pointer to Lut object */
-		int     flags,							/* Setting flags */
-		void   *cbctx,							/* Opaque callback context pointer value */
-		icColorSpaceSignature insig, 			/* Input color space */
-		icColorSpaceSignature outsig, 			/* Output color space */
-		void (*infunc)(void *cbctx, double *out, double *in),
-								/* Input transfer function, inspace->inspace' (NULL = default) */
-		double *inmin, double *inmax,			/* Maximum range of inspace' values */
-												/* (NULL = default) */
-		void (*clutfunc)(void *cbntx, double *out, double *in),
-								/* inspace' -> outspace' transfer function */
-		double *clutmin, double *clutmax,		/* Maximum range of outspace' values */
-												/* (NULL = default) */
-		void (*outfunc)(void *cbntx, double *out, double *in),
-								/* Output transfer function, outspace'->outspace (NULL = deflt) */
-		int *apxls_gmin, int *apxls_gmax	/* If not NULL, the grid indexes not to be affected */
-										/* by ICM_CLUT_SET_APXLS, defaulting to 0..>clutPoints-1 */
-	);
-
-	/* Helper function to fine tune a single value interpolation */
-	/* Return 0 on success, 1 if input clipping occured, 2 if output clipping occured */
-	/* To guarantee the optimal function, an icmLuLut needs to be create. */
-	/* The default will be to assume simplex interpolation will be used. */
-	int (*tune_value) (
-		struct _icmLut *p,				/* Pointer to Lut object */
-		double *out,					/* Target value */
-		double *in);					/* Input value */
-		
-}; typedef struct _icmLut icmLut;
-
-/* Helper function to set multiple Lut tables simultaneously. */
-/* Note that these tables all have to be compatible in */
-/* having the same configuration and resolutions, and the */
-/* same per channel input and output curves. */
-/* Set errc and return error number in underlying icc */
-/* Note that clutfunc in[] value has "index under". */
-/* If ICM_CLUT_SET_FILTER is set, the per grid node filtering radius */
-/* is returned in clutfunc out[-1], out[-2] etc for each table */
-int icmSetMultiLutTables(
-	int ntables,						/* Number of tables to be set, 1..n */
-	struct _icmLut **p,					/* Pointer to Lut object */
-	int     flags,						/* Setting flags */
-	void   *cbctx,						/* Opaque callback context pointer value */
-	icColorSpaceSignature insig, 		/* Input color space */
-	icColorSpaceSignature outsig, 		/* Output color space */
-	void (*infunc)(void *cbctx, double *out, double *in),
-							/* Input transfer function, inspace->inspace' (NULL = default) */
-							/* Will be called ntables times each input grid value */
-	double *inmin, double *inmax,		/* Maximum range of inspace' values */
-										/* (NULL = default) */
-	void (*clutfunc)(void *cbntx, double *out, double *in),
-							/* inspace' -> outspace[ntables]' transfer function */
-							/* will be called once for each input' grid value, and */
-							/* ntables output values should be written consecutively */
-							/* to out[]. */
-	double *clutmin, double *clutmax,	/* Maximum range of outspace' values */
-										/* (NULL = default) */
-	void (*outfunc)(void *cbntx, double *out, double *in),
-								/* Output transfer function, outspace'->outspace (NULL = deflt) */
-								/* Will be called ntables times on each output value */
-	int *apxls_gmin, int *apxls_gmax	/* If not NULL, the grid indexes not to be affected */
-										/* by ICM_CLUT_SET_APXLS, defaulting to 0..>clutPoints-1 */
-);
-		
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* Measurement Data */
+
 struct _icmMeasurement {
 	ICM_BASE_MEMBERS(struct _icmMeasurement)
 
@@ -1582,38 +1566,20 @@ struct _icmMeasurement {
     icmXYZNumber                 backing;        /* XYZ for backing */
     icMeasurementGeometry        geometry;       /* Meas. geometry */
     double                       flare;          /* Measurement flare */
-    icIlluminant                 illuminant;     /* Illuminant */
+    icIlluminant                 illuminant;     /* Standard illuminant */
 }; typedef struct _icmMeasurement icmMeasurement;
-
-/* - - - - - - - - - - - - - - - - - - - - -  */
-
-/* Pseudo Type that maps to icSigTextDescriptionType on V2 profiles and */
-/* icSigMultiLocalizedUnicodeType on V4 profiles. */
-#define icmMultiLocalizedTextDescriptionType ((icTagTypeSignature)icmMakeTag('m','l','t','d'))
-
-/* Base class common to icmTextDescription and icmMultiLocalizedUnicode classes */ 
-#define ICM_MLTD_MEMBERS(TTYPE)		/* This tag type */										\
-	ICM_BASE_MEMBERS(TTYPE)																	\
-																							\
-	/* Private: */																			\
-	unsigned int     _count;		/* Count currently allocated */							\
-																							\
-	/* Public: */																			\
-	unsigned int 	  count;		/* Allocated and used size of desc, inc null */			\
-	char              *desc;		/* ascii or utf-8 string (null terminated) */			\
-
-struct _icmMultiLocalizedTextDescription {
-	ICM_MLTD_MEMBERS(struct _icmMultiLocalizedTextDescription)
-}; typedef struct _icmMultiLocalizedTextDescription icmMultiLocalizedTextDescription;
-
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* Named color */
 
 /* Structure that holds each named color data */
 typedef struct {
-	struct _icc      *icp;				/* Pointer to ICC we're a part of */
-	char              root[32];			/* Root name for color */
+	/* Private: */
+	unsigned int      _rcount;			/* Root count currently allocated */
+
+	/* Public: */
+	unsigned int 	  rcount;			/* Allocated and used size of root, inc null */
+	char             *root;				/* Root name for color */
 	double            pcsCoords[3];		/* icmNC2: PCS coords of color */
 	double            deviceCoords[MAX_CHAN];	/* Dev coords of color */
 } icmNamedColorVal;
@@ -1622,26 +1588,34 @@ struct _icmNamedColor {
 	ICM_BASE_MEMBERS(struct _icmNamedColor)
 
 	/* Private: */
-	unsigned int      _count;			/* Count currently allocated */
+	unsigned int      _count;			/* Count colors currently allocated */
+	unsigned int      _pcount;			/* Prefix count currently allocated */
+	unsigned int      _scount;			/* Suffix count currently allocated */
 
 	/* Public: */
-    unsigned int      vendorFlag;		/* Bottom 16 bits for IC use */
+    unsigned int      vendorFlag;		/* Bottom 16 bits for ICC use */
     unsigned int      count;			/* Count of named colors */
     unsigned int      nDeviceCoords;	/* Num of device coordinates */
-    char              prefix[32];		/* Prefix for each color name (null terminated) */
-    char              suffix[32];		/* Suffix for each color name (null terminated) */
+	unsigned int 	  pcount;			/* Allocated and used size of prefix, inc null */
+    char              *prefix;			/* Prefix for each color name (null terminated) */
+	unsigned int 	  scount;			/* Allocated and used size of suffix, inc null */
+    char              *suffix;			/* Suffix for each color name (null terminated) */
     icmNamedColorVal  *data;			/* Array of [count] color values */
 }; typedef struct _icmNamedColor icmNamedColor;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
-/* Colorant table */
-/* (Contribution from Piet Vandenborre, derived from NamedColor) */
+/* Colorant Table */
 
 /* Structure that holds colorant table data */
 typedef struct {
-	struct _icc         *icp;			/* Pointer to ICC we're a part of */
-	char                 name[32];		/* Name for colorant */
-	double               pcsCoords[3];	/* PCS coords of colorant */
+
+	/* Private: */
+	unsigned int      _ncount;			/* name count currently allocated */
+
+	/* Public: */
+	unsigned int 	  ncount;			/* Allocated and used size of name, inc null */
+	char               *name;			/* Name for colorant (null terminated) */
+	double             pcsCoords[3];	/* PCS coords of colorant */
 } icmColorantTableVal;
 
 struct _icmColorantTable {
@@ -1655,49 +1629,56 @@ struct _icmColorantTable {
     icmColorantTableVal *data;			/* Array of [count] colorants */
 }; typedef struct _icmColorantTable icmColorantTable;
 
+
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* textDescription */
+
 struct _icmTextDescription {
-	ICM_MLTD_MEMBERS(struct _icmTextDescription)
+	ICM_CMTD_MEMBERS(struct _icmTextDescription)
 
 	/* Private: */
-	unsigned int   uc16Count;		/* uc UTF-16 file character count */
-	unsigned int   uc_count;		/* uc Count currently allocated */
-	int            (*core_read)(struct _icmTextDescription *p, char **bpp, char *end);
-	int            (*core_write)(struct _icmTextDescription *p, char **bpp);
+	/* Defined in ICM_CMTD_MEMBERS: */
+	/* unsigned int      fcount;	   Count in ICC file */
+	/* unsigned int      _count;	   Count currently allocated */
+	unsigned int   uc16count;		/* uc UTF-16 file character count */
+	unsigned int   _uc8count;		/* uc Count currently allocated */
+	unsigned int    scFcount;	   	/* ScriptCode Count in file */
+	unsigned int   _scCount;	   	/* ScriptCode Count currently allocated */
 
 	/* Public: */
 
-	/* ascii count and *desc are defined in ICM_MLTD_MEMBERS */
-	/* unsigned int      _count;	   Count currently allocated */
+	/* Defined in ICM_CMTD_MEMBERS: */
 	/* unsigned int 	  count;	   Allocated and used size of desc, inc null */
 	/* char              *desc;		   ascii string (null terminated) */
 
+	/* Note that uc8desc may be NULL or count == 0 */
+	/* corresponding to no bytes used in tag. */
+	/* (All other text is assumed to be always nul terminated) */
 	unsigned int      ucLangCode;	/* UniCode language code */
-	unsigned int 	  ucCount;		/* Allocated and used size of ucDesc in chars, inc null */
-	icmUTF8           *uc8Desc;		/* The utf-8 description (nul terminated) */
+	unsigned int 	  uc8count;		/* Allocated and used size of ucDesc in chars, inc null */
+	icmUTF8           *uc8desc;		/* The utf-8 description (nul terminated) */
 
+	/* Note that scDesc may be NULL or count == 0. */
 	/* See <http://unicode.org/Public/MAPPINGS/VENDORS/APPLE/ReadMe.txt> */
-	ORD16             scCode;		/* ScriptCode code */
-	unsigned int 	  scCount;		/* Used size of scDesc in bytes, inc null */
-	ORD8              scDesc[67];	/* ScriptCode Description (null terminated, max 67) */
+	unsigned short     scCode;		/* ScriptCode code */
+	unsigned int 	  scCount;		/* Occupied size of scDesc in bytes, inc null */
+	ORD8              *scDesc;		/* ScriptCode Description (null terminated, max 67 long) */
 }; typedef struct _icmTextDescription icmTextDescription;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
-/* Profile sequence structure */
-struct _icmDescStruct {
-	/* Private: */
-	struct _icc      *icp;				/* Pointer to ICC we're a part of */
+/* icmProfileSequenceDesc */
 
+struct _icmPSDescStruct {
 	/* Public: */
-	int             (*allocate)(struct _icmDescStruct *p);	/* Allocate method */
     icmSig            deviceMfg;		/* Dev Manufacturer */
     unsigned int      deviceModel;		/* Dev Model */
     icmUInt64         attributes;		/* Dev attributes */
     icTechnologySignature technology;	/* Technology sig */
-	icmTextDescription device;			/* Manufacturer text (sub structure) */
-	icmTextDescription model;			/* Model text (sub structure) */
-}; typedef struct _icmDescStruct icmDescStruct;
+	icmCommonTextDescription *mfgDesc;		/* Manufacturer description text (sub-tagtype) */
+											/* Created by ->allocate() */
+	icmCommonTextDescription *modelDesc;		/* Model description text (sub-tagtype) */
+												/* Created by ->allocate() */
+}; typedef struct _icmPSDescStruct icmPSDescStruct;
 
 /* Profile sequence description */
 struct _icmProfileSequenceDesc {
@@ -1708,25 +1689,118 @@ struct _icmProfileSequenceDesc {
 
 	/* Public: */
     unsigned int      count;			/* Number of descriptions */
-	icmDescStruct     *data;			/* array of [count] descriptions */
+	icmPSDescStruct     *data;			/* array of [count] descriptions */
 }; typedef struct _icmProfileSequenceDesc icmProfileSequenceDesc;
 
-#ifdef NEW
 /* - - - - - - - - - - - - - - - - - - - - -  */
-/* ResponseCurveSet16 */
+/* icmResponseCurveSet16 */
 
+struct _icmRCS16Struct {
+	/* Private */
+	unsigned int     off;				/* Offset from begining of TagType to RCS16Struct*/
+    unsigned int     __nMeasNchan;		/* Allocated number of device channels for _nMeas */
+    unsigned int     _nchan;			/* Allocated number of device channels for nMeas */
+	unsigned int     _pcsNchan;			/* Allocated number of device channels for pcsData */
+	unsigned int     _respNchan;		/* Allocated number of device channels for response */
+
+	unsigned int     *_nMeas;			/* array of [nchan] allocated number of measurements */
+	
+	/* Public: */
+	icMeasUnitsSig    measUnit;			/* Measurement unit */
+
+	unsigned int     *nMeas;			/* array of [nchan] number of measurement values */
+
+	icmXYZNumber	 *pcsData;			/* array of [nchan] PCS XYZ max. colorant values */
+	icmResponse16Number **response;		/* array of [nchan][nMeas] response numbers */
+
+}; typedef struct _icmRCS16Struct icmRCS16Struct;
+
+/* Profile sequence description */
 struct _icmResponseCurveSet16 {
 	ICM_BASE_MEMBERS(struct _icmResponseCurveSet16)
 
 	/* Private: */
-	~~~999
+	unsigned int	 _typeCount;		/* number currently allocated */
 
 	/* Public: */
-	~~~999
-
+    unsigned int      nchan;			/* Number of device channels */
+    unsigned int      typeCount;		/* Number of measurement types */
+	icmRCS16Struct    *typeData;		/* array of [typeCount] responses */
 }; typedef struct _icmResponseCurveSet16 icmResponseCurveSet16;
 
-#endif /* NEW */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Device Settings */
+
+/* The Settings Structure holds an array of settings of a particular type */
+struct _icmSettingStruct {
+
+	/* Private: */
+	unsigned int   _ssize;		/* Setting variable size in bytes */
+	unsigned int   _count;		/* Count currently allocated */
+	unsigned int   size;		/* Size in file bytes of each setting value */
+
+	/* Public: */
+	unsigned int   ssize;		/* Setting variable size in bytes (for unknown) */
+	unsigned int   count; 		/* number of setting values */
+	union {
+		struct {
+			icDevSetMsftIDSignature sig;		/* Setting identification */
+			union {								/* Setting values - type depends on Sig */
+				struct icmMsfResolution {
+					unsigned int xres;			/* DPI */
+					unsigned int yres;
+				} *resolution;
+				icDevSetMsftMedia   *media;
+				icDevSetMsftDither  *halftone;
+				unsigned char       *unknown;		/* If an unknown settingSig, count of size, */
+													/* access i'th at unknown[ssize * i] */
+			};
+		} msft;
+		/* Other platform signatures & setting types go here */
+
+		/* If the platform is unknown or has no known settings: */
+		struct {
+			unsigned int   sig;			/* Setting identification */
+			unsigned char  *unknown;	/* count of ssize, access i'th at unknown[ssize * i] */
+		} unknown;
+	};
+}; typedef struct _icmSettingStruct icmSettingStruct;
+
+/* A Setting Combination holds all arrays of different setting types */
+struct _icmSettingComb {
+	/* Private: */
+	unsigned int   size;			/* Size in file bytes of this structure */
+	unsigned int   _count;			/* count currently allocated */
+
+	/* Public: */
+	unsigned int       count; 		/* num of setting structures */
+	icmSettingStruct  *data;
+}; typedef struct _icmSettingComb icmSettingComb;
+
+/* A Platform Entry holds all setting combinations for that platform */
+struct _icmPlatformEntry {
+	/* Private: */
+	unsigned int        size;		/* Size in file bytes of this structure */
+	unsigned int       _count;		/* count currently allocated */
+
+	/* Public: */
+	icPlatformSignature platform;
+	unsigned int        count;		/* count of settings and allocated array size */
+	icmSettingComb     *data; 
+}; typedef struct _icmPlatformEntry icmPlatformEntry;
+
+/* The Device Settings holds all platform settings */
+struct _icmDeviceSettings {
+	ICM_BASE_MEMBERS(struct _icmDeviceSettings)
+
+	/* Private: */
+	unsigned int   _count;			/* number currently allocated */
+
+	/* Public: */
+	unsigned int    count;			/* num of platforms and allocated array size */
+	icmPlatformEntry *data;			/* Array of pointers to platform entry data */
+}; typedef struct _icmDeviceSettings icmDeviceSettings;
+
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* signature (only ever used for technology ??) */
@@ -1734,7 +1808,7 @@ struct _icmSignature {
 	ICM_BASE_MEMBERS(struct _icmSignature)
 
 	/* Public: */
-    icTechnologySignature sig;	/* Signature */
+    icSig sig;		/* Signature */
 }; typedef struct _icmSignature icmSignature;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
@@ -1750,10 +1824,10 @@ struct _icmScreening {
 	ICM_BASE_MEMBERS(struct _icmScreening)
 
 	/* Private: */
-	unsigned int   _channels;			/* number currently allocated */
+	unsigned int	  _channels;		/* number currently allocated */
 
 	/* Public: */
-    unsigned int      screeningFlag;	/* Screening flag */
+    icScreening       screeningFlags;	/* Screening flags */
     unsigned int      channels;			/* Number of channels */
     icmScreeningData  *data;			/* Array of screening data */
 }; typedef struct _icmScreening icmScreening;
@@ -1764,8 +1838,9 @@ struct _icmUcrBg {
 	ICM_BASE_MEMBERS(struct _icmUcrBg)
 
 	/* Private: */
-    unsigned int      UCR_count;		/* Currently allocated UCR count */
-    unsigned int      BG_count;			/* Currently allocated BG count */
+    unsigned int      _UCRcount;		/* Currently allocated UCR count */
+    unsigned int      _BGcount;			/* Currently allocated BG count */
+	unsigned int	  fcount;			/* Count in file (different if text lacks nul) */
 	unsigned int 	  _count;			/* Currently allocated string size */
 
 	/* Public: */
@@ -1794,47 +1869,44 @@ struct _icmViewingConditions {
 /* Postscript Color Rendering Dictionary names type */
 struct _icmCrdInfo {
 	ICM_BASE_MEMBERS(struct _icmCrdInfo)
+
 	/* Private: */
-    unsigned int     _ppsize;		/* Currently allocated size */
-	unsigned int     _crdsize[4];	/* Currently allocated sizes */
+    unsigned int     _ppcount;		/* Currently allocated count */
+    unsigned int     fppcount;		/* Count in file */
+	unsigned int     _crdcount[4];	/* Currently allocated counts */
+	unsigned int     fcrdcount[4];	/* Count in file */
 
 	/* Public: */
-    unsigned int     ppsize;		/* Postscript product name size (including null) */
+    unsigned int     ppcount;		/* Postscript product name count (including null) */
     char            *ppname;		/* Postscript product name (null terminated) */
-	unsigned int     crdsize[4];	/* Rendering intent 0-3 CRD names sizes (icluding null) */
+	unsigned int     crdcount[4];	/* Rendering intent 0-3 CRD names counts (icluding null) */
 	char            *crdname[4];	/* Rendering intent 0-3 CRD names (null terminated) */
 }; typedef struct _icmCrdInfo icmCrdInfo;
 
 /* - - - - - - - - - - - - - - - - - - - - -  */
 /* Apple ColorSync 2.5 video card gamma type (vcgt) */
+
 struct _icmVideoCardGammaTable {
-	unsigned short   channels;		/* No of gamma channels (1 or 3) */
-	unsigned short   entryCount; 	/* Number of entries per channel */
-	unsigned short   entrySize;		/* Size in bytes of each entry */
-	void            *data;			/* Variable size data */
+	/* Private: */
+	unsigned int   _entryCount[3];	/* Currently allocated entryCount */
+
+	/* Public: */
+	unsigned int   channels;		/* No of gamma channels (1 or 3) */
+	unsigned int   entryCount;		/* Number of entries per channel */
+	unsigned int   entrySize;		/* Size in bytes of each entry */
+	double          *data[3];		/* Entry for each channel */
 }; typedef struct _icmVideoCardGammaTable icmVideoCardGammaTable;
 
 struct _icmVideoCardGammaFormula {
-	unsigned short   channels;		/* No of gamma channels (always 3) */
-	double           redGamma;		/* must be > 0.0 */
-	double           redMin;		/* must be > 0.0 and < 1.0 */
-	double           redMax;		/* must be > 0.0 and < 1.0 */
-	double           greenGamma;   	/* must be > 0.0 */
-	double           greenMin;		/* must be > 0.0 and < 1.0 */
-	double           greenMax;		/* must be > 0.0 and < 1.0 */
-	double           blueGamma;		/* must be > 0.0 */
-	double           blueMin;		/* must be > 0.0 and < 1.0 */
-	double           blueMax;		/* must be > 0.0 and < 1.0 */
+	/* Red, Green, Blue */
+	double           gamma[3];		/* must be > 0.0 */
+	double           min[3];		/* must be > 0.0 and < 1.0 */
+	double           max[3];		/* must be > 0.0 and < 1.0 */
 }; typedef struct _icmVideoCardGammaFormula icmVideoCardGammaFormula;
-
-typedef enum {
-	icmVideoCardGammaTableType = 0,
-	icmVideoCardGammaFormulaType = 1
-} icmVideoCardGammaTagType;
 
 struct _icmVideoCardGamma {
 	ICM_BASE_MEMBERS(struct _icmVideoCardGamma)
-	icmVideoCardGammaTagType tagType;	/* eg. table or formula, use above enum */
+	icVideoCardGammaFormat tagType;	/* eg. table or formula */
 	union {
 		icmVideoCardGammaTable   table;
 		icmVideoCardGammaFormula formula;
@@ -1849,22 +1921,6 @@ struct _icmVideoCardGamma {
 /* NOTE that the deviceClass should be set up before calling chromAdaptMatrix()! */ 
 struct _icmHeader {
 
-#ifdef USE_LEGACY_HEADERFUNC
-
-  /* Private: */
-	unsigned int           (*get_size)(struct _icmHeader *p);
-	int                    (*read)(struct _icmHeader *p, unsigned int len, unsigned int of);
-	int                    (*write)(struct _icmHeader *p, unsigned int of, int doid);
-	void                   (*del)(struct _icmHeader *p);
-	struct _icc            *icp;			/* Pointer to ICC we're a part of */
-    unsigned int            size;			/* Profile size in bytes */
-
-  /* public: */
-	void                   (*dump)(struct _icmHeader *p, icmFile *op, int verb);
-
-#else /* !USE_LEGACY_HEADERFUNC */
-
-	// NEW:
 	ICM_BASE_MEMBERS(struct _icmHeader)
 
 	unsigned int hsize;		/* Header size */
@@ -1873,11 +1929,9 @@ struct _icmHeader {
 
 	int doid;				/* Flag, nz = writing to compute ID */
 
-#endif /* !USE_LEGACY_HEADERFUNC */
-
 	/* Values that must be set before writing */
     icProfileClassSignature deviceClass;	/* Type of profile */
-    icColorSpaceSignature   colorSpace;		/* Clr space of data (Cannonical input space) */
+    icColorSpaceSignature   colorSpace;		/* Color space of data (Cannonical input space) */
     icColorSpaceSignature   pcs;			/* PCS: XYZ or Lab (Cannonical output space) */
     icRenderingIntent       renderingIntent;/* Rendering intent (lower 16 bits) */
 
@@ -1896,11 +1950,11 @@ struct _icmHeader {
 	icmVers                 vers;			/* Format version */
     icmDateTimeNumber       date;			/* Creation Date */
     icPlatformSignature     platform;		/* Primary Platform */
-    icmXYZNumber            illuminant;		/* Profile illuminant */
+    icmXYZNumber            illuminant;		/* Profile illuminant (usually D50) */
     icRenderingIntent       extraRenderingIntent;	/* top 16 bits are extra non-ICC part of RI */
 
 	/* Values that are created automatically */
-    unsigned char           id[16];			/* MD5 fingerprint value, lsB to msB  <V4.0+> */
+    unsigned char           id[16];			/* MD5 fingerprint id, lsB to msB  <V4.0+> */
 
 }; typedef struct _icmHeader icmHeader;
 
@@ -1923,11 +1977,16 @@ typedef enum {
 
 /* Public: Parameter to get_luobj function */
 typedef enum {
-    icmLuOrdNorm     = 0,  /* Normal profile preference: Lut, matrix, monochrome */
-    icmLuOrdRev      = 1   /* Reverse profile preference: monochrome, matrix, monochrome */
+    icmLuOrdNorm     = 0,  /* Normal profile preference:  Lut, matrix, monochrome */
+    icmLuOrdRev      = 1   /* Reverse profile preference: monochrome, matrix, Lut */
 } icmLookupOrder;
 
-/* Public: Lookup algorithm object type */
+typedef enum {
+    icmSpaceLu4Type		= 10,	/* Color Space */
+    icmNamedLu4Type		= 11	/* Named color */
+} icmLu4Type;
+
+/* Public: Lookup algorithm object type (legacy) */
 typedef enum {
     icmMonoFwdType       = 0,	/* Monochrome, Forward */
     icmMonoBwdType       = 1,	/* Monochrome, Backward */
@@ -1937,236 +1996,20 @@ typedef enum {
     icmNamedType         = 5	/* Named color data */
 } icmLuAlgType;
 
-/* Lookup class members common to named and non-named color types */
-#define LU_ICM_BASE_MEMBERS(TTYPE)															\
-	/* Private: */																			\
-	icmLuAlgType   ttype;		    	/* The object tag */								\
-	struct _icc    *icp;				/* Pointer to ICC we're a part of */				\
-	icRenderingIntent intent;			/* Effective (externaly visible) intent */			\
-	icmLookupFunc function;				/* Functionality being used */						\
-	icmLookupOrder order;        		/* Conversion representation search Order */ 		\
-	icmXYZNumber pcswht, whitePoint, blackPoint;	/* White and black point info (absolute XYZ) */	\
-	int blackisassumed;					/* nz if black point tag is missing from profile */ \
-	double toAbs[3][3];					/* Matrix to convert from relative to absolute */ 	\
-	double fromAbs[3][3];				/* Matrix to convert from absolute to relative */ 	\
-    icColorSpaceSignature inSpace;		/* Native Clr space of input */						\
-    icColorSpaceSignature outSpace;		/* Native Clr space of output */					\
-	icColorSpaceSignature pcs;			/* Native PCS */									\
-    icColorSpaceSignature e_inSpace;	/* Effective Clr space of input */					\
-    icColorSpaceSignature e_outSpace;	/* Effective Clr space of output */					\
-	icColorSpaceSignature e_pcs;		/* Effective PCS */									\
-																							\
-	/* Public: */																			\
-	void           (*del)(TTYPE *p);											\
-																							\
-	               /* Internal native colorspaces: */	     								\
-	void           (*lutspaces) (TTYPE *p, icColorSpaceSignature *ins, int *inn,	\
-	                                                   icColorSpaceSignature *outs, int *outn,	\
-	                                                   icColorSpaceSignature *pcs);			\
-	                                                                                        \
-	               /* External effecive colorspaces */										\
-	void           (*spaces) (TTYPE *p, icColorSpaceSignature *ins, int *inn,	\
-	                                 icColorSpaceSignature *outs, int *outn,				\
-	                                 icmLuAlgType *alg, icRenderingIntent *intt, 			\
-	                                 icmLookupFunc *fnc, icColorSpaceSignature *pcs,		\
-	                                 icmLookupOrder *ord);							 		\
-																							\
-	               /* Relative to Absolute for this WP in XYZ */   							\
-	void           (*XYZ_Rel2Abs)(TTYPE *p, double *xyzout, double *xyzin);		\
-																							\
-	               /* Absolute to Relative for this WP in XYZ */   							\
-	void           (*XYZ_Abs2Rel)(TTYPE *p, double *xyzout, double *xyzin);		\
 
+typedef struct _icmLu4Space icmLu4Space;
+typedef struct _icmLu4Base icmLu4Base;
 
-/* Non-algorithm specific lookup class. Used as base class of algorithm specific class. */
-#define LU_ICM_NN_BASE_MEMBERS(TTYPE)														\
-    LU_ICM_BASE_MEMBERS(TTYPE)                                                              \
-																							\
-	/* Public: */																			\
-																							\
-	/* Get the native input space and output space ranges */								\
-	/* This is an accurate number of what the underlying profile can hold. */				\
-	void (*get_lutranges) (TTYPE *p,														\
-		double *inmin, double *inmax,		/* Range of inspace values */					\
-		double *outmin, double *outmax);	/* Range of outspace values */					\
-																							\
-	/* Get the effective input space and output space ranges */								\
-	/* This may not be accurate when the effective type is different to the native type */	\
-	void (*get_ranges) (TTYPE *p,															\
-		double *inmin, double *inmax,		/* Range of inspace values */					\
-		double *outmin, double *outmax);	/* Range of outspace values */					\
-																							\
-	/* Initialise the white and black points from the ICC tags */							\
-	/* and the corresponding absolute<->relative conversion matrices */						\
-	/* Return nz on error */																\
-	int (*init_wh_bk)(TTYPE *p);															\
-																							\
-	/* Get the LU white and black points in absolute XYZ space. */							\
-	/* Return nz if the black point is being assumed to be 0,0,0 rather */					\
-	/* than being from the tag. */															\
-	int (*wh_bk_points)(TTYPE *p, double *wht, double *blk);								\
-																							\
-	/* Get the LU white and black points in LU PCS space, converted to XYZ. */				\
-	/* (ie. white and black will be relative if LU is relative intent etc.) */				\
-	/* Return nz if the black point is being assumed to be 0,0,0 rather */					\
-	/* than being from the tag. */															\
-	int (*lu_wh_bk_points)(TTYPE *p, double *wht, double *blk);								\
-																							\
-	/* Translate color values through profile in effective in and out colorspaces, */		\
-	/* return values: */																	\
-	/* 0 = success, 1 = warning: clipping occured, 2 = fatal: other error */				\
-	/* Note that clipping is not a reliable means of detecting out of gamut */				\
-	/* in the lookup(bwd) call for clut based profiles. */									\
-	int (*lookup) (TTYPE *p, double *out, double *in);										\
-																							\
-																							\
-	/* Alternate to above, splits color conversion into three steps. */						\
-	/* Colorspace of _in and _out and _core are the effective in and out */					\
-	/* colorspaces. Note that setting colorspace overrides will probably. */				\
-	/* force _in and/or _out to be dumy (unity) transforms. */								\
-																							\
-	/* Per channel input lookup (may be unity): */											\
-	int (*lookup_in) (TTYPE *p, double *out, double *in);									\
-																							\
-	/* Intra channel conversion: */															\
-	int (*lookup_core) (TTYPE *p, double *out, double *in);									\
-																							\
-	/* Per channel output lookup (may be unity): */											\
-	int (*lookup_out) (TTYPE *p, double *out, double *in);									\
-																							\
-	/* Inverse versions of above - partially implemented */									\
-	/* Inverse per channel input lookup (may be unity): */									\
-	int (*lookup_inv_in) (TTYPE *p, double *out, double *in);								\
-																							\
+typedef icmLu4Base icmLuBase;
+typedef icmLu4Space icmLuMono;
+typedef icmLu4Space icmLuMatrix;
+typedef icmLu4Space icmLuLut;
+typedef icmLu4Space icmLuSpace;		/* Convert to this eventually */
 
+/* ========================================================== */
+/* icmPe transform declarations */
 
-/* Base lookup object */
-struct _icmLuBase {
-	LU_ICM_NN_BASE_MEMBERS(struct _icmLuBase)
-}; typedef struct _icmLuBase icmLuBase;
-
-
-/* Algorithm specific lookup classes */
-
-/* Monochrome  Fwd & Bwd type object */
-struct _icmLuMono {
-	LU_ICM_NN_BASE_MEMBERS(struct _icmLuMono)
-	icmCurve    *grayCurve;
-
-	/* Overall lookups */
-	int (*fwd_lookup) (struct _icmLuMono *p, double *out, double *in);
-	int (*bwd_lookup) (struct _icmLuMono *p, double *out, double *in);
-
-	/* Components of lookup */
-	int (*fwd_curve) (struct _icmLuMono *p, double *out, double *in);
-	int (*fwd_map)   (struct _icmLuMono *p, double *out, double *in);
-	int (*fwd_abs)   (struct _icmLuMono *p, double *out, double *in);
-	int (*bwd_abs)   (struct _icmLuMono *p, double *out, double *in);
-	int (*bwd_map)   (struct _icmLuMono *p, double *out, double *in);
-	int (*bwd_curve) (struct _icmLuMono *p, double *out, double *in);
-
-}; typedef struct _icmLuMono icmLuMono;
-
-/* 3D Matrix Fwd & Bwd type object */
-struct _icmLuMatrix {
-	LU_ICM_NN_BASE_MEMBERS(struct _icmLuMatrix)
-	icmCurve    *redCurve, *greenCurve, *blueCurve;
-	icmXYZArray *redColrnt, *greenColrnt, *blueColrnt;
-    double		mx[3][3];	/* 3 * 3 conversion matrix */
-    double		bmx[3][3];	/* 3 * 3 backwards conversion matrix */
-
-	/* Overall lookups */
-	int (*fwd_lookup) (struct _icmLuMatrix *p, double *out, double *in);
-	int (*bwd_lookup) (struct _icmLuMatrix *p, double *out, double *in);
-
-	/* Components of lookup */
-	int (*fwd_curve)  (struct _icmLuMatrix *p, double *out, double *in);
-	int (*fwd_matrix) (struct _icmLuMatrix *p, double *out, double *in);
-	int (*fwd_abs)    (struct _icmLuMatrix *p, double *out, double *in);
-	int (*bwd_abs)    (struct _icmLuMatrix *p, double *out, double *in);
-	int (*bwd_matrix) (struct _icmLuMatrix *p, double *out, double *in);
-	int (*bwd_curve)  (struct _icmLuMatrix *p, double *out, double *in);
-
-}; typedef struct _icmLuMatrix icmLuMatrix;
-
-/* Multi-D. Lut type object */
-struct _icmLuLut {
-	LU_ICM_NN_BASE_MEMBERS(struct _icmLuLut)
-
-	/* private: */
-	icmLut *lut;								/* Lut to use */
-	int    usematrix;							/* non-zero if matrix should be used */
-    double imx[3][3];							/* 3 * 3 inverse conversion matrix */
-	int    imx_valid;							/* Inverse matrix is valid */
-	void (*in_normf)(double *out, double *in);	/* Lut input data normalizing function */
-	void (*in_denormf)(double *out, double *in);/* Lut input data de-normalizing function */
-	void (*out_normf)(double *out, double *in);	/* Lut output data normalizing function */
-	void (*out_denormf)(double *out, double *in);/* Lut output de-normalizing function */
-	void (*e_in_denormf)(double *out, double *in);/* Effective input de-normalizing function */
-	void (*e_out_denormf)(double *out, double *in);/* Effecive output de-normalizing function */
-	/* function chosen out of lut->lookup_clut_sx and lut->lookup_clut_nl to imp. clut() */
-	int (*lookup_clut) (struct _icmLut *pp, double *out, double *in);	/* clut function */
-
-	/* public: */
-
-	/* Components of lookup */
-	int (*in_abs)  (struct _icmLuLut *p, double *out, double *in);	/* Should be in icmLut ? */
-	int (*matrix)  (struct _icmLuLut *p, double *out, double *in);
-	int (*input)   (struct _icmLuLut *p, double *out, double *in);
-	int (*clut)    (struct _icmLuLut *p, double *out, double *in);
-	int (*output)  (struct _icmLuLut *p, double *out, double *in);
-	int (*out_abs) (struct _icmLuLut *p, double *out, double *in);	/* Should be in icmLut ? */
-
-	/* Some inverse components, in reverse order */
-	/* Should be in icmLut ??? */
-	int (*inv_out_abs) (struct _icmLuLut *p, double *out, double *in);
-	int (*inv_output)  (struct _icmLuLut *p, double *out, double *in);
-	/* inv_clut is beyond scope of icclib. See argyll for solution! */
-	int (*inv_input)   (struct _icmLuLut *p, double *out, double *in);
-	int (*inv_matrix)  (struct _icmLuLut *p, double *out, double *in);
-	int (*inv_in_abs)  (struct _icmLuLut *p, double *out, double *in);
-
-	/* Get various types of information about the LuLut */
-	/* (Note that there's no reason why white/black point info */
-	/*  isn't being made available for other Lu types) */
-	void (*get_info) (struct _icmLuLut *p, icmLut **lutp,
-	                 icmXYZNumber *pcswhtp, icmXYZNumber *whitep,
-	                 icmXYZNumber *blackp);
-
-	/* Get the matrix contents */
-	void (*get_matrix) (struct _icmLuLut *p, double m[3][3]);
-
-}; typedef struct _icmLuLut icmLuLut;
-
-/* Named colors lookup object */
-struct _icmLuNamed {
-	LU_ICM_BASE_MEMBERS(struct _icmLuNamed)
-
-  /* Private: */
-
-  /* Public: */
-
-	/* Get various types of information about the Named lookup */
-	void (*get_info) (struct _icmLuLut *p, 
-	                 icmXYZNumber *pcswhtp, icmXYZNumber *whitep,
-	                 icmXYZNumber *blackp,
-	                 int *maxnamesize,
-	                 int *num_colors, char *prefix, char *suffix);
-
-
-	/* Lookup a name that includes prefix and suffix */
-	int (*fullname_lookup) (struct _icmLuNamed *p, double *pcs, double *dev, char *in);
-
-	/* Lookup a name that doesn't include prefix and suffix */
-	int (*name_lookup) (struct _icmLuNamed *p, double *pcs, double *dev, char *in);
-
-	/* Fill in a list with the nout closest named colors to the pcs target */
-	int (*pcs_lookup) (struct _icmLuNamed *p, char **out, int nout, double *in);
-
-	/* Fill in a list with the nout closest named colors to the device target */
-	int (*dev_lookup) (struct _icmLuNamed *p, char **out, int nout, double *in);
-
-}; typedef struct _icmLuNamed icmLuNamed;
+#include "icc_xf.h"		
 
 /* ========================================================== */
 
@@ -2176,11 +2019,7 @@ typedef struct {
 	icTagTypeSignature  ttype;			/* The tag type actual signature */
     unsigned int        offset;			/* File offset relative to profile */
     unsigned int        size;			/* Size in bytes (not including padding) */
-#ifdef USE_LEGACY_COREFUNC
-	unsigned int        pad;			/* LEGACY: Padding in bytes */
-#else
-	unsigned int        psize;			/* NEW: Padded size */
-#endif
+	unsigned int        pad;			/* Padding */
 	icmBase            *objp;			/* In memory data structure, NULL if never read. */
 } icmTagRec;
 
@@ -2205,7 +2044,7 @@ typedef struct {
 
 /* Return a string that shows the given version range */
 /* This can only be called once before reusing returned static buffer */
-char *icmTVersRange2str(icmTVRange *tvr);
+char *icmTVersRange2str(const icmTVRange *tvr);
 
 /* True if a given version is within the rang. */
 #define ICMTV_IN_RANGE(vers, vrangep) ((vrangep)->min <= (vers) && (vers) <= (vrangep)->max)
@@ -2219,7 +2058,7 @@ char *icmTVersRange2str(icmTVRange *tvr);
 #define ICMTV_22 20200
 #define ICMTV_23 20300		/* (Chromaticity Tag) */
 #define ICMTV_24 20400		/* (Display etc. have intents) */
-#define ICMTV_40 40000		/* (LutAToB etc., ColorantOrder etc.) */
+#define ICMTV_40 40000		/* (MultiLocalizedUnicode, LutAToB etc., ColorantOrder etc.) */
 #define ICMTV_41 40100
 #define ICMTV_42 40200
 #define ICMTV_43 40300		/* (BToD0 etc.) */
@@ -2244,14 +2083,26 @@ char *icmTVersRange2str(icmTVRange *tvr);
 extern const icmTVRange icmtvrange_all;
 extern const icmTVRange icmtvrange_none;
 
+extern const icmTVRange icmtvrange_20_plus;
+extern const icmTVRange icmtvrange_21_plus;
+extern const icmTVRange icmtvrange_22_plus;
+extern const icmTVRange icmtvrange_23_plus;
+extern const icmTVRange icmtvrange_24_plus;
+extern const icmTVRange icmtvrange_40_plus;
+extern const icmTVRange icmtvrange_41_plus;
+extern const icmTVRange icmtvrange_42_plus;
+extern const icmTVRange icmtvrange_43_plus;
+extern const icmTVRange icmtvrange_44_plus;
+
+
 /* icmTV from a icmVers */
 #define ICMVERS2TV(vers)  (((vers).majv * 100 + (vers).minv) * 100 + (vers).bfv)
 
 /* Return true if icc version is within range */
-int icmVersInRange(struct _icc *icp, icmTVRange *tvr); 
+int icmVersInRange(struct _icc *icp, const icmTVRange *tvr); 
 
 /* Return true if the two version ranges have an overlap */
-int icmVersOverlap(icmTVRange *tvr1, icmTVRange *tvr2); 
+int icmVersOverlap(icmTVRange *tvr1, const icmTVRange *tvr2); 
 
 /* Return a string that shows the icc version */
 char *icmProfileVers2str(struct _icc *icp);
@@ -2260,20 +2111,20 @@ char *icmProfileVers2str(struct _icc *icp);
 typedef	struct {
 	icTagTypeSignature  ttype;			/* The tag type signature */
 	icmTVRange        vrange;			/* File versions it is valid to use it in (inclusive) */
-	icmBase *(*new_obj)(struct _icc *icp);
+	icmBase *(*new_obj)(struct _icc *icp, icTagTypeSignature ttype);
 } icmTagTypeVersConstrRec;
 
 
-/* transform class - used to add semantics to lut tags */
+/* transform purpose - used to add semantics to lut tags */
 typedef enum {
-	icmTCNone    = 0,		/* Not Applicable */
+	icmTPNone    = 0,		/* Not Applicable */
 
-	/* Lut classes - determines in/out colorspace */
-	icmTCLutFwd     = 1,	/* AtoBn:    Device to PCS */
-	icmTCLutBwd     = 2,	/* BtoAn:    PCS to Device */
-	icmTCLutGamut   = 3,	/* Gamut:    PCS to Gray */
-	icmTCLutPreview = 4 	/* Preview:	 PCS to PCS */
-} icmLutClass;
+	/* Lut purposes - determines in/out colorspace */
+	icmTPLutFwd     = 1,	/* AtoBn:    Device to PCS */
+	icmTPLutBwd     = 2,	/* BtoAn:    PCS to Device */
+	icmTPLutGamut   = 3,	/* Gamut:    PCS to Gray */
+	icmTPLutPreview = 4 	/* Preview:	 PCS to PCS */
+} icmLutPurpose;
 
 /* A record of tag type, valid version range and constructor. */
 typedef	struct {
@@ -2285,10 +2136,10 @@ typedef	struct {
 typedef struct {
 	icTagSignature       sig;
 	icmTVRange           vrange;		/* Versions it is valid over (inclusive) */
-	icmLutClass          cclass;		/* Compatibility class enum */
+	icmLutPurpose        purp;			/* Lut purpose enum */
 	icmTagTypeAndVersRec ttypes[5];		/* ttypes and file versions ttype can be used with sig */
 										/* Compatibility is intersection of TT vers & this vers. */
-										/* Last has ttype icMaxEnumType */
+										/* Last has ttype icMaxEnumTagType */
 } icmTagSigVersTypesRec;
 
 
@@ -2298,14 +2149,16 @@ typedef	struct {
 	icmTVRange          vrange;			/* File versions it is valid to use it in (inclusive) */
 } icmTagSigVersRec;
 
+
+/* Colorspace match flag */
 typedef enum {
-    icmCSMF_ANY = 1, 	/* Any colorspace */
-    icmCSMF_XYZ = 2, 	/* icSigXYZData is a match */
-    icmCSMF_Lab = 3, 	/* icSigLabData is a match */
-    icmCSMF_PCS = 4, 	/* icSigXYZData or icSigLabData is a match */
-    icmCSMF_DEV = 5, 	/* Device colorspace */
-    icmCSMF_NCOL = 6, 	/* Device N-color space */
-    icmCSMF_NOT_NCOL = 7, /* Not a device N-color space */
+    icmCSMF_ANY = 1, 		/* Any colorspace */
+    icmCSMF_XYZ = 2, 		/* icSigXYZData is a match */
+    icmCSMF_Lab = 3, 		/* icSigLabData is a match */
+    icmCSMF_PCS = 4, 		/* icSigXYZData or icSigLabData is a match */
+    icmCSMF_DEV = 5, 		/* Device colorspace */
+    icmCSMF_NCOL = 6, 		/* Device N-color space */
+    icmCSMF_NOT_NCOL = 7,	/* Not a device N-color space */
     icmCSMF_DEV_NOT_NCOL = 8 /* Device colorspace but not device N-color space */
 } icmCSMF;
 
@@ -2334,10 +2187,15 @@ typedef struct {
 	icmTVRange          	vrange;		/* File versions it is valid to use it in (inclusive) */
 	icmTagSigVersRec        tags[16];	/* Required Tags, terminated by icMaxEnumTag */
 										/* Compatibility is intersection of T vers & this vers. */
-										/* Last has sig icMaxEnumType */
+										/* Last has sig icMaxEnumTagType */
 	icmTagSigVersRec        otags[16];	/* Optional Tags, terminated by icMaxEnumTag */
 } icmRequiredTagType;
 
+/* xform creation tag signature details */
+typedef struct {
+	icTagSignature		sig;		/* Signature to create */
+	icTagTypeSignature	ttype;		/* Tag Type to create */
+} icmXformSigs;
 
 /* - - - - - - - - - - - - - - - - - - - */
 /* Pseudo enumerations valid as parameter to get_luobj(): */
@@ -2355,17 +2213,15 @@ typedef struct {
 /* Pseudo PCS colospace used to indicate the native PCS */
 #define icmSigDefaultData ((icColorSpaceSignature) 0x0)
 
-/* Pseudo colospace used to indicate a named colorspace */
-#define icmSigNamedData ((icColorSpaceSignature) 0x1)
-
 /* The ICC object */
 struct _icc {
   /* Public: */
 	icmFile     *(*get_rfp)(struct _icc *p);			/* Return the current read fp (if any) */
-	int          (*set_version)(struct _icc *p, icmTV ver); /* For creation, use ICC V4 etc. */
+	icmTV        (*get_version)(struct _icc *p); /* Return file version in icmTV format, 0 on err */
+	int          (*set_version)(struct _icc *p, icmTV ver); /* For creation */
 
-	void         (*set_cflag)(struct _icc *p, icmCompatFlags flags); /* Set compatibility flags */
-	void         (*unset_cflag)(struct _icc *p, icmCompatFlags flags); /* Unset compat. flags */
+	void         (*set_cflag)(struct _icc *p, icmCompatFlags flags); /* Set | compatibility flags */
+	void         (*unset_cflag)(struct _icc *p, icmCompatFlags flags); /* Unset &~ compat. flags */
 	icmCompatFlags (*get_cflags)(struct _icc *p);					   /* Return compat. flags */
 	void         (*set_vcrange)(struct _icc *p, const icmTVRange *tvr);
 															/* Set icmCFlagAllowWrVersion */ 
@@ -2378,11 +2234,12 @@ struct _icc {
 															/* Will add auto tags (i.e. 'arts') */
 	void         (*dump)(struct _icc *p, icmFile *op, int verb);	/* Dump whole icc */
 	void         (*del)(struct _icc *p);						/* Free whole icc */
+
 	int          (*find_tag)(struct _icc *p, icTagSignature sig);
 							/* Returns 0 if found, 1 if found but not readable, 2 of not found */
 	icmBase *    (*read_tag)(struct _icc *p, icTagSignature sig); /* Returns pointer to object */
-																/* Returns NULL if not found */
-	icmBase *    (*read_tag_any)(struct _icc *p, icTagSignature sig);
+										/* Returns NULL if not found and doesn't set e.c, e.m) */
+	icmBase *    (*read_tag_any)(struct _icc *p, icTagSignature sig);	/* (Convenience method) */
 								/* Returns pointer to object, but may be icmSigUnknownType! */
 	icmBase *    (*add_tag)(struct _icc *p, icTagSignature sig, icTagTypeSignature ttype);
 															/* Returns pointer to object */
@@ -2399,17 +2256,38 @@ struct _icc {
 	int          (*delete_tag_quiet)(struct _icc *p, icTagSignature sig); /* Delet a tag quietly */
 										/* No error if tag doesn't exist. Returns 0 if deleted OK */
 
+	icmBase *    (*new_ttype)(struct _icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
+										/* Create tagtype for embedding in tagtype.  pttype is */
+	icmPe *      (*new_pe)(struct _icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
+										/* Create icmPe for icmMultiProcessElements.  pttype is */
+										/* parent tag-type. Returns pointer to object */
+	int          (*copy_ttype)(struct _icc *p, icmBase *dst, icmBase *src); /* Copy & translate */ 
+										/* tagtype from same/other icc. Returns error code. */
+
 	int          (*check_id)(struct _icc *p, ORD8 *id);	/* Check profiles MD5 id */
 												/* Returns 0 if ID is OK, 1 if not present etc. */
 	int          (*write_check)(struct _icc *p);	/* Check profile is legal to write. */
 													/* Return error code. */
+
+	int          (*get_wb_points)(struct _icc *p,
+	                 int *wpassumed, icmXYZNumber *wp, int *bpassumed, icmXYZNumber *bp,
+	                 double toAbs[3][3], double fromAbs[3][3]);
+								/* Return the white and black points from the ICC tags, */
+								/* and the corresponding absolute<->relative conversion matrices. */
+								/* Any argument may be NULL */
+								/* This method undoes any V4 style 'chrm' adapation so that the */
+								/* returned white & black represent the actual media color. */
+								/* The wpassumed flag returns 1 if the white point tag */
+								/* is missing because this type of profile doesn't have a wp tag. */
+								/* The bpassumed flag returns 1 if the black point tag */
+								/* is missing. Return nz on error and sets error codes. */
 	double       (*get_tac)(struct _icc *p, double *chmax,
 	                        void (*calfunc)(void *cntx, double *out, double *in), void *cntx);
- 	                           /* Returns total ink limit and channel maximums */
+ 	                           /* Returns total ink limit and channel maximums. -1 on error. */
 	                           /* calfunc is optional. */
-	icmLutClass  (*get_tag_lut_class)(struct _icc *p, icTagSignature sig);
-									/* Return the lut class value for a tag signature. */
-									/* Return icmTCUnknown if there is not sigtypetable, */
+	icmLutPurpose  (*get_tag_lut_purpose)(struct _icc *p, icTagSignature sig);
+									/* Return the lut purpose enum for a tag signature. */
+									/* Return icmTPNone if there is no sigtypetable, */
 									/* or the signature is not recognised. */
 	void         (*set_illum)(struct _icc *p, double ill_wp[3]);
 								/* Clear any existing 'chad' matrix, and if Output type profile */
@@ -2427,7 +2305,7 @@ struct _icc {
 	                            /* icc->set_illum() called or not). */
 	                            /* Set header->deviceClass before calling this! */
 	                            /* ICM_CAM_NONE or ICM_CAM_MULMATRIX to mult by mat. */
-	                            /* Return invers of matrix if imat != NULL. */
+	                            /* Return inverse of matrix if imat != NULL. */
 	                            /* Use icmMulBy3x3(dst, mat, src). */
 	                            /* NOTE that to transform primaries they */
 	                            /* must be mat[XYZ][RGB] format! */
@@ -2441,19 +2319,117 @@ struct _icc {
 	                           /* Return appropriate lookup object */
 	                           /* NULL on error, check errc+err for reason */
 
-	/* Low level - load specific cLUT conversion */
-	icmLuBase *  (*new_clutluobj)(struct _icc *p,
-	                            icTagSignature        ttag,		  /* Target Lut tag */
-                                icColorSpaceSignature inSpace,	  /* Native Input color space */
-                                icColorSpaceSignature outSpace,	  /* Native Output color space */
-                                icColorSpaceSignature pcs,		  /* Native PCS (from header) */
-                                icColorSpaceSignature e_inSpace,  /* Override Inpt color space */
-                                icColorSpaceSignature e_outSpace, /* Override Outpt color space */
-                                icColorSpaceSignature e_pcs,	  /* Override PCS */
-	                            icRenderingIntent     intent,	  /* Rendering intent (For abs.) */
-	                            icmLookupFunc         func);	  /* For icmLuSpaces() */
-	                           /* Return appropriate lookup object */
-	                           /* NULL on error, check errc+err for reason */
+	/* Helper function to set multiple Monochrome tags simultaneously. */
+	/* Note that these tables and matrix value all have to be */
+	/* compatible in having the same configuration and resolutions. */
+	/* Set errc and return error number in underlying icc */
+	/* Note that clutfunc in[] value has "index under". */
+	/* Returns ec */
+	int (*create_mono_xforms) (
+		struct _icc *icp,
+		int     flags,					/* Setting flags */
+		void   *cbctx,					/* Opaque callback context pointer value */
+
+		int ntables,					/* Number of tables to be set, 1..n */
+		icmXformSigs *sigs,				/* signatures and tag types for each table */
+										/* ICCV2 Matrix/gamma/shaper uses icmSigShaperMatrix */
+										/* Valid combinations are:
+										  icmSigShaperMono + icmSigShaperMatrixType 
+										  icSigAToB0Tag + icSigLut16Type
+										  	(icSigBToA0Tag + icSigLutB16Type automatically added) */
+
+		unsigned int	inputEnt,       /* Num of in-table entries */
+		unsigned int	inv_inputEnt,   /* Num of inverse in-table entries */
+
+		icColorSpaceSignature insig, 	/* Input color space */
+		icColorSpaceSignature outsig, 	/* Output color space */
+
+		void (*infunc)(void *cbctx, double *out, double *in, int tn)
+							/* Input transfer function, inspace->inspace' (NULL = default) */
+							/* Will be called ntables times each input grid value */
+	);
+
+
+	/* Helper function to set multiple Matrix tags simultaneously. */
+	/* Note that these tables and matrix value all have to be */
+	/* compatible in having the same configuration and resolutions. */
+	/* Set errc and return error number in underlying icc */
+	/* Note that clutfunc in[] value has "index under". */
+	/* Returns ec */
+	int (*create_matrix_xforms) (
+		struct _icc *icp,
+		int     flags,					/* Setting flags */
+		void   *cbctx,					/* Opaque callback context pointer value */
+
+		int ntables,					/* Number of tables to be set, 1..n */
+		icmXformSigs *sigs,				/* signatures and tag types for each table */
+										/* ICCV2 Matrix/gamma/shaper uses icmSigShaperMatrix */
+										/* Valid combinations are:
+										  icmSigShaperMatrix + icmSigShaperMatrixType */ 
+
+		unsigned int	inputEnt,       /* Num of in-table entries */
+		unsigned int	inv_inputEnt,   /* Num of inverse in-table entries */
+
+		icColorSpaceSignature insig, 	/* Input color space */
+		icColorSpaceSignature outsig, 	/* Output color space */
+
+		void (*infunc)(void *cbctx, double *out, double *in, int tn),
+							/* Input transfer function, inspace->inspace' (NULL = default) */
+							/* Will be called ntables times each input grid value */
+
+		double mx[3][3],	/* [outn][inn] Matrix values */
+		double ct[3],		/* [outn] Constant values added after mx[][] multiply */
+							/* Must be NULL or 0.0 if a table uses icmSigShaperMatrix */
+
+		int isShTRC,		/* NZ if shared TRCs */
+		double *gamma,		/* != NULL if gamma rather than shaper */
+		int isLinear		/* NZ if pure linear, gamma = 1.0 */
+	);
+
+	/* Helper function to set multiple Lut tables simultaneously. */
+	/* Note that these tables all have to be compatible in */
+	/* having the same configuration and resolutions, and the */
+	/* same per channel input and output curves. */
+	/* Set errc and return error number in underlying icc */
+	/* Note that clutfunc in[] value has "index under". */
+	/* Returns ec */
+	int (*create_lut_xforms) (
+		struct _icc *icp,
+		int     flags,					/* Setting flags */
+		void   *cbctx,					/* Opaque callback context pointer value */
+
+		int ntables,					/* Number of tables to be set, 1..n */
+		icmXformSigs *sigs,				/* signatures and tag types for each table */
+
+		unsigned int	bpv,			/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+		unsigned int	inputEnt,       /* Num of in-table entries (must be 256 for Lut8 */
+		unsigned int	clutPoints[MAX_CHAN],    /* Num of grid points (must be same for Lut8/16) */
+		unsigned int	outputEnt,      /* Num of out-table entries (must be 256 for Lut8) */
+
+		icColorSpaceSignature insig, 	/* Input color space */
+		icColorSpaceSignature outsig, 	/* Output color space */
+
+		double *inmin, double *inmax,	/* Maximum range of inspace values (Not used) */
+										/* (NULL = default) */
+		void (*infunc)(void *cbctx, double *out, double *in, int tn),
+							/* Input transfer function, inspace->inspace' (NULL = default) */
+							/* Will be called ntables times each input grid value */
+		double *indmin, double *indmax,	/* Maximum range of inspace' values */
+										/* (NULL = same as inmin/max or default) */
+		void (*clutfunc)(void *cbntx, double *out, double *in, int tn),
+							/* inspace' -> outspace[ntables]' transfer function */
+							/* will be called once for each input' grid value, and ntable times */
+							/* Note that in[] value has "index under". */
+		double *clutmin, double *clutmax,	/* Maximum range of outspace' values */
+											/* (NULL = default) */
+		void (*outfunc)(void *cbntx, double *out, double *in, int tn),
+								/* Output transfer function, outspace'->outspace (NULL = deflt) */
+								/* Will be called ntables times on each output value */
+
+		int *apxls_gmin, int *apxls_gmax/* If not NULL, the grid indexes not to be affected */
+										/* by ICM_CLUT_SET_APXLS, defaulting to 0..>clutPoints-1 */
+	);
+
 	
 	/* - - - - - - - - tweaks - - - - - - - */
 
@@ -2507,6 +2483,9 @@ struct _icc {
 										/* ->get_size() or ->write() calls when wrD/OChad active. */
 	icmXYZNumber	 tempWP;			/* Save real wp tag value here inside ->get_size() */
 										/* or ->write() calls when wrD/OChad active. */
+
+	icmXYZNumber	 tempBP;			/* Save real bp tag value here inside ->get_size() */
+										/* or ->write() calls when wrD/OChad active. */
 		
   /* - - - - - - - - - -*/
 
@@ -2521,16 +2500,16 @@ struct _icc {
   /* Private: ? */
 	icmErr         e;				/* Common error reporting */
 	icmAlloc      *al;				/* Heap allocator reference */
-	icmFile       *fp;				/* LEGACY: File associated with object */
 	icmFile       *rfp;				/* Read File associated with object reference */
 	icmFile       *wfp;				/* Write File associated with object reference */
 	unsigned int of;				/* Offset of the profile within the file */
 
-	unsigned int  align;			/* ~8 Alignment for tag table and tags */
+	unsigned int  align;			/* Alignment for tag table and tags */
     icmHeader      *header;			/* The header */
-    unsigned int   count;			/* Num tags in the profile */
-    icmTagRec     *data;    		/* ~8 The tagTable and tagData */
-	unsigned int  pttsize;			/* ~8 Padded tag table size */
+    unsigned int  _count;			/* Allocated tags in tagTable */
+    unsigned int   count;			/* Number tags in the profile */
+	icmTagRec     *data;    		/* The tagTable and tagData */
+	unsigned int  pttsize;			/* Padded tag table size */
 
 	unsigned int  mino;				/* Minimum offset of tags */
 	unsigned int  maxs;				/* Maximum size available for tagtable & tags */
@@ -2540,7 +2519,7 @@ struct _icc {
 	icmSnOp        op;				/* tag->check() icmSnRead or icmSnWrite */
 
 	icmTagTypeVersConstrRec *tagtypetable;	/* Table of Tag Types valid version range and */
-											/* constructor. Last has ttype icMaxEnumType */
+											/* constructor. Last has ttype icMaxEnumTagType */
 
 	icmTagSigVersTypesRec *tagsigtable;		/* Table of Tags valid version range and possible */
 											/* Tag Types.  Last has sig icMaxEnumTag */
@@ -2564,18 +2543,17 @@ typedef enum {
 	icmProfileHeaderFlags,
 	icmAsciiOrBinaryData,
 	icmVideoCardGammaFormat,
-	icmTagSignature,
-	icmTypeSignature,
-	icmColorSpaceSignature,
-	icmProfileClassSignature,
-	icmPlatformSignature,
-	icmDeviceManufacturerSignature,
-	icmDeviceModelSignature,
-	icmCMMSignature,
-	icmReferenceMediumGamutSignature,
-	icmTechnologySignature,
+	icmTagSig,
+	icmTagSig_alt,						/* Show alias name */
+	icmTypeSig,
+	icmColorSpaceSig,
+	icmProfileClassSig,
+	icmPlatformSig,
+	icmDeviceManufacturerSig,
+	icmDeviceModelSig,
+	icmCMMSig,
+	icmTechnologySig,
 	icmMeasurementGeometry,
-	icmMeasurementFlare,
 	icmRenderingIntent,
 	icmSpotShape,
 	icmStandardObserver,
@@ -2585,17 +2563,22 @@ typedef enum {
 	icmDevSetMsftID,
 	icmDevSetMsftMedia,
 	icmDevSetMsftDither,
-	icmMeasUnitsSignature,
+	icmMeasUnitsSig,
 	icmPhColEncoding,
-	icmParametricCurveFunction,
 	icmTransformLookupFunc,
 	icmTransformLookupOrder,
-	icmTransformLookupAlgorithm
+	icmProcessingElementOp,				/* attr.op */
+	icmProcessingElementTag,
+	icmTransformType,					/* Lu4 */
+	icmTransformLookupAlgorithm,		/* Lu2 */
+	icmTransformSourceTag				/* Lu4 */
 } icmEnumType;
 
 /* Return a string description of the given enumeration value */
 extern ICCLIB_API const char *icm2str(icmEnumType etype, int enumval);
 
+/* Return a (static) string containing CSInfo sig, nch, min, max */
+char *icmCSInfo2str(icmCSInfo *p); 
 
 /* Return a string that shows the XYZ number value */
 /* Returned buffer is static */
@@ -2609,19 +2592,6 @@ char *icmXYZNumber_and_Lab2str(icmXYZNumber *p);
 /* Return a string that shows the given date and time */
 /* Returned buffer is static */
 char *icmDateTimeNumber2str(icmDateTimeNumber *p);
-
-/* ----------------------------------------------- */
-
-/* Structure to hold pseudo-hilbert counter info */
-struct _psh {
-	int      di;	/* Dimensionality */
-	unsigned int res;	/* Resolution per coordinate */
-	unsigned int bits;	/* Bits per coordinate */
-	unsigned int ix;	/* Current binary index */
-	unsigned int tmask;	/* Total 2^n count mask */
-	unsigned int count;	/* Usable count */
-}; typedef struct _psh psh;
-
 
 /* ============================================== */
 /* MD5 checksum support */
@@ -2684,49 +2654,14 @@ extern ICCLIB_API icc *new_icc_a(icmErr *e, icmAlloc *al);		/* With allocator cl
 /* Note that this will fail if e has an error already set */
 extern ICCLIB_API icc *new_icc(icmErr *e);				/* Default allocator */
 
-/* - - - - - - - - - - - - - */
-/* Some useful utilities: */
+/* ========================================================== */
+/* Utility function declarations are in their own file */
 
-/* Default ICC profile file extension string */
-
-#if defined (UNIX) || defined(__APPLE__)
-#define ICC_FILE_EXT ".icc"
-#define ICC_FILE_EXT_ND "icc"
-#else
-#define ICC_FILE_EXT ".icm"
-#define ICC_FILE_EXT_ND "icm"
-#endif
-
-/* Return a string that represents a tag */
-extern ICCLIB_API char *icmtag2str(int tag);
-
-/* Return a tag created from a string */
-extern ICCLIB_API unsigned int icmstr2tag(const char *str);
-
-/* Utility to define a non-standard tag, arguments are 4 character constants */
-#define icmMakeTag(A,B,C,D)	\
-	(   (((ORD32)(ORD8)(A)) << 24)	\
-	  | (((ORD32)(ORD8)(B)) << 16)	\
-	  | (((ORD32)(ORD8)(C)) << 8)	\
-	  |  ((ORD32)(ORD8)(D)) )
-
-/* Return the number of channels for the given color space. Return 0 if unknown. */
-extern ICCLIB_API unsigned int icmCSSig2nchan(icColorSpaceSignature sig);
-
-#define CSSigType_PCS   0x0001		/* icSigXYZData or icSigLabData */
-#define CSSigType_NDEV  0x0002		/* Not a device space */
-#define CSSigType_DEV   0x0004		/* A device space (AKA N-component) */
-#define CSSigType_NCOL  0x0008		/* An N-Color space */
-#define CSSigType_EXT   0x0010		/* Extension */
-
-/* Return a mask classifying the color space */
-extern ICCLIB_API unsigned int icmCSSig2type(icColorSpaceSignature sig);
+#include "icc_util.h"
 
 #ifdef __cplusplus
 	}
 #endif
-
-#include "icc_util.h"
 
 #endif /* ICC_H */
 

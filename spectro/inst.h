@@ -543,8 +543,8 @@ typedef enum {
 	inst_opt_get_cal_tile_sp    = 0x0023,	/* Return refl. white tile reference spectrum. */
 	                                        /* for current instrument filter. [*xspect tile] */
 
-	inst_opt_get_cal_sp_sens    = 0x0024,	/* Return emissive spectral sensitivity curves. */
-	                                        /*                              [xspect cmf[3]] */
+	inst_opt_get_cal_sp_sens    = 0x0024,	/* Return raw and XYZ emissive spectral sensitivity */
+											/* curves.               [xspect cmf[3], cmfxyz[3]] */
 
 	inst_opt_set_xcalstd        = 0x0025,	/* Set the X-Rite reflective calibration standard */
 											/*                             [xcalstd standard] */

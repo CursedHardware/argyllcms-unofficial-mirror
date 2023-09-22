@@ -616,7 +616,7 @@ struct _rspl {
 }; typedef struct _rspl rspl;
 
 /* Create a new, empty rspl object */
-rspl *new_rspl(int flags, int di, int fdi);	/* Input and output dimentiality */
+rspl *new_rspl(int flags, int di, int fdi);	/* Input and output dimensiality */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 

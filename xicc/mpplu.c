@@ -414,7 +414,7 @@ main(int argc, char *argv[]) {
 					else
 						fprintf(stdout,"%f",out[j]);
 				}
-				printf(" [%s]\n", icm2str(icmColorSpaceSignature, pcss));
+				printf(" [%s]\n", icm2str(icmColorSpaceSig, pcss));
 
 				/* Print the derivatives */
 				for (i = 0; i < pcsn; i++) {
@@ -558,7 +558,7 @@ main(int argc, char *argv[]) {
 							fprintf(stdout,"%f",out[j]);
 					}
 
-					printf(" [%s]\n", icm2str(icmColorSpaceSignature, pcss));
+					printf(" [%s]\n", icm2str(icmColorSpaceSig, pcss));
 				}
 
 			} else {	/* Do a reverse lookup */
@@ -589,7 +589,7 @@ main(int argc, char *argv[]) {
 					else
 						fprintf(stdout,"%f",in[j]);
 				}
-				printf(" [%s] -> ", icm2str(icmColorSpaceSignature, pcss));
+				printf(" [%s] -> ", icm2str(icmColorSpaceSig, pcss));
 		
 				for (j = 0; j < devn; j++) {
 					if (j > 0)

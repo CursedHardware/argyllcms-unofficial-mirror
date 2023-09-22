@@ -54,7 +54,7 @@ USE_VTPGLUT = false ;
 USE_PRINTER = false ;
 
 # enable CMF Measurement device and accessory support (if present)
-USE_CMFM = false ;	
+USE_CMFM = true ;	
 
 # Use ArgyllCMS version of libusb (deprecated - don't use)
 USE_LIBUSB = false ;	# [false]

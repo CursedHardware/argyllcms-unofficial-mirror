@@ -275,15 +275,17 @@ const char *format,
 
 	/* We have to use the available printf functions to resize the buffer if needed. */
 	for (;rv != 0;) {
+		int nlen;
+
 		/* vsnprintf() either returns -1 if it doesn't fit, or */
 		/* returns the size-1 needed in order to fit. */
-		len = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
+		nlen = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
 
-		if (len > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
+		if (nlen > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
 			break;
 
-		if (len > -1)				/* vsnprintf returned needed size-1 */
-			len = len+2;			/* (In case vsnprintf returned 1 less than it needs) */
+		if (nlen > -1)				/* vsnprintf returned needed size-1 */
+			len = nlen+2;			/* (In case vsnprintf returned 1 less than it needs) */
 		else
 			len *= 2;				/* We just have to guess */
 

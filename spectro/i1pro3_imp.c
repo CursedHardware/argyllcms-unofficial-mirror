@@ -60,7 +60,7 @@
 	For emissive measurement this is because the diffraction grating 
 	has a rather bumpy spectral response, so that up-sampling the reference
 	correction is not very accurate. Unlike the i1pro2 though, the illuminant
-	(being LED) is also bumpy, and can't be uses as a smooth reference to
+	(being LED) is also bumpy, and can't be used as a smooth reference to
 	correct these errors. (There is a static correction which will only be
 	accurate for my specific instrument.)
 	For reflective measurement a high-res result is unusable due to the

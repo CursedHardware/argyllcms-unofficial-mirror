@@ -442,7 +442,7 @@ usage(char *diag, ...) {
 	icompaths *icmps;
 	inst2_capability cap2 = 0;
 	fprintf(stderr,"Measure spot values, Version %s\n",ARGYLL_VERSION_STR);
-	fprintf(stderr,"Author: Graeme W. Gill, licensed under the GPL Version 2 or later\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	if (diag != NULL) {
 		va_list args;
 		fprintf(stderr,"Diagnostic: ");
@@ -550,7 +550,7 @@ usage(char *diag, ...) {
 //	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -Y W:fname.sp        Save instrument white tile ref. spectrum to file\n");
-	fprintf(stderr," -Y S:fname.cmf       Save instrument spectral sensitivites to file\n");
+	fprintf(stderr," -Y S:fname.cmf       Save instrument raw & XYZ spectral sensitivites to files\n");
 #endif	/* !SALONEINSTLIB */
 	fprintf(stderr," -W n|h|x             Override serial port flow control: n = none, h = HW, x = Xon/Xoff\n");
 	fprintf(stderr," -D [level]           Print debug diagnostics to stderr\n");
@@ -1839,8 +1839,12 @@ remediate:;
 	/* Save reference white tile reflectance spectrum */
 	if (specsens[0] != '\000') {
 		xspect cmf[3];
+		xspect xyzcmf[3];
+		char xyzspecsens[MAXNAMEL+1 + 10] = "xyz";
 
-		if ((rv = it->get_set_opt(it, inst_opt_get_cal_sp_sens, cmf)) != inst_ok) {
+		strcat(xyzspecsens, specsens);
+
+		if ((rv = it->get_set_opt(it, inst_opt_get_cal_sp_sens, cmf, xyzcmf)) != inst_ok) {
 			printf("\nGetting instrument spectral sensitivites failed with error :'%s' (%s)\n",
 	       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 			it->del(it);
@@ -1848,10 +1852,15 @@ remediate:;
 		}
 
 		if (write_cmf(specsens, cmf) != 0)
-			error("Failed to save spectral sensitivites to file '%s'",specsens);
+			error("Failed to save raw spectral sensitivites to file '%s'",specsens);
 
-		if (verb)
-			printf("Saved instrument spectral sensitivites to '%s'\n",specsens);
+		if (write_cmf(xyzspecsens, xyzcmf) != 0)
+			error("Failed to save XYZ spectral sensitivites to file '%s'",xyzspecsens);
+
+		if (verb) {
+			printf("Saved raw instrument spectral sensitivites to '%s'\n",specsens);
+			printf("Saved XYZ instrument spectral sensitivites to '%s'\n",xyzspecsens);
+		}
 	}
 #endif	/* !SALONEINSTLIB */
 

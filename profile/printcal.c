@@ -1605,7 +1605,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (initial || recal) {
+	if ((initial || recal) && pct->devmaxset) {
 		/* Compute an ideal power-like value for test target */
 		for (j = 0; j < devchan; j++) {
 			double hdv;			/* Half device value */
@@ -1679,12 +1679,16 @@ int main(int argc, char *argv[]) {
 
 		if (verb)  {
 			double avgpow = 0.0;
-			for (j = 0; j < devchan; j++) {
-				printf("Chan %d ideal targen power = %f\n",j,idpow[j]);
-				avgpow += idpow[j];
+			if (idpow[0] >= 0.0) {
+				for (j = 0; j < devchan; j++) {
+					printf("Chan %d ideal targen power = %f\n",j,idpow[j]);
+					avgpow += idpow[j];
+				}
+				avgpow /= (double)devchan;
+				printf("Average ideal targen power = %f\n",avgpow);
+			} else {
+				printf("No devmax, so can't compute ideal targen power.\n");
 			}
-			avgpow /= (double)devchan;
-			printf("Average ideal targen power = %f\n",avgpow);
 		}
 	}
 

@@ -15,6 +15,7 @@
 
 /* TTBD:
  *
+ * Should add test for VideoCardGammaTable to check it works.
  */
 
 /*
@@ -47,23 +48,30 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "icc.h"
 
 void error(char *fmt, ...), warning(char *fmt, ...);
 
 /* Some debuging aids */
-#define STOPONERROR	/* stop if errors are excessive */
-#undef TESTLIN1		/* test linear in curves */
-#undef TESTLIN2		/* test linear clut (fails with Lab) */
-#undef TESTLIN3		/* test linear out curves */
+#undef STOPONERROR	/* [und] stop if errors are excessive */
+#undef TEST_APXLS	/* [und] test the cLut ICM_CLUT_SET_APXLS option */
+#undef TESTLIN1		/* [und] test linear in curves */
+#undef TESTLIN2		/* [und] test linear clut (fails with Lab) */
+#undef TESTLIN3		/* [und] test linear out curves */
 
-/* These two assist the accuracy of our BToA Lut tests, using our simplistic test functions */
+#undef IGNORE_WRITE_FORMAT_ERRORS	/* [und] warn rather than error on write format check */
+
+/* These two assist the accuracy of our BToA Lut tests, using our simplistic test functions. */
 /* They probably shouldn't be used on any real profile. */
-#define REVLUTSCALE1		/* Define this for pre-clut gamut bounding box scaling */
-#define REVLUTSCALE2		/* Define this for post-clut gamut quantization scaling */
+#define REVLUTSCALE1		/* [def] Define this for pre-clut gamut bounding box scaling */
+#define REVLUTSCALE2		/* [def] Define this for post-clut gamut quantization scaling */
+
+#ifdef TEST_APXLS
+# pragma message("######### TEST_APXLS enabled ########")
+#endif
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+# pragma message("######### IGNORE_WRITE_FORMAT_ERRORS enabled ########")
+#endif
 
 /*
  * We start with a mathematically defined transfer characteristic, that
@@ -276,16 +284,19 @@ static double absdiff(double in1[3], double in2[3]) {
 }
 
 /* - - - - - - - - - - - - - - - - - */
+# define XARG , int tn
+# define XPRM , 0
+/* - - - - - - - - - - - - - - - - - */
 /* Overall Monochrome XYZ device model is */
 /* Gray -> GrayY -> XYZ */
 /* Where GrayY is assumed to directly Scale Y */
 
 /* Gray -> GrayY */
-static double Gray_GrayY(double in) {
+static void Gray_GrayY(void *cntx, double *out, double *in XARG) {
 #ifdef TESTLIN1
-	return in;
+	*out = *in;
 #else
-	return ppow(in,1.6);
+	*out = ppow(*in,1.6);
 #endif
 }
 
@@ -301,7 +312,9 @@ static double GrayY_Gray(double in) {
 /* Gray -> XYZ */
 static void Gray_XYZ(double out[3], double in) {
 	double temp[3];
-	temp[0] = temp[1] = temp[2] = Gray_GrayY(in);
+	Gray_GrayY(NULL, &temp[0], &in XPRM);
+	Gray_GrayY(NULL, &temp[1], &in XPRM);
+	Gray_GrayY(NULL, &temp[2], &in XPRM);
 
 	/* Scale to relative white and black points */
 	to_rel(out, temp);
@@ -321,7 +334,9 @@ static double XYZ_Gray(double in[3]) {
 /* Gray -> XYZ absolute */
 static void aGray_XYZ(double out[3], double in) {
 	double temp[3];
-	temp[0] = temp[1] = temp[2] = Gray_GrayY(in);
+	Gray_GrayY(NULL, &temp[0], &in XPRM);
+	Gray_GrayY(NULL, &temp[1], &in XPRM);
+	Gray_GrayY(NULL, &temp[2], &in XPRM);
 
 	/* Scale to absolute white and black points */
 	to_abs(out, temp);
@@ -350,11 +365,11 @@ static double aXYZ_Gray(double in[3]) {
 
 
 /* Gray -> GrayL */
-static double Gray_GrayL(double in) {
+static void Gray_GrayL(void *cntx, double *out, double *in XARG) {
 #ifdef TESTLIN1
-	return in;				/* normalized L */
+	*out = in;				/* normalized L */
 #else
-	return  ppow(in,1.6);
+	*out = ppow(*in,1.6);
 #endif
 }
 
@@ -376,7 +391,7 @@ static void Gray_Lab(double out[3], double in) {
 	wp[2] = D50_Z;
 	XYZ2Lab(wp, wp);		/* Lab white point */
 
-	tt = Gray_GrayL(in);	/* Raw L value */
+	Gray_GrayL(NULL, &tt, &in XPRM);	/* Raw L value */
 
 	/* Scale to relative Lab white point */
 	out[0] = wp[0] * tt;
@@ -429,7 +444,7 @@ static double aLab_Gray(double in[3]) {
 
 /* Device space linearization */
 /* RGB -> RGB' */
-static void RGB_RGBp(void *cntx, double out[3], double in[3]) {
+static void RGB_RGBp(void *cntx, double out[3], double in[3] XARG) {
 #ifdef TESTLIN1
 	out[0] = in[0];
 	out[1] = in[1];
@@ -442,7 +457,7 @@ static void RGB_RGBp(void *cntx, double out[3], double in[3]) {
 }
 
 /* RGB' -> RGB */
-static void RGBp_RGB(void *cntx, double out[3], double in[3]) {
+static void RGBp_RGB(void *cntx, double out[3], double in[3] XARG) {
 #ifdef TESTLIN1
 	out[0] = in[0];
 	out[1] = in[1];
@@ -470,7 +485,7 @@ static double matrix[3][3] = {
 
 /* 3x3 matrix conversion */
 /* RGB' -> XYZ' */
-static void RGBp_XYZp(void *cntx, double out[3], double in[3]) {
+static void RGBp_XYZp(void *cntx, double out[3], double in[3] XARG) {
 	double o0,o1,o2;
 
 #ifdef TESTLIN2
@@ -489,7 +504,7 @@ static void RGBp_XYZp(void *cntx, double out[3], double in[3]) {
 }
 
 /* XYZ' -> RGB' */
-static void XYZp_RGBp(void *cntx, double out[3], double in[3]) {
+static void XYZp_RGBp(void *cntx, double out[3], double in[3] XARG) {
 	double o0,o1,o2;
 
 #ifdef TESTLIN2
@@ -509,7 +524,7 @@ static void XYZp_RGBp(void *cntx, double out[3], double in[3]) {
 
 /* Output linearization curves */
 /* XYZ' -> XYZ */
-static void XYZp_XYZ(void *cntx, double out[3], double in[3]) {
+static void XYZp_XYZ(void *cntx, double out[3], double in[3] XARG) {
 #ifdef TESTLIN3
 	out[0] = in[0];
 	out[1] = in[1];
@@ -522,7 +537,7 @@ static void XYZp_XYZ(void *cntx, double out[3], double in[3]) {
 }
 
 /* XYZ -> XYZ' */
-static void XYZ_XYZp(void *cntx, double out[3], double in[3]) {
+static void XYZ_XYZp(void *cntx, double out[3], double in[3] XARG) {
 #ifdef TESTLIN3
 	out[0] = in[0];
 	out[1] = in[1];
@@ -536,30 +551,30 @@ static void XYZ_XYZp(void *cntx, double out[3], double in[3]) {
 
 /* RGB -> XYZ' */
 static void RGB_XYZp(void *cntx, double out[3], double in[3]) {
-	RGB_RGBp(cntx, out, in);
-	RGBp_XYZp(cntx, out, out);
+	RGB_RGBp(cntx, out, in XPRM);
+	RGBp_XYZp(cntx, out, out XPRM);
 }
 
 /* RGB -> XYZ', absolute (for matrix profile test) */
 static void aRGB_XYZp(void *cntx, double out[3], double in[3]) {
-	RGB_RGBp(cntx, out, in);
-	RGBp_XYZp(cntx, out, out);
+	RGB_RGBp(cntx, out, in XPRM);
+	RGBp_XYZp(cntx, out, out XPRM);
 	from_rel(out, out);
 	to_abs(out, out);
 }
 
 /* RGB -> XYZ */
 static void RGB_XYZ(void *cntx, double out[3], double in[3]) {
-	RGB_RGBp(cntx, out, in);
-	RGBp_XYZp(cntx, out, out);
-	XYZp_XYZ(cntx, out, out);
+	RGB_RGBp(cntx, out, in XPRM);
+	RGBp_XYZp(cntx, out, out XPRM);
+	XYZp_XYZ(cntx, out, out XPRM);
 }
 
 /* XYZ -> RGB */
 static void XYZ_RGB(void *cntx, double out[3], double in[3]) {
-	XYZ_XYZp(cntx, out, in);
-	XYZp_RGBp(cntx, out, out);
-	RGBp_RGB(cntx, out, out);
+	XYZ_XYZp(cntx, out, in XPRM);
+	XYZp_RGBp(cntx, out, out XPRM);
+	RGBp_RGB(cntx, out, out XPRM);
 }
 
 /* RGB -> XYZ, absolute */
@@ -587,7 +602,7 @@ static void cXYZ_RGB(void *cntx, double out[3], double in[3]) {
 #endif /* NEVER */
 
 /* XYZ' -> distance to gamut boundary */
-static void XYZp_BDIST(void *cntx, double out[1], double in[3]) {
+static void XYZp_BDIST(void *cntx, double out[1], double in[3] XARG) {
 	double gdst;				/* Gamut error */
 	int m, mini = 0, outg;
 	double tt, mind;
@@ -597,7 +612,7 @@ static void XYZp_BDIST(void *cntx, double out[1], double in[3]) {
 	double dgb[3];				/* device gamut boundary point */
 
 	/* Do XYZ' -> XYZ */
-	XYZp_XYZ(cntx, pcs, in);
+	XYZp_XYZ(cntx, pcs, in XPRM);
 
 	/* Do XYZ -> RGB transform */
 	XYZ_RGB(NULL, dev, pcs);
@@ -660,7 +675,7 @@ static void XYZp_BDIST(void *cntx, double out[1], double in[3]) {
 /* 0.0 and 1.0 for the input range 0.5 to 1.0. This is so a graduated */
 /* "gamut boundary distance" number from the multi-d lut can be */
 /* translated into the ICC "0.0 if in gamut, > 0.0 if not" number. */
-static void BDIST_GAMMUT(void *cntx, double out[1], double in[1]) {
+static void BDIST_GAMMUT(void *cntx, double out[1], double in[1] XARG) {
 	double iv, ov;
 	iv = in[0];
 	if (iv <= 0.5)
@@ -677,27 +692,27 @@ static void BDIST_GAMMUT(void *cntx, double out[1], double in[1]) {
 
 /* 3x3 matrix conversion */
 /* RGB' -> Lab' */
-static void RGBp_Labp(void *cntx, double out[3], double in[3]) {
-	RGBp_XYZp(cntx, out, in);
+static void RGBp_Labp(void *cntx, double out[3], double in[3] XARG) {
+	RGBp_XYZp(cntx, out, in XPRM);
 	XYZ2Lab(out, out);
 }
 
 /* Lab' -> RGB' */
-static void Labp_RGBp(void *cntx, double out[3], double in[3]) {
+static void Labp_RGBp(void *cntx, double out[3], double in[3] XARG) {
 	Lab2XYZ(out, in);
-	XYZp_RGBp(cntx, out, out);
+	XYZp_RGBp(cntx, out, out XPRM);
 }
 
 /* Lab' -> Lab */
 /* (We are using linear) */
-static void Labp_Lab(void *cntx, double out[3], double in[3]) {
+static void Labp_Lab(void *cntx, double out[3], double in[3] XARG) {
 	out[0] = in[0];
 	out[1] = in[1];
 	out[2] = in[2];
 }
 
 /* Lab -> Lab' */
-static void Lab_Labp(void *cntx, double out[3], double in[3]) {
+static void Lab_Labp(void *cntx, double out[3], double in[3] XARG) {
 	out[0] = in[0];
 	out[1] = in[1];
 	out[2] = in[2];
@@ -705,16 +720,16 @@ static void Lab_Labp(void *cntx, double out[3], double in[3]) {
 
 /* RGB -> Lab */
 static void RGB_Lab(void *cntx, double out[3], double in[3]) {
-	RGB_RGBp(cntx, out, in);
-	RGBp_Labp(cntx, out, out);
-	Labp_Lab(cntx, out, out);
+	RGB_RGBp(cntx, out, in XPRM);
+	RGBp_Labp(cntx, out, out XPRM);
+	Labp_Lab(cntx, out, out XPRM);
 }
 
 /* Lab -> RGB */
 static void Lab_RGB(void *cntx, double out[3], double in[3]) {
-	Lab_Labp(cntx, out, in);
-	Labp_RGBp(cntx, out, out);
-	RGBp_RGB(cntx, out, out);
+	Lab_Labp(cntx, out, in XPRM);
+	Labp_RGBp(cntx, out, out XPRM);
+	RGBp_RGB(cntx, out, out XPRM);
 }
 
 /* RGB -> Lab, absolute */
@@ -746,7 +761,7 @@ static void cLab_RGB(void *cntx, double out[3], double in[3]) {
 #endif /* NEVER */
 
 /* Lab' -> distance to gamut boundary */
-static void Labp_BDIST(void *cntx, double out[1], double in[3]) {
+static void Labp_BDIST(void *cntx, double out[1], double in[3] XARG) {
 	double gdst;				/* Gamut error */
 	int m, mini = 0, outg;
 	double tt, mind;
@@ -756,7 +771,7 @@ static void Labp_BDIST(void *cntx, double out[1], double in[3]) {
 	double dgb[3];				/* device gamut boundary point */
 
 	/* Do Lab' -> Lab */
-	Labp_Lab(cntx, pcs, in);
+	Labp_Lab(cntx, pcs, in XPRM);
 
 	/* Do Lab -> RGB transform */
 	Lab_RGB(cntx, dev, pcs);
@@ -817,6 +832,8 @@ static void Labp_BDIST(void *cntx, double out[1], double in[3]) {
 
 /* - - - - - - - - - - - - - */
 
+static int check_parts(char *name, icc *icco);
+
 #define TRES 10
 #define MON_POINTS 8101		/* Number of test points in monochrome tests */
 
@@ -847,11 +864,14 @@ main(
 	int wonly = 0;
 	int ronly = 0;
 	int warn = 0;
+	int fail = 0;
 
 	icmErr e = { 0, { '\000'} };
 	char *file_name;
 	icmFile *wr_fp, *rd_fp;
 	icc *wr_icco, *rd_icco;		/* Keep object separate */
+	char *tpfx = "";
+	double revthr;
 	int rv = 0;
 
 	/* Check variables */
@@ -910,9 +930,6 @@ main(
 
 	{
 
-#if defined(__IBMC__) && defined(_M_IX86)
-		_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-#endif
 		printf("Starting lookup function test - V%s\n",ICCLIB_VERSION_STR);
 
 		/* Do a check that our reference function is reversable */
@@ -932,17 +949,20 @@ main(
 
 					/* Check the result */
 					mxd = maxdiff(in, check);
-					if (mxd > 0.00001)
+					if (mxd > 0.00001) {
+						warning ("######## Excessive error %f > 0.00001 ########",mxd);
+						fail = 1;
 #ifdef STOPONERROR
-						error ("Excessive error %f > 0.00001",mxd);
-#else
-						warning ("Excessive error %f > 0.00001",mxd);
+						goto done1;
 #endif /* STOPONERROR */
+					}
 				}
 			}
 		}
+	  done1:;
 		printf("Self check complete\n");
 	}
+
 
 	/* ---------------------------------------- */
 	/* Create a monochrome XYZ profile to test      */
@@ -950,6 +970,8 @@ main(
 
 	/* Open up the file for writing */
 	file_name = "xxxx_mono_XYZ.icm";
+	tpfx = "";
+	revthr = 0.0002;
 
 	if (!ronly) {
 		icm_err_clear_e(&e);
@@ -963,8 +985,10 @@ main(
 		if (warn)
 			wr_icco->warning = Warning;
 
-		/* Add all the tags required */
-	
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* The header: */
 		{
 			icmHeader *wh = wr_icco->header;
@@ -981,10 +1005,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test monochrome XYZ style Display Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -993,15 +1017,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
-			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			icmCommonTextDescription *wo;
+			char *crt = "Copyright 2023 Graeme Gill";
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -1026,26 +1050,23 @@ main(
 	
 			wo->count = 1;
 			wo->allocate(wo);	/* Allocate space */
-			wo->data[0].X = 0.02;			/* Doesn't take part in Absolute anymore */
-			wo->data[0].Y = 0.04;
-			wo->data[0].Z = 0.03;
+			wo->data[0].X = 0.02 * ABS_X;
+			wo->data[0].Y = 0.02 * ABS_Y;
+			wo->data[0].Z = 0.02 * ABS_Z;
 		}
-		/* Gray Tone Reproduction Curve Tags: */
 		{
-			icmCurve *wog;
-			unsigned int i;
-			if ((wog = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigGrayTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-	
-			wog->flag = icmCurveSpec; 		/* Specified version */
-			wog->count = 256;				/* Number of entries (min must be 2!) */
-			wog->allocate(wog);	/* Allocate space */
-			for (i = 0; i < wog->count; i++) {
-				double vv;
-				vv = i/(wog->count-1.0);
-				wog->data[i] = Gray_GrayY(vv);
-			}
+			/* Intent 1 = relative colorimetric */
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icmSigShaperMono, icmSigShaperMatrixType} };
+
+			if (wr_icco->create_mono_xforms(wr_icco, ICM_CREATE_FLAG_NONE, NULL,
+					nsigs, sigs,		/* Tables to be set */
+					256, 256, 			/* Table resolution */
+					icSigGrayData, 		/* Input color space */
+					icSigXYZData, 		/* Output color space */
+					Gray_GrayY			/* Monochrome table function */
+			) != 0)
+				error("Setting 16 bit RGB->XYZ Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* Write the file out */
@@ -1076,15 +1097,19 @@ main(
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
-	
+			icmLuSpace *luo;
+
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent,
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent,
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1094,21 +1119,22 @@ main(
 				Gray_XYZ(check,in[0]);
 		
 				/* Do lookup of device -> XYZ transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 				/* Check the result */
 				mxd = maxdiff(out, check);
-				if (mxd > 0.00005)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome XYZ Fwd %f > 0.00005",mxd);
-	#else
-					warning ("Excessive error in Monochrome XYZ Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > 0.00005) {
+					warning ("######## Excessive error in Monochrome%s XYZ Fwd %f > 0.00005 ########",tpfx,mxd);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome XYZ fwd default intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s XYZ fwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1118,7 +1144,7 @@ main(
 		{
 			double min[3], range[3];
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Establish the range */
 			Gray_XYZ(min,0.0);
@@ -1128,7 +1154,7 @@ main(
 			range[2] -= min[2];
 		
 			/* Get a bwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
 				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	
@@ -1142,21 +1168,22 @@ main(
 				check[0] = XYZ_Gray(in);
 	
 				/* Do reverse lookup of XYZ -> device transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 				/* Check the result */
 				mxd = fabs(check[0] - out[0]);
-				if (mxd > 0.00018)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome XYZ Bwd %f > 0.00018",mxd);
-	#else
-					warning ("Excessive error in Monochrome XYZ Bwd %f > 0.00018",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > revthr) {
+					warning ("######## Excessive error in Monochrome%s XYZ Bwd %f > %f ########",tpfx,mxd,revthr);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome XYZ bwd default intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s XYZ bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1165,12 +1192,12 @@ main(
 		/* Check the lookup function, absolute colorimetric */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1180,21 +1207,22 @@ main(
 				aGray_XYZ(check,in[0]);
 		
 				/* Do lookup of device -> XYZ transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 				/* Check the result */
 				mxd = maxdiff(out, check);
-				if (mxd > 0.00005)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome XYZ Abs Fwd %f > 0.00005",mxd);
-	#else
-					warning ("Excessive error in Monochrome XYZ Abs Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > revthr) {
+					warning ("######## Excessive error in Monochrome%s XYZ Abs Fwd\n    %s -> %s, should be %s, diff %f > %f ########",tpfx,icmPdv(1, in),icmPdv(3, out),icmPdv(3, check),mxd,revthr);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome XYZ fwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s XYZ fwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1204,7 +1232,7 @@ main(
 		{
 			double min[3], range[3];
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Establish the range */
 			/* Establish the range */
@@ -1215,9 +1243,9 @@ main(
 			range[2] -= min[2];
 		
 			/* Get a bwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1229,21 +1257,22 @@ main(
 				check[0] = aXYZ_Gray(in);
 	
 				/* Do reverse lookup of device -> XYZ transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 				/* Check the result */
 				mxd = fabs(check[0] - out[0]);
-				if (mxd > 0.0002)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome XYZ Abs Bwd %f > 0.0002",mxd);
-	#else
-					warning ("Excessive error in Monochrome XYZ Abs Bwd %f > 0.0002",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > revthr) {
+					warning ("######## Excessive error in Monochrome%s XYZ Abs Bwd %f > %f ########",tpfx,mxd,revthr);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome XYZ bwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s XYZ bwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1259,6 +1288,8 @@ main(
 
 	/* Open up the file for writing */
 	file_name = "xxxx_mono_Lab.icm";
+	tpfx = "";
+	revthr = 0.005;
 
 	if (!ronly) {
 		icm_err_clear_e(&e);
@@ -1269,6 +1300,13 @@ main(
 		if ((wr_icco = new_icc(&e)) == NULL)
 			error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			wr_icco->warning = Warning;
+
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* Add all the tags required */
 	
 		/* The header: */
@@ -1287,10 +1325,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test monochrome Lab style Display Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -1299,15 +1337,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -1336,22 +1374,19 @@ main(
 			wo->data[0].Y = 0.04;
 			wo->data[0].Z = 0.03;
 		}
-		/* Gray Tone Reproduction Curve Tags: */
 		{
-			icmCurve *wog;
-			unsigned int i;
-			if ((wog = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigGrayTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-	
-			wog->flag = icmCurveSpec; 		/* Specified version */
-			wog->count = 256;				/* Number of entries (min must be 2!) */
-			wog->allocate(wog);	/* Allocate space */
-			for (i = 0; i < wog->count; i++) {
-				double vv;
-				vv = i/(wog->count-1.0);
-				wog->data[i] = Gray_GrayL(vv);
-			}
+			/* Intent 1 = relative colorimetric */
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icmSigShaperMono, icmSigShaperMatrixType} };
+
+			if (wr_icco->create_mono_xforms(wr_icco, ICM_CREATE_FLAG_NONE, NULL,
+					nsigs, sigs,		/* Tables to be set */
+					256, 256, 			/* Table resolution */
+					icSigGrayData, 		/* Input color space */
+					icSigLabData, 		/* Output color space */
+					Gray_GrayL			/* Monochrome table function */
+			) != 0)
+				error("Setting 16 bit grey->Lab failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* Write the file out */
@@ -1375,19 +1410,26 @@ main(
 		if ((rd_icco = new_icc(&e)) == NULL)
 			error ("Read: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			rd_icco->warning = Warning;
+
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1397,21 +1439,22 @@ main(
 				Gray_Lab(check,in[0]);
 		
 				/* Do lookup of device -> Lab transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 				/* Check the result */
 				mxd = maxdiff(out, check);
-				if (mxd > 0.0025)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome Lab Fwd %f > 0.0025",mxd);
-	#else
-					warning ("Excessive error in Monochrome Lab Fwd %f > 0.0025",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > 0.0025) {
+					warning ("######## Excessive error in Monochrome%s Lab Fwd %f > 0.0025 ########",tpfx,mxd);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome Lab fwd default intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s Lab fwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1421,7 +1464,7 @@ main(
 		{
 			double min, range;
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Establish the range */
 			Gray_Lab(out,0.0);
@@ -1430,9 +1473,9 @@ main(
 			range = out[0] - min;
 		
 			/* Get a bwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1442,41 +1485,42 @@ main(
 				check[0] = Lab_Gray(in);
 	
 				/* Do reverse lookup of Lab -> device transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 				/* Check the result */
 				mxd = fabs(check[0] - out[0]);
-				if (mxd > 0.0002)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome Lab Bwd %f > 0.0002",mxd);
-	#else
-					warning ("Excessive error in Monochrome Lab Bwd %f > 0.0002",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > revthr) {
+					warning ("######## Excessive error in Monochrome %s Lab Bwd %f > %f ########",tpfx,mxd,revthr);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome Lab bwd default intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s Lab bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
 		}
 	
-	#ifdef NEVER
+#ifdef NEVER
 		/* Check the fwd/bwd accuracy */
 		{
 			double merr = 0.0;
-			icmLuBase *luof, *luob;
+			icmLuSpace *luof, *luob;
 	
 			/* Get a fwd conversion object */
-			if ((luof = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
+			if ((luof = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			/* Get a bwd conversion object */
-			if ((luob = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
+			if ((luob = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			/* Check it out */
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
@@ -1484,12 +1528,12 @@ main(
 				in[0] = co[0]/(MON_POINTS-1.0);
 	
 				/* Do lookup of device -> Lab transform */
-				if ((rv = luof->lookup(luof, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luof->lookup_fwd(luof, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 				/* Do reverse lookup of device -> Lab transform */
-				if ((rv = luob->lookup(luob, check, out)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luob->lookup_fwd(luob, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 				mxd = fabs(in[0] - check[0]);
 				if (mxd > 1e-6) {
@@ -1500,7 +1544,7 @@ main(
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome Lab fwd/bwd default intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s Lab fwd/bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup objects */
 			luof->del(luof);
@@ -1510,14 +1554,14 @@ main(
 		/* Benchmark the routines */
 		{
 			int ii;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 			double no_pixels = 0.0;
 			clock_t stime,ttime;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			stime = clock();
 			no_pixels = 1000.0 * 2048.0;
@@ -1528,8 +1572,8 @@ main(
 					in[0] = co[0]/(2048-1.0);
 		
 					/* Do lookup of device -> Lab transform */
-					if ((rv = luo->lookup(luo, out, in)) > 1)
-						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+					if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+						error ("Lookup error %s",icmPe_lurv2str(rv));
 				}
 			}
 			ttime = clock() - stime;
@@ -1542,14 +1586,14 @@ main(
 	
 		{
 			int ii;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 			double no_pixels = 0.0;
 			clock_t stime,ttime;
 	
 			/* Get a bwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			stime = clock();
 			no_pixels = 1000.0 * 2048.0;
@@ -1560,8 +1604,8 @@ main(
 					in[0] = 100.0 * co[0]/(2048-1.0);
 		
 					/* Do lookup of device -> Lab transform */
-					if ((rv = luo->lookup(luo, out, in)) > 1)
-						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+					if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+						error ("Lookup error %s",icmPe_lurv2str(rv));
 				}
 			}
 			ttime = clock() - stime;
@@ -1571,17 +1615,17 @@ main(
 			/* Done with lookup object */
 			luo->del(luo);
 		}
-	#endif	/* NEVER */
+#endif	/* NEVER */
 	
 		/* Check the lookup function, absolute colorimetric */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1591,21 +1635,22 @@ main(
 				aGray_Lab(check,in[0]);
 		
 				/* Do lookup of device -> Lab transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 				/* Check the result */
 				mxd = maxdiff(out, check);
-				if (mxd > 0.003)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome Lab Fwd Abs %f > 0.003",mxd);
-	#else
-					warning ("Excessive error in Monochrome Lab Fwd Abs %f > 0.003",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > 0.003) {
+					warning ("######## Excessive error in Monochrome%s Lab Fwd Abs %f > 0.003 ########",tpfx,mxd);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome Lab fwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s Lab fwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1615,7 +1660,7 @@ main(
 		{
 			double min, range;
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Establish the range */
 			aGray_Lab(out,0.0);
@@ -1624,9 +1669,9 @@ main(
 			range = out[0] - min;
 		
 			/* Get a bwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < MON_POINTS; co[0]++) {
 				double mxd;
@@ -1637,21 +1682,22 @@ main(
 				check[0] = aLab_Gray(in);
 	
 				/* Do reverse lookup of Lab -> device transform */
-				if ((rv = luo->lookup(luo, out, in)) > 1)
-					error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+				if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+					error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 				/* Check the result */
 				mxd = fabs(check[0] - out[0]);
-				if (mxd > 0.005)
-	#ifdef STOPONERROR
-					error ("Excessive error in Monochrome Lab Bwd Abs %f > 0.005",mxd);
-	#else
-					warning ("Excessive error in Monochrome Lab Bwd Abs %f > 0.005",mxd);
-	#endif /* STOPONERROR */
+				if (mxd > revthr) {
+					warning ("######## Excessive error in Monochrome%s Lab Bwd Abs %f > %f ########",tpfx,mxd,revthr);
+					fail = 1;
+#ifdef STOPONERROR
+					break;
+#endif /* STOPONERROR */
+				}
 				if (mxd > merr)
 					merr = mxd;
 			}
-			printf("Monochrome Lab bwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Monochrome%s Lab bwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1661,12 +1707,15 @@ main(
 		rd_fp->del(rd_fp);
 	}
 
+
+
 	/* ---------------------------------------- */
 	/* Create a matrix based profile to test    */
 	/* ---------------------------------------- */
 
 	/* Open up the file for writing */
 	file_name = "xxxx_matrix.icm";
+	tpfx = "";
 
 	if (!ronly) {
 		icm_err_clear_e(&e);
@@ -1677,6 +1726,13 @@ main(
 		if ((wr_icco = new_icc(&e)) == NULL)
 			error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			wr_icco->warning = Warning;
+
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* Add all the tags required */
 	
 		/* The header: */
@@ -1695,10 +1751,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test matrix style Display Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -1707,15 +1763,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -1744,54 +1800,22 @@ main(
 			wo->data[0].Y = 0.04;
 			wo->data[0].Z = 0.03;
 		}
-		/* Red, Green and Blue Colorant Tags: */
 		{
-			icmXYZArray *wor, *wog, *wob;
-			if ((wor = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigRedColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-			if ((wog = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigGreenColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-			if ((wob = (icmXYZArray *)wr_icco->add_tag(
-			           wr_icco, icSigBlueColorantTag, icSigXYZArrayType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-	
-			wor->count = wog->count = wob->count = 1;
-			wor->allocate(wor);	/* Allocate space */
-			wog->allocate(wog);
-			wob->allocate(wob);
-			wor->data[0].X = matrix[0][0]; wor->data[0].Y = matrix[1][0]; wor->data[0].Z = matrix[2][0];
-			wog->data[0].X = matrix[0][1]; wog->data[0].Y = matrix[1][1]; wog->data[0].Z = matrix[2][1];
-			wob->data[0].X = matrix[0][2]; wob->data[0].Y = matrix[1][2]; wob->data[0].Z = matrix[2][2];
-		}
-		/* Red, Green and Blue Tone Reproduction Curve Tags: */
-		{
-			icmCurve *wor, *wog, *wob;
-			unsigned int i;
-			if ((wor = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-			if ((wog = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigGreenTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-			if ((wob = (icmCurve *)wr_icco->add_tag(
-			           wr_icco, icSigBlueTRCTag, icSigCurveType)) == NULL) 
-				error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-	
-			wor->flag = wog->flag = wob->flag = icmCurveSpec; 	/* Specified version */
-			wor->count = wog->count = wob->count = 256;			/* Number of entries (min must be 2!) */
-			wor->allocate(wor);	/* Allocate space */
-			wog->allocate(wog);
-			wob->allocate(wob);
-			for (i = 0; i < wor->count; i++) {
-				double vv[3];
-				vv[0] = vv[1] = vv[2] = i/(wor->count-1.0);
-				RGB_RGBp(NULL, vv, vv);		/* Transfer function we want */
-				wor->data[i] = vv[0];	/* Curve values 0.0 - 1.0 */
-				wog->data[i] = vv[1];
-				wob->data[i] = vv[2];
-			}
+			/* Intent 1 = relative colorimetric */
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icmSigShaperMatrix, icmSigShaperMatrixType} };
+
+			if (wr_icco->create_matrix_xforms(wr_icco, ICM_CREATE_FLAG_NONE, NULL,
+					nsigs, sigs,		/* Tables to be set */
+					256, 256, 			/* Table resolution */
+					icSigRgbData, 		/* Input color space */
+					icSigXYZData, 		/* Output color space */
+					RGB_RGBp,			/* RGB table function */
+					matrix,				/* Matrix */
+					NULL,				/* No matrix constant */
+					0, NULL, 0			/* No special TRC flags */
+			) != 0)
+				error("Setting matrix failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* Write the file out */
@@ -1815,19 +1839,26 @@ main(
 		if ((rd_icco = new_icc(&e)) == NULL)
 			error ("Read: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			rd_icco->warning = Warning;
+
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the forward lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -1838,26 +1869,27 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do reference conversion of device -> XYZ transform */
-						RGB_XYZp(NULL, check,in);
+						RGB_XYZp(NULL, check, in);
 		
 						/* Do lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 0.00005)
-	#ifdef STOPONERROR
-							error ("Excessive error in Matrix Fwd %f > 0.00005",mxd);
-	#else
-							warning ("Excessive error in Matrix Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.00005) {
+							warning ("######## Excessive error in Matrix%s Fwd %f > 0.00005 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Matrix fwd default intent check complete, peak error = %f\n",merr);
+			printf("Matrix%s fwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1866,12 +1898,12 @@ main(
 		/* Check the reverse lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -1882,26 +1914,27 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do reference conversion of device -> XYZ */
-						RGB_XYZp(NULL, check,in);
+						RGB_XYZp(NULL, check, in);
 		
 						/* Do reverse lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.0002)
-	#ifdef STOPONERROR
-							error ("Excessive error in Matrix Bwd %f > 0.0002",mxd);
-	#else
-							warning ("Excessive error in Matrix Bwd %f > 0.0002",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.0002) {
+							warning ("######## Excessive error in Matrix%s Bwd %f > 0.0002 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Matrix bwd default intent check complete, peak error = %f\n",merr);
+			printf("Matrix%s bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1910,12 +1943,12 @@ main(
 		/* Check the forward absolute lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -1926,26 +1959,27 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do reference conversion of device -> abs XYZ transform */
-						aRGB_XYZp(NULL, check,in);
+						aRGB_XYZp(NULL, check, in);
 		
 						/* Do lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 0.00005)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Matrix Fwd %f > 0.00005",mxd);
-	#else
-							warning ("Excessive error in Abs Matrix Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.00005) {
+							warning ("######## Excessive error in Abs Matrix%s Fwd %f > 0.00005 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Matrix fwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Matrix%s fwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1954,12 +1988,12 @@ main(
 		/* Check the reverse absolute lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -1970,26 +2004,27 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do reference conversion of device -> abs XYZ */
-						aRGB_XYZp(NULL, check,in);
+						aRGB_XYZp(NULL, check, in);
 		
 						/* Do reverse lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.001)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Matrix Bwd %f > 0.001",mxd);
-	#else
-							warning ("Excessive error in Abs Matrix Bwd %f > 0.001",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.001) {
+							warning ("######## Excessive error in Abs Matrix%s Bwd %f > 0.001 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Matrix bwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Matrix%s bwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -1999,12 +2034,15 @@ main(
 		rd_fp->del(rd_fp);
 	}
 
+
+
 	/* ---------------------------------------- */
 	/* Create a Lut16 based XYZ profile to test    */
 	/* ---------------------------------------- */
 
 	/* Open up the file for writing */
 	file_name = "xxxx_lut16_XYZ.icm";
+	tpfx = "";
 
 	if (!ronly) {
 		icm_err_clear_e(&e);
@@ -2014,7 +2052,14 @@ main(
 	
 		if ((wr_icco = new_icc(&e)) == NULL)
 			error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
-	
+
+		if (warn)
+			wr_icco->warning = Warning;
+
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* Add all the tags required */
 	
 		/* The header: */
@@ -2033,10 +2078,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test Lut XYZ style Output Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -2045,15 +2090,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -2085,83 +2130,65 @@ main(
 	
 		/* 16 bit dev -> pcs lut: */
 		{
-			icmLut *wo;
 			double xyzmin[3] = {0.0, 0.0, 0.0};
 			double xyzmax[3] = {1.0, 1.0, 1.0};			/* Override default XYZ max of 1.999969482422 */
-	
+
 			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigAToB1Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 4096;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* So we can't use it for this lut. */
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icSigAToB1Tag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* Create A2B table */
+			if (wr_icco->create_lut_xforms(wr_icco,
+#ifdef TEST_APXLS
+					ICM_CLUT_SET_APXLS,
+#else
+					ICM_CLUT_SET_EXACT,
+#endif
+					NULL,
+					nsigs, sigs,		/* Tables to be set */
+					2, 256, clutres, 4096, 	/* Table resolutions */
 					icSigRgbData, 		/* Input color space */
 					icSigXYZData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					RGB_RGBp,			/* Input transfer function, RGB->RGB' (NULL = default) */
 					NULL, NULL,			/* Use default Maximum range of RGB' values */
 					RGBp_XYZp,			/* RGB' -> XYZ' transfer function */
 					xyzmin, xyzmax,		/* Make XYZ' range 0.0 - 1.0 for better precision */
 					XYZp_XYZ,			/* Output transfer function, XYZ'->XYZ (NULL = deflt) */
-					NULL, NULL
+					NULL, NULL			/* No apxls range */
 			) != 0)
-				error("Setting 16 bit RGB->XYZ Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+				error("Setting 16 bit RGB->XYZ Lut%s failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
+
 		}
 		/* 16 bit dev -> pcs lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB0Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 dev -> pcs bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB2Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 bit pcs -> dev lut: */
 		{
-			icmLut *wo;
 			double xyzmin[3] = {0.0, 0.0, 0.0};			/* XYZ' range */
-			double xyzmax[3] = {1.0, 1.0, 1.0};			/* Override default XYZ max of 1.999969482422 */
+			double xyzmax[3] = {1.1, 1.1, 1.1};			/* Override default XYZ max of 1.999969482422 */
 			double rgbmin[3] = {0.0, 0.0, 0.0};			/* RGB' range */
 			double rgbmax[3] = {1.0, 1.0, 1.0};
-	
 			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigBToA1Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 1024;		/* (power curves are hard to represent in tables at small values) */
-	    	wo->outputEnt = 4096;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* (so it could be used here) */
-			/* Matrix not tested:
-				for (i = 0; i < 3; i++)
-					for (j = 0; j < 3; j++)
-						wo->e[i][j] = ??;
-			*/
-	
-	#ifdef REVLUTSCALE1
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icSigBToA1Tag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+#ifdef REVLUTSCALE1
 			{
 			/* In any any real profile, you will probably be providing a clut    */
 			/* function that carefully maps out of gamut PCS values to in-gamut  */
@@ -2187,7 +2214,7 @@ main(
 						in[2] = co[2]/(11-1.0);
 		
 						/* Do RGB -> XYZ' transform */
-						RGB_XYZp(NULL, out,in);
+						RGB_XYZp(NULL, out, in);
 						if (out[0] < xyzmin[0])
 							xyzmin[0] = out[0];
 						if (out[0] > xyzmax[0])
@@ -2203,10 +2230,13 @@ main(
 					}
 				}
 			}
+			xyzmax[0] *= 1.1;		/* Allow a slight margin */
+			xyzmax[1] *= 1.1;
+			xyzmax[2] *= 1.1;
 			}
-	#endif
+#endif	/* REVLUTSCALE1 */
 	
-	#ifdef REVLUTSCALE2
+#ifdef REVLUTSCALE2
 			{
 			/* In any any real profile, you will probably be providing a clut    */
 			/* function that carefully maps out of gamut PCS values to in-gamut  */
@@ -2236,76 +2266,77 @@ main(
 				rgbmax[i] =  1.1667;
 			}
 			}
-	#endif
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+#endif	/* REVLUTSCALE2 */
+
+			/* (We're not testing the matrix here...) */
+
+			/* Create B2A table */
+			if (wr_icco->create_lut_xforms(wr_icco,
+#ifdef TEST_APXLS
+					ICM_CLUT_SET_APXLS,
+#else
+					ICM_CLUT_SET_EXACT,
+#endif
+					NULL,
+					nsigs, sigs,		/* Table to be set */
+					2, 1024, clutres, 4096, 	/* Table resolutions */
 					icSigXYZData, 		/* Input color space */
 					icSigRgbData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					XYZ_XYZp, 			/* Input transfer function, XYZ->XYZ' (NULL = default) */
 					xyzmin, xyzmax,		/* Make XYZ' range 0.0 - 1.0 for better precision */
 					XYZp_RGBp,			/* XYZ' -> RGB' transfer function */
 					rgbmin, rgbmax,		/* Make RGB' range 0.0 - 1.333 for less clip rounding */
 					RGBp_RGB,			/* Output transfer function, RGB'->RGB (NULL = deflt) */
-					NULL, NULL
+					NULL, NULL			/* No apxls range */
 			) != 0)
-				error("Setting 16 bit XYZ->RGB Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
+				error("Setting 16 bit XYZ->RGB Lut%s failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
+
 		}
 		/* 16 bit pcs -> dev lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA0Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 pcs -> dev bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA2Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
-		/* 16 bit pcs -> gamut lut: */
+		/* 16 bit XYZ pcs -> gamut lut: */
 		{
-			icmLut *wo;
 			double xyzmin[3] = {0.0, 0.0, 0.0};			/* XYZ' range */
-			double xyzmax[3] = {1.0, 1.0, 1.0};			/* Override default XYZ max of 1.999969482422 */
-	
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigGamutTag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 1;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;
-			wo->allocate(wo);/* Allocate space */
-	
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* (so it could be used here) */
-			/* Matrix not tested:
-				for (i = 0; i < 3; i++)
-					for (j = 0; j < 3; j++)
-						wo->e[i][j] = ??;
-			*/
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			double xyzmax[3] = {1.1, 1.1, 1.1};			/* Override default XYZ max of 1.999969482422 */
+			icmXformSigs sigs[1] = { { icSigGamutTag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* (We're not testing the matrix here...) */
+
+			/* Create Gamut table */
+			if (wr_icco->create_lut_xforms(wr_icco,
+					ICM_CLUT_SET_EXACT,
+					NULL,
+					1, sigs,			/* Table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigXYZData, 		/* Input color space */
 					icSigGrayData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					XYZ_XYZp,			/* Input transfer function, XYZ->XYZ' (NULL = default) */
 					xyzmin, xyzmax,		/* Make XYZ' range 0.0 - 1.0 for better precision */
-					XYZp_BDIST,			/* XYZ' -> Boundary Distance transfer function */
+					XYZp_BDIST,		/* XYZ' -> Boundary Distance transfer function */
 					NULL, NULL,			/* Default range from clut to output table */
 					BDIST_GAMMUT,		/* Boundary Distance -> Out of gamut distance */
-					NULL, NULL
+					NULL, NULL			/* No apxls range */
 			) != 0)
-				error("Setting 16 bit XYZ->Gammut Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+				error("Setting 16 bit XYZ->Gammut Lut%sLut failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
+
 		}
 	
 		/* Write the file out */
@@ -2329,19 +2360,26 @@ main(
 		if ((rd_icco = new_icc(&e)) == NULL)
 			error ("Read: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			rd_icco->warning = Warning;
+
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2355,23 +2393,25 @@ main(
 						RGB_XYZ(NULL, check, in);
 		
 						/* Do lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 0.00005)
-	#ifdef STOPONERROR
-							error ("Excessive error in XYZ Lut Fwd %f > 0.00005",mxd);
-	#else
-							warning ("Excessive error in XYZ Lut Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.00005) {
+							warning ("######## Excessive error in XYZ Lut%sLut Fwd %f > 0.00005 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done2;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut XYZ fwd default intent check complete, peak error = %f\n",merr);
+		  done2:;
+			printf("Lut%s XYZ fwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2380,14 +2420,14 @@ main(
 		/* Check the reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 			int co[3];
 			double in[3], out[3], check[3];
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2401,24 +2441,25 @@ main(
 						RGB_XYZ(NULL, check, in);
 	
 						/* Do reverse lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 	
 						/* Check the result */
 						mxd = maxdiff(in, out);
 						if (mxd > 0.002) {
-	#ifdef STOPONERROR
-							error ("Excessive error in XYZ Lut Bwd %f > 0.002",mxd);
-	#else
-							warning ("Excessive error in XYZ Lut Bwd %f > 0.002",mxd);
-	#endif /* STOPONERROR */
+							warning ("######## Excessive error in XYZ Lut%sLut Bwd %f > 0.002 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done3;
+#endif /* STOPONERROR */
 						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut XYZ bwd default intent check complete, peak error = %f\n",merr);
+		  done3:;
+			printf("Lut%s XYZ bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2427,12 +2468,12 @@ main(
 		/* Check the Absolute Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2446,23 +2487,25 @@ main(
 						aRGB_XYZ(NULL, check,in);
 		
 						/* Do lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 0.00005)
-	#ifdef STOPONERROR
-							error ("Excessive error in XYZ Abs Lut Fwd %f > 0.00005",mxd);
-	#else
-							warning ("Excessive error in XYZ Abs Lut Fwd %f > 0.00005",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.00005) {
+							warning ("######## Excessive error in XYZ Abs Lut%sLut Fwd %f > 0.00005 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done8;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut XYZ fwd absolute intent check complete, peak error = %f\n",merr);
+		  done8:;
+			printf("Lut%s XYZ fwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2471,12 +2514,12 @@ main(
 		/* Check the Absolute reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2490,23 +2533,25 @@ main(
 						aRGB_XYZ(NULL, check,in);
 		
 						/* Do reverse lookup of device -> XYZ transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.002)
-	#ifdef STOPONERROR
-							error ("Excessive error in XYZ Abs Lut Bwd %f > 0.002",mxd);
-	#else
-							warning ("Excessive error in XYZ Abs Lut Bwd %f > 0.002",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.002) {
+							warning ("######## Excessive error in XYZ Abs Lut%sLut Bwd %f > 0.002 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done9;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut XYZ bwd absolute intent check complete, peak error = %f\n",merr);
+		  done9:;
+			printf("Lut%s XYZ bwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2515,12 +2560,12 @@ main(
 		/* Check the XYZ gamut function */
 		{
 			int ino,ono,iok,ook;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			ino = ono = iok = ook = 0;
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
@@ -2532,8 +2577,8 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do gamut lookup of XYZ transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Do reference conversion of XYZ -> RGB */
 						XYZ_RGB(NULL, check,in);
@@ -2562,15 +2607,13 @@ main(
 					}
 				}
 			}
-			printf("Lut XYZ gamut check inside  correct = %f%%\n",100.0 * iok/ino);
-			printf("Lut XYZ gamut check outside correct = %f%%\n",100.0 * ook/ono);
-			printf("Lut XYZ gamut check total   correct = %f%%\n",100.0 * (iok+ook)/(ino+ono));
-			if (((double)iok/ino) < 0.99 || ((double)ook/ono) < 0.98)
-	#ifdef STOPONERROR
-				error ("Gamut XYZ lookup has excessive error");
-	#else
-				warning ("Gamut XYZ lookup has excessive error");
-	#endif /* STOPONERROR */
+			printf("Lut%s XYZ gamut check inside  correct = %f%%\n",tpfx,100.0 * iok/ino);
+			printf("Lut%s XYZ gamut check outside correct = %f%%\n",tpfx,100.0 * ook/ono);
+			printf("Lut%s XYZ gamut check total   correct = %f%%\n",tpfx,100.0 * (iok+ook)/(ino+ono));
+			if (((double)iok/ino) < 0.99 || ((double)ook/ono) < 0.98) {
+				warning ("######## Gamut XYZ lookup has excessive error ########");
+				fail = 1;
+			}
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2586,6 +2629,7 @@ main(
 
 	/* Open up the file for writing */
 	file_name = "xxxx_lut16_Lab.icm";
+	tpfx = "";
 
 	if (!ronly) {
 		icm_err_clear_e(&e);
@@ -2596,6 +2640,13 @@ main(
 		if ((wr_icco = new_icc(&e)) == NULL)
 			error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			wr_icco->warning = Warning;
+
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* Add all the tags required */
 	
 		/* The header: */
@@ -2614,10 +2665,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test Lut style Lab Output Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -2626,15 +2677,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -2665,78 +2716,55 @@ main(
 		}
 		/* 16 bit dev -> pcs lut: */
 		{
-			icmLut *wo;
-	
 			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigAToB1Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;		/* I'm not going to use the output Lut */
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it is not used here. */
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icSigAToB1Tag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* Create A2B table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					nsigs, sigs,		/* Table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigRgbData, 		/* Input color space */
 					icSigLabData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					RGB_RGBp,			/* Input transfer function, RGB->RGB' (NULL = default) */
 					NULL, NULL,			/* Use default Maximum range of RGB' values */
-					RGBp_Labp,			/* RGB' -> Lab' transfer function */
+					RGBp_Labp,			/* RGB' -> XYZ' transfer function */
 					NULL, NULL,			/* Use default Maximum range of Lab' values */
 					Labp_Lab,			/* Linear output transform Lab'->Lab */
-					NULL, NULL
+					NULL, NULL			/* No apxls range */
 			) != 0)
-				error("Setting 16 bit RGB->Lab Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+				error("Setting 16 bit RGB->Lab Lut%sLut failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 bit dev -> pcs lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB0Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 dev -> pcs bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB2Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 bit pcs -> dev lut: */
 		{
-			icmLut *wo;
 			double rgbmin[3] = {0.0, 0.0, 0.0};								/* RGB' range */
 			double rgbmax[3] = {1.0, 1.0, 1.0};
-	
 			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigBToA1Tag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;		/* Not using this for Lab test */
-	    	wo->outputEnt = 4096;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it is not used here. */
-	
-	
+			int nsigs = 1;
+			icmXformSigs sigs[2] = { { icSigBToA1Tag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
 			/* REVLUTSCALE1 could be used here, but in this case it hardly */
 			/* makes any difference.                                       */
-	
-	#ifdef REVLUTSCALE2
+
+#ifdef REVLUTSCALE2
 			{
 			/* In any any real profile, you will probably be providing a clut    */
 			/* function that carefully maps out of gamut PCS values to in-gamut  */
@@ -2766,11 +2794,16 @@ main(
 				rgbmax[i] =  1.1667;
 			}
 			}
-	#endif
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+#endif	/* REVLUTSCALE2 */
+
+
+			/* Create B2A table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					nsigs, sigs,		/* Table to be set */
+					2, 256, clutres, 4096, 	/* Table resolutions */
 					icSigLabData, 		/* Input color space */
 					icSigRgbData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					Lab_Labp,			/* Linear input transform Lab->Lab' */
 					NULL, NULL,			/* Use default Lab' range */
 					Labp_RGBp,			/* Lab' -> RGB' transfer function */
@@ -2778,56 +2811,46 @@ main(
 					RGBp_RGB,			/* Output transfer function, RGB'->RGB (NULL = deflt) */
 					NULL, NULL
 			) != 0)
-				error("Setting 16 bit Lab->RGB Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
+				error("Setting 16 bit Lab->RGB Lut%sLut failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
+
 		}
 		/* 16 bit pcs -> dev lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA0Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 16 pcs -> dev bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA2Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* 16 bit pcs -> gamut lut: */
 		{
-			icmLut *wo;
-	
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigGamutTag,	icSigLut16Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 1;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it can't be used here. */
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			icmXformSigs sigs[1] = { { icSigGamutTag, icSigLut16Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* Create Gamut table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					1, sigs,			/* One table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigLabData, 		/* Input color space */
 					icSigGrayData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					Lab_Labp,			/* Linear input transform Lab->Lab' */
 					NULL, NULL,			/* Default Lab' range */
-					Labp_BDIST,			/* Lab' -> Boundary Distance transfer function */
+					Labp_BDIST,		/* Lab' -> Boundary Distance transfer function */
 					NULL, NULL,			/* Default range from clut to output table */
 					BDIST_GAMMUT,		/* Boundary Distance -> Out of gamut distance */
 					NULL, NULL
 			) != 0)
-				error("Setting 16 bit Lab->Gammut Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+				error("Setting 16 bit Lab->Gammut Lut%sLut failed: %d, %s",tpfx,wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* Write the file out */
@@ -2851,19 +2874,26 @@ main(
 		if ((rd_icco = new_icc(&e)) == NULL)
 			error ("Read: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			rd_icco->warning = Warning;
+
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2877,23 +2907,24 @@ main(
 						RGB_Lab(NULL, check,in);
 		
 						/* Do lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 1.0)
-	#ifdef STOPONERROR
-							error ("Excessive error in Lab16 Lut Fwd %f",mxd);
-	#else
-							warning ("Excessive error in Lab16 Lut Fwd %f",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 1.0) {
+							warning ("######## Excessive error in Lab16 Lut%sLut Fwd %f ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut Lab16 fwd default intent check complete, peak error = %f\n",merr);
+			printf("Lut%s Lab16 fwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2902,12 +2933,12 @@ main(
 		/* Check the reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2918,26 +2949,28 @@ main(
 						in[2] = co[2]/(TRES-1.0);
 		
 						/* Do reference conversion of device -> Lab */
-						RGB_Lab(NULL, check,in);
+						RGB_Lab(NULL, check, in);
 		
 						/* Do reverse lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.02)
-	#ifdef STOPONERROR
-							error ("Excessive error in Lab16 Lut Bwd %f > 0.02",mxd);
-	#else
-							warning ("Excessive error in Lab16 Lut Bwd %f > 0.02",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.02) {
+							warning ("######## Excessive error in Lab16 Lut%sLut Bwd in %s -> %f > 0.02 ########",tpfx,icmPdv(3, check), mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done4;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut Lab16 bwd default intent check complete, peak error = %f\n",merr);
+		  done4:;
+			printf("Lut%s Lab16 bwd default intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2946,12 +2979,12 @@ main(
 		/* Check the Absolute Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -2965,23 +2998,24 @@ main(
 						aRGB_Lab(NULL, check,in);
 		
 						/* Do lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 1.0)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Lab16 Lut Fwd %f > 1.0",mxd);
-	#else
-							warning ("Excessive error in Abs Lab16 Lut Fwd %f > 1.0",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 1.0) {
+							warning ("######## Excessive error in Abs Lab16 Lut%sLut Fwd %f > 1.0 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut Lab16 fwd absolute intent check complete, peak error = %f\n",merr);
+			printf("Lut%s Lab16 fwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -2990,12 +3024,12 @@ main(
 		/* Check the Absolute reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -3009,23 +3043,25 @@ main(
 						aRGB_Lab(NULL, check,in);
 		
 						/* Do reverse lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.02)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Lab16 Lut Bwd %f > 0.02",mxd);
-	#else
-							warning ("Excessive error in Abs Lab16 Lut Bwd %f > 0.02",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.02) {
+							warning ("######## Excessive error in Abs Lab16 Lut%sLut Bwd %f > 0.02 ########",tpfx,mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done5;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
-			printf("Lut Lab16 bwd absolute intent check complete, peak error = %f\n",merr);
+		  done5:;
+			printf("Lut%s Lab16 bwd absolute intent check complete, peak error = %f\n",tpfx,merr);
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -3034,12 +3070,12 @@ main(
 		/* Check the Lab gamut function */
 		{
 			int ino,ono,iok,ook;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			ino = ono = iok = ook = 0;
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
@@ -3051,8 +3087,8 @@ main(
 						in[2] = ((co[2]/(TRES-1.0)) - 0.5) * 256.0;	/* b */
 		
 						/* Do gamut lookup of Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Do reference conversion of Lab -> RGB */
 						Lab_RGB(NULL, check,in);
@@ -3081,15 +3117,13 @@ main(
 					}
 				}
 			}
-			printf("Lut Lab16 gamut check inside  correct = %f%%\n",100.0 * iok/ino);
-			printf("Lut Lab16 gamut check outside correct = %f%%\n",100.0 * ook/ono);
-			printf("Lut Lab16 gamut check total   correct = %f%%\n",100.0 * (iok+ook)/(ino+ono));
-			if (((double)iok/ino) < 0.98 || ((double)ook/ono) < 0.98)
-	#ifdef STOPONERROR
-				error ("Gamut Lab16 lookup has excessive error");
-	#else
-				warning ("Gamut Lab16 lookup has excessive error");
-	#endif /* STOPONERROR */
+			printf("Lut%s Lab16 gamut check inside  correct = %f%%\n",tpfx,100.0 * iok/ino);
+			printf("Lut%s Lab16 gamut check outside correct = %f%%\n",tpfx,100.0 * ook/ono);
+			printf("Lut%s Lab16 gamut check total   correct = %f%%\n",tpfx,100.0 * (iok+ook)/(ino+ono));
+			if (((double)iok/ino) < 0.98 || ((double)ook/ono) < 0.98) {
+				warning ("######## Gamut Lab16 lookup has excessive error ########");
+				fail = 1;
+			}
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -3115,6 +3149,13 @@ main(
 		if ((wr_icco = new_icc(&e)) == NULL)
 			error ("Write: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			wr_icco->warning = Warning;
+
+#ifdef IGNORE_WRITE_FORMAT_ERRORS
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
+#endif
+
 		/* Add all the tags required */
 	
 		/* The header: */
@@ -3133,10 +3174,10 @@ main(
 		}
 		/* Profile Description Tag: */
 		{
-			icmTextDescription *wo;
+			icmCommonTextDescription *wo;
 			char *dst = "This is a test Lut style Lab Output Profile";
-			if ((wo = (icmTextDescription *)wr_icco->add_tag(
-			           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -3145,15 +3186,15 @@ main(
 		}
 		/* Copyright Tag: */
 		{
-			icmText *wo;
+			icmCommonTextDescription *wo;
 			char *crt = "Copyright 1998 Graeme Gill";
-			if ((wo = (icmText *)wr_icco->add_tag(
-			           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+			if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+			           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 	
 			wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 			wo->allocate(wo);/* Allocate space */
-			strcpy(wo->data, crt);		/* Copy the text in */
+			strcpy(wo->desc, crt);		/* Copy the text in */
 		}
 		/* White Point Tag: */
 		{
@@ -3184,27 +3225,16 @@ main(
 		}
 		/* 8 bit dev -> pcs lut: */
 		{
-			icmLut *wo;
-	
-			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigAToB1Tag,	icSigLut8Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it is not used here. */
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			icmXformSigs sigs[1] = { { icSigAToB1Tag, icSigLut8Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* Create A2B table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					1, sigs,			/* One table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigRgbData, 		/* Input color space */
 					icSigLabData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					RGB_RGBp,			/* Input transfer function, RGB->RGB' (NULL = default) */
 					NULL, NULL,			/* Use default Maximum range of RGB' values */
 					RGBp_Labp,			/* RGB' -> Lab' transfer function */
@@ -3216,46 +3246,32 @@ main(
 		}
 		/* 8 bit dev -> pcs lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB0Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 8 dev -> pcs bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigAToB2Tag,	icSigAToB1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 8 bit pcs -> dev lut: */
 		{
-			icmLut *wo;
 			double rgbmin[3] = {0.0, 0.0, 0.0};								/* RGB' range */
 			double rgbmax[3] = {1.0, 1.0, 1.0};
-	
 			/* Intent 1 = relative colorimetric */
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigBToA1Tag,	icSigLut8Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 3;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it is not used here. */
-	
-	
+			icmXformSigs sigs[1] = { { icSigBToA1Tag, icSigLut8Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
 			/* REVLUTSCALE1 could be used here, but in this case it hardly */
 			/* makes any difference.                                       */
 	
-	#ifdef REVLUTSCALE2
+#ifdef REVLUTSCALE2
 			{
 			/* In any any real profile, you will probably be providing a clut    */
 			/* function that carefully maps out of gamut PCS values to in-gamut  */
@@ -3285,11 +3301,15 @@ main(
 				rgbmax[i] =  1.1667;
 			}
 			}
-	#endif
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+#endif /* REVLUTSCALE2 */
+
+			/* Create B2A table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					1, sigs,			/* One table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigLabData, 		/* Input color space */
 					icSigRgbData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					Lab_Labp,			/* Linear input transform Lab->Lab' */
 					NULL, NULL,			/* Use default Lab' range */
 					Labp_RGBp,			/* Lab' -> RGB' transfer function */
@@ -3298,55 +3318,45 @@ main(
 					NULL, NULL
 			) != 0)
 				error("Setting 8 bit Lab->RGB Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
 		}
 		/* 8 bit pcs -> dev lut - link intent 0 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 0 = perceptual */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA0Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 		/* 8 pcs -> dev bit lut - link intent 2 to intent 1 */
 		{
-			icmLut *wo;
+			icmLut1 *wo;
 			/* Intent 2 = saturation */
-			if ((wo = (icmLut *)wr_icco->link_tag(
+			if ((wo = (icmLut1 *)wr_icco->link_tag(
 			           wr_icco, icSigBToA2Tag,	icSigBToA1Tag)) == NULL) 
 				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 		}
 	
 		/* 8 bit pcs -> gamut lut: */
 		{
-			icmLut *wo;
-	
-			if ((wo = (icmLut *)wr_icco->add_tag(
-			           wr_icco, icSigGamutTag,	icSigLut8Type)) == NULL) 
-				error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-	
-			wo->inputChan = 3;
-			wo->outputChan = 1;
-	    	wo->clutPoints = 33;
-	    	wo->inputEnt = 256;
-	    	wo->outputEnt = 256;
-			wo->allocate(wo);/* Allocate space */
-	
-			/* The matrix is only applicable to XYZ input space, */
-			/* so it can't be used here. */
-	
-			/* Use helper function to do the hard work. */
-			if (wo->set_tables(wo, ICM_CLUT_SET_EXACT, NULL,
+			icmXformSigs sigs[1] = { { icSigGamutTag, icSigLut8Type} };
+			unsigned int clutres[3] = { 33, 33, 33 };
+
+			/* Create Gamut table */
+			if (wr_icco->create_lut_xforms(wr_icco, ICM_CLUT_SET_EXACT, NULL,
+					1, sigs,			/* One table to be set */
+					2, 256, clutres, 256, 	/* Table resolutions */
 					icSigLabData, 		/* Input color space */
 					icSigGrayData, 		/* Output color space */
+					NULL, NULL,			/* input range not applicable */
 					Lab_Labp,			/* Linear input transform Lab->Lab' */
 					NULL, NULL	,		/* Default Lab' range */
-					Labp_BDIST,			/* Lab' -> Boundary Distance transfer function */
+					Labp_BDIST,		/* Lab' -> Boundary Distance transfer function */
 					NULL, NULL,			/* Default range from clut to output table */
 					BDIST_GAMMUT,		/* Boundary Distance -> Out of gamut distance */
 					NULL, NULL
 			) != 0)
-				error("Setting 16 bit Lab->Gammut Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+				error("Setting 8 bit Lab->Gammut Lut failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+
 		}
 	
 		/* Write the file out */
@@ -3370,19 +3380,26 @@ main(
 		if ((rd_icco = new_icc(&e)) == NULL)
 			error ("Read: Creation of ICC object failed with 0x%x, '%s'",e.c, e.m);
 	
+		if (warn)
+			rd_icco->warning = Warning;
+
 		/* Read the header and tag list */
 		if ((rv = rd_icco->read(rd_icco,rd_fp,0)) != 0)
 			error ("Read: %d, %s",rv,rd_icco->e.m);
 	
+		if (check_parts(file_name, rd_icco)) {
+			fail = 1;
+		}
+
 		/* Check the Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -3396,17 +3413,18 @@ main(
 						RGB_Lab(NULL, check,in);
 		
 						/* Do lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 2.1)
-	#ifdef STOPONERROR
-							error ("Excessive error in Lab8 Lut Fwd %f > 2.1",mxd);
-	#else
-							warning ("Excessive error in Lab8 Lut Fwd %f > 2.1",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 2.1) {
+							warning ("######## Excessive error in Lab8 Lut Fwd %f > 2.1 ########",mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
@@ -3421,12 +3439,12 @@ main(
 		/* Check the reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icRelativeColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -3440,22 +3458,24 @@ main(
 						RGB_Lab(NULL, check,in);
 		
 						/* Do reverse lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.03)
-	#ifdef STOPONERROR
-							error ("Excessive error in Lab8 Lut Bwd %f > 0.03",mxd);
-	#else
-							warning ("Excessive error in Lab8 Lut Bwd %f > 0.03",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.03) {
+							warning ("######## Excessive error in Lab8 Lut Bwd %f > 0.03 ########",mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done6;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
+		  done6:;
 			printf("Lut Lab8 bwd default intent check complete, peak error = %f\n",merr);
 	
 			/* Done with lookup object */
@@ -3465,12 +3485,12 @@ main(
 		/* Check the Absolute Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -3484,17 +3504,18 @@ main(
 						aRGB_Lab(NULL, check,in);
 		
 						/* Do lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(out, check);
-						if (mxd > 2.3)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Lab8 Lut Fwd %f > 2.3",mxd);
-	#else
-							warning ("Excessive error in Abs Lab8 Lut Fwd %f > 2.3",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 2.3) {
+							warning ("######## Excessive error in Abs Lab8 Lut Fwd %f > 2.3 ########",mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							break;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
@@ -3509,12 +3530,12 @@ main(
 		/* Check the Absolute reverse Lut lookup function */
 		{
 			double merr = 0.0;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
 				in[0] = co[0]/(TRES-1.0);
@@ -3528,22 +3549,24 @@ main(
 						aRGB_Lab(NULL, check,in);
 		
 						/* Do reverse lookup of device -> Lab transform */
-						if ((rv = luo->lookup(luo, out, check)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, check)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Check the result */
 						mxd = maxdiff(in, out);
-						if (mxd > 0.03)
-	#ifdef STOPONERROR
-							error ("Excessive error in Abs Lab8 Lut Bwd %f > 0.03",mxd);
-	#else
-							warning ("Excessive error in Abs Lab8 Lut Bwd %f > 0.03",mxd);
-	#endif /* STOPONERROR */
+						if (mxd > 0.03) {
+							warning ("######## Excessive error in Abs Lab8 Lut Bwd %f > 0.03 ########",mxd);
+							fail = 1;
+#ifdef STOPONERROR
+							goto done7;
+#endif /* STOPONERROR */
+						}
 						if (mxd > merr)
 							merr = mxd;
 					}
 				}
 			}
+		  done7:;
 			printf("Lut Lab8 bwd absolute intent check complete, peak error = %f\n",merr);
 	
 			/* Done with lookup object */
@@ -3553,12 +3576,12 @@ main(
 		/* Check the Lab gamut function */
 		{
 			int ino,ono,iok,ook;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 	
 			/* Get a fwd conversion object */
-			if ((luo = rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmGamut, icmDefaultIntent, 
 			                              icmSigDefaultData, icmLuOrdNorm)) == NULL)
-				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
+				error ("line %d, %d, %s",__LINE__,rd_icco->e.c, rd_icco->e.m);
 	
 			ino = ono = iok = ook = 0;
 			for (co[0] = 0; co[0] < TRES; co[0]++) {
@@ -3570,8 +3593,8 @@ main(
 						in[2] = ((co[2]/(TRES-1.0)) - 0.5) * 256.0;	/* b */
 		
 						/* Do gamut lookup of Lab transform */
-						if ((rv = luo->lookup(luo, out, in)) > 1)
-							error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
+						if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+							error ("Lookup error %s",icmPe_lurv2str(rv));
 		
 						/* Do reference conversion of Lab -> RGB */
 						Lab_RGB(NULL, check,in);
@@ -3603,12 +3626,10 @@ main(
 			printf("Lut Lab8 gamut check inside  correct = %f%%\n",100.0 * iok/ino);
 			printf("Lut Lab8 gamut check outside correct = %f%%\n",100.0 * ook/ono);
 			printf("Lut Lab8 gamut check total   correct = %f%%\n",100.0 * (iok+ook)/(ino+ono));
-			if (((double)iok/ino) < 0.98 || ((double)ook/ono) < 0.98)
-	#ifdef STOPONERROR
-				error ("Gamut Lab8 lookup has excessive error");
-	#else
-				warning ("Gamut Lab8 lookup has excessive error");
-	#endif /* STOPONERROR */
+			if (((double)iok/ino) < 0.98 || ((double)ook/ono) < 0.98) {
+				warning ("######## Gamut Lab8 lookup has excessive error ########");
+				fail = 1;
+			}
 	
 			/* Done with lookup object */
 			luo->del(luo);
@@ -3618,14 +3639,310 @@ main(
 		rd_fp->del(rd_fp);
 	}
 
+
 	/* ---------------------------------------- */
 
 	if (wonly)
 		printf("Lookup test write OK\n");
-	else
-		printf("Lookup test completed OK\n");
+	else {
+		if (fail)
+			printf("Lookup test completed but FAILED\n");
+		else
+			printf("Lookup test completed OK\n");
+	}
 	return 0;
 }
+
+/* ------------------------------------------------ */
+
+/* Return nz if Pe contains anything other than per channel operations */
+static int check_Pe_pch(icmPeContainer *p) {
+	int i;
+
+	for (i = 0; i < p->count; i++) {
+		if (p->pe[i] == NULL
+		 || p->pe[i]->attr.op == icmPeOp_NOP
+		 || p->pe[i]->attr.op == icmPeOp_perch) {
+			continue;
+		}
+		return 1;
+	}
+	return 0;
+}
+
+/* Return nz if Pe contains a non-normalizaing per channel operations */
+/* before any non-per channel operations */
+static int check_Pe_in_notpch(icmPeContainer *p) {
+	int i;
+
+//printf("~1 check in, count %d\n",p->count);
+	for (i = 0; i < p->count; i++) {
+		/* Ignore any NOPs or normalizaing per channel */
+		if (p->pe[i] == NULL
+		 || p->pe[i]->attr.op == icmPeOp_NOP
+		 || (p->pe[i]->attr.op == icmPeOp_perch && p->pe[i]->attr.norm)) {
+//printf("~1 Skipping %d\n",i);
+			continue;
+		}
+
+		/* Error if we find a non-normalizing per channel */
+		if (p->pe[i]->attr.op == icmPeOp_perch
+		 && p->pe[i]->attr.norm == 0) {
+//printf("~1 ix %d is '%s' and has op = %s and norm %d\n",i,icm2str(icmProcessingElementTag,p->pe[i]->etype),icmPe_Op2str(p->pe[i]->attr.op),p->pe[i]->attr.norm);
+//printf("~1 found error %d\n",i);
+			return 1;
+		}
+
+		/* Must be other than a per channel op, so stop looking */
+//printf("~1 found non-perch %d\n",i);
+		return 0;
+	}
+//printf("~1 found nothing %d\n",i);
+	return 0;
+}
+
+/* Return nz if Pe contains a non-normalizaing per channel operations */
+/* after any non-per channel operations */
+static int check_Pe_out_notpch(icmPeContainer *p) {
+	int i;
+
+	for (i = p->count-1; i >= 0; i--) {
+		/* Ignore any NOPs or normalizaing per channel */
+		if (p->pe[i] == NULL
+		 || p->pe[i]->attr.op == icmPeOp_NOP
+		 || (p->pe[i]->attr.op == icmPeOp_perch && p->pe[i]->attr.norm))
+			continue;
+
+		/* Error if we find a non-normalizing per channel */
+		if (p->pe[i]->attr.op == icmPeOp_perch
+		 && p->pe[i]->attr.norm == 0) 
+			return 1;
+
+		/* Must be other than a per channel op, so stop looking */
+		return 0;
+	}
+	return 0;
+}
+
+/* Check 3 and 5 part lookups */
+/* Return nz if error */
+
+static int check_parts(char *name, icc *icco) {
+	icmErr e = { 0, { '\000'} };
+	icmLuSpace *luo;
+	int cfg;
+	int fail = 0;
+
+	/* For each lookup configuration */
+	for (cfg = 0; cfg < 8; cfg++) {
+		icRenderingIntent intent;
+		icColorSpaceSignature pcsor;
+		icmLookupFunc func;
+		icmCSInfo ini, outi;
+		icmCSInfo eini, eouti;
+		double emin[MAX_CHAN], emax[MAX_CHAN];
+		double in[MAX_CHAN], out1[MAX_CHAN], out3[MAX_CHAN], out5[MAX_CHAN];
+		double inmin[MAX_CHAN], inmax[MAX_CHAN];
+		double outmin[MAX_CHAN], outmax[MAX_CHAN];
+		double min[MAX_CHAN], max[MAX_CHAN];
+		char cfgstr[100];
+		double err;
+		int i;
+
+		if (cfg & 1) {
+			strcpy(cfgstr,"-ia");
+			intent = icAbsoluteColorimetric;
+		} else {
+			strcpy(cfgstr,"-ir");
+			intent = icRelativeColorimetric;
+		}
+
+		if (cfg & 2) {
+			strcat(cfgstr," -px");
+			pcsor = icSigXYZData;
+		} else {
+			strcat(cfgstr," -pl");
+			pcsor = icSigLabData;
+		}
+
+		if (cfg & 4) {
+			strcat(cfgstr," -fb");
+			func = icmBwd;
+		} else {
+			strcat(cfgstr," -ff");
+			func = icmFwd;
+		}
+
+		if ((luo = (icmLuSpace *)icco->get_luobj(icco, func, intent, pcsor, icmLuOrdNorm)) == NULL)
+			error ("File '%s' '%s' get_luobj failed, %d, %s",name,cfgstr,icco->e.c, icco->e.m);
+
+		luo->spaces(luo, &eini, &eouti, NULL, NULL, NULL, NULL, NULL, NULL, NULL); 
+		luo->native_spaces(luo, &ini, &outi, NULL);
+
+		/* Figure out a notional effective input range */
+		if (eini.sig == icSigLabData) {
+			emin[0] = 0.0, emax[0] = 100.0;
+			emin[1] = -127.0, emax[1] = 127.0;
+			emin[2] = -127.0, emax[2] = 127.0;
+		} else if (eini.sig == icSigXYZData) {
+			emin[0] = 0.0, emax[0] = 1.0;
+			emin[1] = 0.0, emax[1] = 1.0;
+			emin[2] = 0.0, emax[2] = 1.0;
+		} else {
+			for (i = 0; i < eini.nch; i++)
+				emin[i] = 0.0, emax[i] = 1.0;
+		}
+
+		/* 1 - Check that the conversions agree with a simple smoke test */
+		for (i = 0; i < eini.nch; i++)
+			in[i] = 0.5 * (emin[i] + emax[i]);
+
+		luo->lookup_fwd(luo, out1, in);
+
+		luo->input_fwd(luo, out3, in);
+		luo->core3_fwd(luo, out3, out3);
+		luo->output_fwd(luo, out3, out3);
+	
+		if ((err = icmDiffN(out1, out3, eouti.nch)) > 1e-6) {
+			warning("################# file '%s' '%s': 3 part fwd mismatch 1 part by %f\n",name,cfgstr,err);
+			fail = 1;
+		}
+	
+		luo->input_fmt_fwd(luo, out5, in);
+		luo->input_pch_fwd(luo, out5, out5);
+		luo->core5_fwd(luo, out5, out5);
+		luo->output_pch_fwd(luo, out5, out5);
+		luo->output_fmt_fwd(luo, out5, out5);
+		if ((err = icmDiffN(out1, out5, eouti.nch)) > 1e-6) {
+			warning("################# file '%s' '%s': 5 part fwd mismatch 1 part by %f\n",name,cfgstr,err);
+			fail = 1;
+		}
+
+		/* 2 - check that the per channel conversions contain only per channel Pe's */
+		if (check_Pe_pch(luo->input)) {
+			warning("################# file '%s' '%s': input Pe is not per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_pch(luo->output)) {
+			warning("################# file '%s' '%s': output Pe is not per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_pch(luo->input_pch)) {
+			warning("################# file '%s' '%s': input_pch Pe is not per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_pch(luo->output_pch)) {
+			warning("################# file '%s' '%s': output_pch Pe is not per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+
+		/* check that the non-per channel conversions don't contain any non-norm per channel ops */
+		if (check_Pe_in_notpch(luo->core3)) {
+			warning("################# file '%s' '%s': core3 Pe has in per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_out_notpch(luo->core3)) {
+			warning("################# file '%s' '%s': core3 Pe has out per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+
+		if (check_Pe_out_notpch(luo->input_fmt)) {
+			warning("################# file '%s' '%s': input_fmt Pe has out per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_in_notpch(luo->core5)) {
+			warning("################# file '%s' '%s': core5 Pe has in per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_out_notpch(luo->core5)) {
+			warning("################# file '%s' '%s': core5 Pe has out per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+		if (check_Pe_in_notpch(luo->output_fmt)) {
+			warning("################# file '%s' '%s': output_fmt Pe has in per-channel\n",name,cfgstr);
+			fail = 1;
+		}
+
+		/* 3 - check that per channel transform range seems sane */
+
+		/* Figure out a notional native input range */
+		if (ini.sig == icSigLabData) {
+			inmin[0] = 0.0,    inmax[0] = 100.0;
+			inmin[1] = -127.0, inmax[1] = 127.0;
+			inmin[2] = -127.0, inmax[2] = 127.0;
+		} else if (ini.sig == icSigXYZData) {
+			inmin[0] = 0.0, inmax[0] = 1.0;
+			inmin[1] = 0.0, inmax[1] = 1.0;
+			inmin[2] = 0.0, inmax[2] = 1.0;
+		} else {
+			for (i = 0; i < eini.nch; i++)
+				inmin[i] = 0.0, inmax[i] = 1.0;
+		}
+
+		/* Figure out a notional native output range */
+		if (outi.sig == icSigLabData) {
+			outmin[0] = 0.0,    outmax[0] = 100.0;
+			outmin[1] = -127.0, outmax[1] = 127.0;
+			outmin[2] = -127.0, outmax[2] = 127.0;
+		} else if (outi.sig == icSigXYZData) {
+			outmin[0] = 0.0, outmax[0] = 1.0;
+			outmin[1] = 0.0, outmax[1] = 1.0;
+			outmin[2] = 0.0, outmax[2] = 1.0;
+		} else {
+			for (i = 0; i < eouti.nch; i++)
+				outmin[i] = 0.0, outmax[i] = 1.0;
+		}
+
+		/* check 3 part pch in */
+		luo->input_fwd(luo, min, inmin);
+		luo->input_fwd(luo, max, inmax);
+		for (i = 0; i < eini.nch; i++) {
+			double rat = (max[i] - min[i])/(inmax[i] - inmin[i]);
+			if (rat > 2.0 || rat < 0.45) {
+				warning("################# file '%s' '%s': 3 part input %d range ratio %f\n",name,cfgstr,i,rat);
+				fail = 1;
+			}
+		}
+
+		/* check 3 part pch out */
+		luo->output_fwd(luo, min, outmin);
+		luo->output_fwd(luo, max, outmax);
+		for (i = 0; i < eouti.nch; i++) {
+			double rat = (max[i] - min[i])/(outmax[i] - outmin[i]);
+			if (rat > 2.0 || rat < 0.45) {
+				warning("################# file '%s' '%s': 3 part output %d range ratio %f\n",name,cfgstr,i,rat);
+				fail = 1;
+			}
+		}
+
+		/* check 5 part pch in */
+		luo->input_pch_fwd(luo, min, inmin);
+		luo->input_pch_fwd(luo, max, inmax);
+		for (i = 0; i < eini.nch; i++) {
+			double rat = (max[i] - min[i])/(inmax[i] - inmin[i]);
+			if (rat > 2.0 || rat < 0.45) {
+				warning("################# file '%s' '%s': 5 part input %d range ratio %f\n",name,cfgstr,i,rat);
+				fail = 1;
+			}
+		}
+
+		/* check 5 part pch out */
+		luo->output_pch_fwd(luo, min, outmin);
+		luo->output_pch_fwd(luo, max, outmax);
+		for (i = 0; i < eouti.nch; i++) {
+			double rat = (max[i] - min[i])/(outmax[i] - outmin[i]);
+			if (rat > 2.0 || rat < 0.45) {
+				warning("################# file '%s' '%s': 5 part output %d range ratio %f\n",name,cfgstr,i,rat);
+				fail = 1;
+			}
+		}
+
+		luo->del(luo);
+	}
+
+	return fail;
+}
+
 
 /* ------------------------------------------------ */
 /* Basic printf type error() and warning() routines */

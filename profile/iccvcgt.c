@@ -169,7 +169,7 @@ main(int argc, char *argv[]) {
 		if (wo == NULL)
 			error ("Unable to add VideoCardGamma tag");
 
-		wo->tagType = icmVideoCardGammaTableType;
+		wo->tagType = icVideoCardGammaTable;
 		wo->u.table.channels = 3;						/* rgb */
 		wo->u.table.entryCount = ncal;
 		wo->u.table.entrySize = 2;						/* 16 bits */
@@ -182,7 +182,7 @@ main(int argc, char *argv[]) {
 					cc = 0.0;
 				else if (cc > 1.0)
 					cc = 1.0;
-				((unsigned short*)wo->u.table.data)[ncal * j + i] = (int)(cc * 65535.0 + 0.5);
+				wo->u.table.data[j][i] = cc;
 			}
 		}
 

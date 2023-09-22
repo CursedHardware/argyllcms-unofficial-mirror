@@ -580,19 +580,19 @@ int pmtc
 /* This distributes the LUT indexes more evenly in */
 /* perceptual space, greatly improving the B2A accuracy of XYZ LUT */
 /* Since typically XYZ doesn't use the full range of 0-2.0 allowed */
-/* for in the encoding, we scale the cLUT index values to use the 0-1.3 range */
+/* for in the encoding, we can scale the cLUT index values to use the 0-1.3 range */
 
 /* (For these functions the encoded XYZ 0.0 - 2.0 range is 0.0 - 1.0 ??) */
 
 /* Y to L* */
-static void y2l_curve(double *out, double *in, int isXYZ) {
+static void y2l_curve(double *out, double *in, int scaleXYZ) {
 	int i;
 	double val;
 	double isc = 1.0, osc = 1.0;
 
 	/* Scale from 0.0 .. 1.999969 to 0.0 .. 1.0 and back */
 	/* + range adjustment */
-	if (isXYZ) {
+	if (scaleXYZ) {
 		isc = 32768.0/65535.0 * YSCALE;
 		osc = 65535.0/32768.0;
 	}
@@ -610,14 +610,14 @@ static void y2l_curve(double *out, double *in, int isXYZ) {
 }
 
 /* L* to Y */
-static void l2y_curve(double *out, double *in, int isXYZ) {
+static void l2y_curve(double *out, double *in, int scaleXYZ) {
 	int i;
 	double val;
 	double isc = 1.0, osc = 1.0;
 
 	/* Scale from 0.0 .. 1.999969 to 0.0 .. 1.0 and back */
 	/* + range adjustment */
-	if (isXYZ) {
+	if (scaleXYZ) {
 		isc = 32768.0/65535.0;
 		osc = 65535.0/32768.0 / YSCALE;
 	}
@@ -645,18 +645,21 @@ struct _profinfo {
 	xcal *cal;							/* if non-NULL, xcal rather than profile */
 
 	/* Valid for both icc and xcal: */
-	icColorSpaceSignature ins, outs;	/* Colorspace of conversion */
-	int id, od;							/* Dimensions of conversion */
+	icmCSInfo ini, outi;				/* Type of input and output spaces */
+//	icColorSpaceSignature ins, outs;	/* Colorspace of conversion */
+//	int id, od;							/* Dimensions of conversion */
 
 	/* Valid only for icc: */
 	icmHeader *h;						
 	icRenderingIntent intent;			/* Rendering intent chosen */
 	icmLookupFunc func;					/* Type of function to use in lookup */
 	icmLookupOrder order;				/* tag search order to use */
-	icmLuAlgType alg;					/* Type of lookup algorithm used */
+	int can_bwd;						/* Is lookup invertable ? */
+	icmPeOp op;							/* Overall type of operation */
 	int clutres;						/* If this profile uses a clut, what's it's res. ? */
-	icColorSpaceSignature natpcs;		/* Underlying natural PCS */
-	icmLuBase *luo;						/* Base Lookup type object */
+	icmCSInfo natpcsi;					/* Underlying natural PCS info */
+//	icColorSpaceSignature natpcs;		/* Underlying natural PCS */
+	icmLuSpace *luo;						/* Base Lookup type object */
 
 }; typedef struct _profinfo profinfo;
 
@@ -674,9 +677,9 @@ typedef struct {
 	int icombine;			/* Non-zero if input curves are to be combined */
 	int ocombine;			/* Non-zero if output curves are to be combined */
 	int ilcurve;			/* 1 if input curves are to be concatenated with Y like ->L* curve */
-							/* (2 if input curves are to be concatenated with Y->L* curve) */
+							/* (2 to scale XYZ values into smaller range as well) */
 	int olcurve;			/* 1 if output curves are to be concatenated with L*->Y like curve */
-							/* (2 if output curves are to be concatenated with L*->Y curve) */
+							/* (2 to de-scale XYZ values into smaller range as well) */
 	void (*icvt)(double *out, double *in);	/* If non-NULL, Input format conversion */
 	void (*ocvt)(double *out, double *in);	/* If non-NULL, Output format conversion */
 
@@ -719,7 +722,7 @@ static void input_curves(
 		/* The input table of the first profile */
 		/* (icombine is set if input is PCS) */
 		if (rx->fclut <= rx->lclut) 
-			rx->profs[rx->fclut].luo->lookup_in(rx->profs[rx->fclut].luo, out_vals, out_vals);
+			rx->profs[rx->fclut].luo->input_fwd(rx->profs[rx->fclut].luo, out_vals, out_vals);
 	}
 
 	/* If input curve converts to Y like space, apply Y->L* curve */
@@ -785,10 +788,10 @@ double *in_vals
 		/* Else it's a profile */
 		} else {
 			/* Convert PCS for this profile */
-			if (prs == icSigXYZData && rx->profs[j].ins == icSigLabData) {
+			if (prs == icSigXYZData && rx->profs[j].ini.sig == icSigLabData) {
 				icmXYZ2Lab(&icmD50, vals, vals);
 //printf("~1 md_table after XYZ2Lab %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
-			} else if (prs == icSigLabData && rx->profs[j].ins == icSigXYZData) {
+			} else if (prs == icSigLabData && rx->profs[j].ini.sig == icSigXYZData) {
 				icmLab2XYZ(&icmD50, vals, vals);
 //printf("~1 md_table after Lab2XYZ %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
 			}
@@ -796,25 +799,24 @@ double *in_vals
 			/* If first or last profile */
 			if (j == rx->fclut || j == rx->lclut) {
 				if (j != rx->fclut || rx->icombine) {
-					rx->profs[j].luo->lookup_in(rx->profs[j].luo, vals, vals);
+					rx->profs[j].luo->input_fwd(rx->profs[j].luo, vals, vals);
 //printf("~1 md_table after input curve %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
 				}
-				rx->profs[j].luo->lookup_core(rx->profs[j].luo, vals, vals);
+				rx->profs[j].luo->core3_fwd(rx->profs[j].luo, vals, vals);
 //printf("~1 md_table after core %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
-				if (j != rx->lclut || rx->ocombine) {
-					rx->profs[j].luo->lookup_out(rx->profs[j].luo, vals, vals);
-				}
+				if (j != rx->lclut || rx->ocombine)
+					rx->profs[j].luo->output_fwd(rx->profs[j].luo, vals, vals);
 //printf("~1 md_table after output curve %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
 			/* Middle of chain */
 			} else {
-				rx->profs[j].luo->lookup(rx->profs[j].luo, vals, vals);
+				rx->profs[j].luo->lookup_fwd(rx->profs[j].luo, vals, vals);
 //printf("~1 md_table after middle %f %f %f %f\n",vals[0],vals[1],vals[2],vals[3]);
 			}
 		}
-		prs = rx->profs[j].outs;
+		prs = rx->profs[j].outi.sig;
 	}
 
-	/* convert last PCS to rx->outs PCS if needed */
+	/* convert last PCS to rx->outi.sig PCS if needed */
 	if (prs == icSigXYZData
 	 && rx->outs == icSigLabData) {
 		icmXYZ2Lab(&icmD50, vals, vals);
@@ -878,7 +880,7 @@ static void output_curves(
 		/* The output table of the last profile */
 		/* (ocombine is set if output is PCS) */
 		if (rx->fclut <= rx->lclut)  {
-			rx->profs[rx->lclut].luo->lookup_out(rx->profs[rx->lclut].luo, out_vals, out_vals);
+			rx->profs[rx->lclut].luo->output_fwd(rx->profs[rx->lclut].luo, out_vals, out_vals);
 //printf("~1 md_table after out curve %f %f %f %f\n",out_vals[0],out_vals[1],out_vals[2],out_vals[3]);
 		}
 
@@ -1522,10 +1524,10 @@ main(int argc, char *argv[]) {
 
 		if ((su.profs[i].cal->read(su.profs[i].cal, su.profs[i].name)) == 0) {
 
-			su.profs[i].ins = su.profs[i].outs = icx_colorant_comb_to_icc(su.profs[i].cal->devmask);
-			if (su.profs[i].outs == 0)
+			su.profs[i].ini.sig = su.profs[i].outi.sig = icx_colorant_comb_to_icc(su.profs[i].cal->devmask);
+			if (su.profs[i].outi.sig == 0)
 				error ("Calibration file '%s' has unhandled device mask %s",su.profs[i].name,icx_inkmask2char(su.profs[i].cal->devmask,1));
-			su.profs[i].id = su.profs[i].od = su.profs[i].cal->devchan;
+			su.profs[i].ini.nch = su.profs[i].outi.nch = su.profs[i].cal->devchan;
 			/* We use the user provided direction */
 
 		/* else see if it's an ICC or embedded ICC */
@@ -1568,43 +1570,36 @@ main(int argc, char *argv[]) {
 
 				default:
 					error("Can't handle deviceClass %s from file '%s'",
-					     icm2str(icmProfileClassSignature,su.profs[i].h->deviceClass),
+					     icm2str(icmProfileClassSig,su.profs[i].h->deviceClass),
 					     su.profs[i].c->e.m,su.profs[i].name);
 			}
 
 			/* Get a conversion object */
-			if ((su.profs[i].luo = su.profs[i].c->get_luobj(su.profs[i].c, su.profs[i].func,
+			if ((su.profs[i].luo = (icmLuSpace *)su.profs[i].c->get_luobj(su.profs[i].c, su.profs[i].func,
 			              su.profs[i].intent, icmSigDefaultData, su.profs[i].order)) == NULL)
 				error ("%d, %s from '%s'",su.profs[i].c->e.c, su.profs[i].c->e.m, su.profs[i].name);
 		
 			/* Get details of conversion */
-			su.profs[i].luo->spaces(su.profs[i].luo, &su.profs[i].ins, &su.profs[i].id,
-			         &su.profs[i].outs, &su.profs[i].od, &su.profs[i].alg, NULL, NULL, NULL, NULL);
+			su.profs[i].luo->spaces(su.profs[i].luo, &su.profs[i].ini, &su.profs[i].outi,
+			                  NULL, NULL, NULL, NULL, NULL, &su.profs[i].op, &su.profs[i].can_bwd);
 
 			/* Get native PCS space */
-			su.profs[i].luo->lutspaces(su.profs[i].luo, NULL, NULL, NULL, NULL, &su.profs[i].natpcs);
+			su.profs[i].luo->native_spaces(su.profs[i].luo, NULL, NULL, &su.profs[i].natpcsi);
 
 			/* If this is a lut transform, find out its resolution */
-			if (su.profs[i].alg == icmLutType) {
-				icmLut *lut;
-				icmLuLut *luluo = (icmLuLut *)su.profs[i].luo;		/* Safe to coerce */
-				luluo->get_info(luluo, &lut, NULL, NULL, NULL);	/* Get some details */
-				su.profs[i].clutres = lut->clutPoints;			/* Desired table resolution */
-			} else 
-				su.profs[i].clutres = 0;
-
+			su.profs[i].clutres = su.profs[i].luo->max_clut_res(su.profs[i].luo, NULL);
 		}
 
 		/* Check that we can join to previous correctly */
-		if (!ignoremm && !CSMatch(last_colorspace, su.profs[i].ins))
+		if (!ignoremm && !CSMatch(last_colorspace, su.profs[i].ini.sig))
 			error("Last colorspace %s from file '%s' doesn't match input space %s of profile %s",
-		      icm2str(icmColorSpaceSignature,last_colorspace),
+		      icm2str(icmColorSpaceSig,last_colorspace),
 			  last_cs_file,
-			  icm2str(icmColorSpaceSignature,su.profs[i].ins),
+			  icm2str(icmColorSpaceSig,su.profs[i].ini.sig),
 			  su.profs[i].name);
 
-		last_dim = icmCSSig2nchan(su.profs[i].outs);
-		last_colorspace = su.profs[i].outs;
+		last_dim = icmCSSig2nchan(su.profs[i].outi.sig);
+		last_colorspace = su.profs[i].outi.sig;
 		last_cs_file = su.profs[i].name; 
 	}
 	
@@ -1695,13 +1690,13 @@ main(int argc, char *argv[]) {
 			if ((no_pmtc = ColorSpaceSignature2TiffPhotometric(pmtc,
 			                                    last_colorspace)) == 0)
 				error("TIFF file can't handle output colorspace '%s'!",
-				      icm2str(icmColorSpaceSignature, last_colorspace));
+				      icm2str(icmColorSpaceSig, last_colorspace));
 		
 			if (no_pmtc > 1) {		/* Need to choose a photometric */
 				if (ochoice < 1 || ochoice > no_pmtc ) {
 					if (su.verb) {
 						printf("Possible Output Encodings for output colorspace %s are:\n",
-						        icm2str(icmColorSpaceSignature,last_colorspace));
+						        icm2str(icmColorSpaceSig,last_colorspace));
 						for (i = 0; i < no_pmtc; i++)
 							printf("%d: %s%s\n",i+1, Photometric2str(pmtc[i]), i == 0 ? " (Default)" : "");
 						printf("Using default\n\n");
@@ -1761,7 +1756,7 @@ main(int argc, char *argv[]) {
 				}
 				if (iset != 0xffff) {
 					TIFFSetField(wh, TIFFTAG_INKSET, iset);
-					/* An inknames tage confuses Photoshop with standard spaces */
+					/* An inknames tag confuses Photoshop with standard spaces */
 					if ((iset == INKSET_MULTIINK || iset == 0)		/* N color or CMY */
 					 && inlen > 0 && inames != NULL) {
 						TIFFSetField(wh, TIFFTAG_INKNAMES, inlen, inames);
@@ -1837,7 +1832,7 @@ main(int argc, char *argv[]) {
 
 			default:
 				error("JPEG file can't handle output colorspace '%s'!",
-				      icm2str(icmColorSpaceSignature, last_colorspace));
+				      icm2str(icmColorSpaceSig, last_colorspace));
 		}
 
 		if (resunits != RESUNIT_NONE) {
@@ -1864,9 +1859,18 @@ main(int argc, char *argv[]) {
 	}
 
 	/* - - - - - - - - - - - - - - - */
-	if (su.fclut <= su.lclut
-	 && ((su.profs[su.fclut].natpcs == icSigXYZData && su.profs[su.fclut].alg == icmMatrixFwdType)
-	  || su.profs[su.fclut].ins == icSigXYZData)) {
+	/*
+	   Determining whether to apply an L* like curve using the follwing critearia
+	   is something of a hack, that won't be 100% reliable. A better approach might
+	   be to treat the overal transform as a black box and create a routine that
+	   (given conversions of input and output to/from PCS) synthesises input curves
+	   that distribute input values evenly in perceptual space, and make the output
+	   space more linearly composable, much like the xfit code. See xfit.c
+	 */
+
+	if (su.fclut <= su.lclut &&
+	 su.profs[su.fclut].luo->linear_light_inout(su.profs[su.fclut].luo, 0)
+	) {
 		su.ilcurve = 1;			/* Index CLUT with L* curve rather than Y */
 	}
 
@@ -1875,9 +1879,9 @@ main(int argc, char *argv[]) {
 		su.icombine = 1;		/* CIE can't be conveyed through 0..1 domain lookup */
 	}
 
-	if (su.fclut <= su.lclut
-	 && ((su.profs[su.lclut].natpcs == icSigXYZData && su.profs[su.lclut].alg == icmMatrixBwdType)
-	  || su.profs[su.lclut].outs == icSigXYZData)) {
+	if (su.fclut <= su.lclut &&
+	 su.profs[su.lclut].luo->linear_light_inout(su.profs[su.lclut].luo, 1)
+	) {
 		su.olcurve = 1;			/* Interpolate in L* space rather than Y */
 	}
 
@@ -1904,7 +1908,7 @@ main(int argc, char *argv[]) {
 			if (copydct)
 				printf("JPEG copy will be lossless\n");
 		}
-		printf("Input raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSignature,su.ins));
+		printf("Input raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.ins));
 		printf("Input raster file is %d x %d pixels\n",su.width, su.height);
 		if (rdesc != NULL)
 			printf("Input raster file description: '%s'\n",rdesc);
@@ -1924,7 +1928,8 @@ main(int argc, char *argv[]) {
 				op->del(op);
 				printf("Direction = %s\n",icm2str(icmTransformLookupFunc, su.profs[i].func));
 				printf("Intent = %s\n",icm2str(icmRenderingIntent, su.profs[i].intent));
-				printf("Algorithm = %s\n",icm2str(icmTransformLookupAlgorithm, su.profs[i].alg));
+				printf("Invertable = %s\n",su.profs[i].can_bwd ? "yes" : "no");
+				printf("Op = %s\n",icmPe_Op2str(su.profs[i].op));
 			} else {
 				printf("Calibration %d '%s':\n",i,su.profs[i].name);
 				printf("Direction = %s\n",icm2str(icmTransformLookupFunc, su.profs[i].func));
@@ -1942,8 +1947,8 @@ main(int argc, char *argv[]) {
 				printf("Input curves being combined\n");
 			if (i == 0 && su.ilcurve)
 				printf("Input curves being post-converted to L*\n");
-			printf("Input space = %s\n",icm2str(icmColorSpaceSignature, su.profs[i].ins));
-			printf("Output space = %s\n",icm2str(icmColorSpaceSignature, su.profs[i].outs));
+			printf("Input space = %s\n",icm2str(icmColorSpaceSig, su.profs[i].ini.sig));
+			printf("Output space = %s\n",icm2str(icmColorSpaceSig, su.profs[i].outi.sig));
 			if (i == (su.last) && su.olcurve)
 				printf("Output curves being pre-converted from L*\n");
 			if (i == (su.last) && su.ocombine)
@@ -1953,11 +1958,11 @@ main(int argc, char *argv[]) {
 
 		if (wh != NULL) {
 			printf("Output TIFF file '%s'\n",out_name);
-			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSignature,su.outs));
+			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
 			printf("Output TIFF file photometric is %s\n",Photometric2str(wphotometric));
 		} else {
 			printf("Output JPEG file '%s'\n",out_name);
-			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSignature,su.outs));
+			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
 			printf("Output JPEG file colorspace is %s\n",JPEG_cspace2str(wj.jpeg_color_space));
 			if (wdesc != NULL)
 				printf("Output raster file description: '%s'\n",wdesc);
@@ -1994,7 +1999,7 @@ main(int argc, char *argv[]) {
 			aclutres = dim_to_clutres(su.id, 1);
 		}
 
-		if (clutres == 0)
+		if (clutres < aclutres)
 			clutres = aclutres;
 
 		if (su.verb)

@@ -160,7 +160,7 @@ main(int argc, char *argv[]) {
 		if ((icg = new_cgats()) == NULL) {
 			error("new_cgats() failed");
 		}
-		if ((cgf = new_cgatsFileMem(ro->data, ro->count)) == NULL)  {
+		if ((cgf = new_cgatsFileMem(ro->desc, ro->count)) == NULL)  {
 			error("new_cgatsFileMem() failed");
 		}
 		icg->add_other(icg, "CTI3");
@@ -201,7 +201,7 @@ main(int argc, char *argv[]) {
 				error("writing to file '%s' failed",out_name);
 			}
 		} else {
-			if (ofp->write(ofp, ro->data, 1, ro->count-1) != (ro->count-1)) {
+			if (ofp->write(ofp, ro->desc, 1, ro->count-1) != (ro->count-1)) {
 				error("writing to file '%s' failed",out_name);
 			}
 		}

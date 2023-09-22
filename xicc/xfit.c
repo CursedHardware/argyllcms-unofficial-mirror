@@ -18,14 +18,47 @@
 /*
  * TTBD:
  *
- *		[ This is probably key to fixing L*a*b* B2A black bumpiness. ]
+#ifdef PRIVATE
+ *		[ This is probably key to fixing L*a*b* B2A black bumpiness ?. ]
  *
- *		Need to use this for B2A tables rather than inverting
- *		A2B curves. Need to add grid sizing to cover just gamut range
- *      (including level axis gamut, but watch out for devices that
- *      have values below the black point or above the white point),
- *      3x3 matrix optimization, and white point to grid node mapping for B2A.
- *		Currently code assumes output is always PCS ?? - would need to fix for opposite.
+ *		Need to create something similar to this for B2A tables, device link
+ *		creation and imdi creation, rather than using the existing per
+ *		channel curves or their inverses. Would also be nice to add grid sizing
+ *		to cover just gamut range ? - just spec. it as parameter.
+ *
+ *		!! This might eliminate any need for dividing transforms into
+ *		per-channel/core/per-channel parts !!
+ *
+ *		Might work just as well as this xfit code if we create prelim cLUT
+ *		and use this new routine to create input & output values ?
+ *
+ *		Idea would be to treat target transform as a black box, plus any needed
+ *		conversions	from device to PCS.
+ *
+ *		For the input the aim would be to distribute cLut index points
+ *		perceptually evenly - i.e. like the print calibrate code.
+ *		For Lab in this is a NOP, for XYZ in this would be an XYZ to L* curve,
+ *		and for device in this would be a dev->delta E curve. Possibly:
+ *		Run set of device input values through ->Lab, and then create
+ *		smart non-mon curve fit. Make it smart by first fitting
+ *		power curve from black end vs. normal curve, picking best
+ *		and then fitting higher orders from that choice.
+ *
+ *		For the output curve the aim would be to create a non-extreme
+ *		mapping that makes the output space more linear mixing.
+ *		One approach would be to start with a default curve that maps
+ *		output to a linear light space, i.e. XYZ would be a NOP,
+ *		Lab would be a L* to Y curve, device would be device to XYZ curves,
+ *		then add mod curve to improve additive behavior.
+ *
+ *		Optimization target would be sampling pints along the neutral + 
+ *		primary axes. Use adaptive point sampling to arrive at (say) 50-100 point
+ *		along each axis roughly evenly spaced. The smart non-mon curves 
+ *		that minimizes interleave linear interp errors between points on each axis.
+ *		Need to make a*b* space symetrical about zero.
+ *		Also need to trat non diagonal device spaces specially ?
+ *
+#endif
  *
  *      Currently the Lab A2B output tables are adjusted for ab symetry
  *		to make the B2A white point land on a grid point, given that

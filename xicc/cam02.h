@@ -153,6 +153,9 @@ struct _cam02 {
 	int (*XYZ_to_cam)(struct _cam02 *s, double *out, double *in);
 	int (*cam_to_XYZ)(struct _cam02 *s, double *out, double *in);
 
+	/* Dump the viewing conditions to stdout */
+	void (*dump)(struct _cam02 *s);
+
 /* Private: */
 	/* Scene parameters */
 	ViewingCondition Ev;	/* Enumerated Viewing Condition */

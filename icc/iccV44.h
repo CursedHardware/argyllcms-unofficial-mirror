@@ -148,7 +148,10 @@ typedef unsigned int icVideoCardGammaFormat;
 #define icVideoCardGammaTable           0x00000000
 #define icVideoCardGammaFormula         0x00000001
 
+typedef unsigned int icSig;			/* Generic sig */
+
 /*------------------------------------------------------------------------*/
+
 /* public tags and sizes (+ version notes) */
 typedef enum {
 	icSigAToB0Tag                          = 0x41324230,  /* 'A2B0' */ 
@@ -228,44 +231,54 @@ typedef enum {
 
 /* tag type signatures (+ version notes) */
 typedef enum {
-    icSigChromaticityType               = 0x6368726D,  /* 'chrm' V2.3+ */ 
-	icSigCicpType                       = 0x63696370,  /* 'cicp' V4.4+ */ 
-    icSigColorantOrderType              = 0x636C726F,  /* 'clro' V4.0+ */
-    icSigColorantTableType              = 0x636C7274,  /* 'clrt' V4.0+ */
-    icSigCrdInfoType                    = 0x63726469,  /* 'crdi' V2.1 - V4.0 */
-    icSigCurveType                      = 0x63757276,  /* 'curv' */
-    icSigDataType                       = 0x64617461,  /* 'data' */
-    icSigDateTimeType                   = 0x6474696D,  /* 'dtim' */
-    icSigDictType                       = 0x27646963,  /* 'dict' V4.4+ */
-    icSigDeviceSettingsType             = 0x64657673,  /* 'devs' V2.2 - V4.0 */
-    icSigLut16Type                      = 0x6d667432,  /* 'mft2' */
-    icSigLut8Type                       = 0x6d667431,  /* 'mft1' */
-    icSigLutAToBType                    = 0x6d414220,  /* 'mAB ' V4.0+ */
-    icSigLutBToAType                    = 0x6d424120,  /* 'mBA ' V4.0+ */
-    icSigMeasurementType                = 0x6D656173,  /* 'meas' */
-    icSigMultiLocalizedUnicodeType      = 0x6D6C7563,  /* 'mluc' V4.0+ */
-    icSigMultiProcessElementsType       = 0x6D706574,  /* 'mpet' V4.3+ */
-    icSigNamedColorType                 = 0x6E636f6C,  /* 'ncol' V2.0 - V2.4 (deprecated) */
-    icSigNamedColor2Type                = 0x6E636C32,  /* 'ncl2' V2.0+ */
-    icSigParametricCurveType            = 0x70617261,  /* 'para' V4.0+ */
-    icSigProfileSequenceDescType        = 0x70736571,  /* 'pseq' */
-    icSigProfileSequenceIdentifierType  = 0x70736964,  /* 'psid' V4.3+ */
-    icSigResponseCurveSet16Type         = 0x72637332,  /* 'rcs2' V2.2+ */
-    icSigS15Fixed16ArrayType            = 0x73663332,  /* 'sf32' */
-    icSigScreeningType                  = 0x7363726E,  /* 'scrn' V2.0 - V4.0 */
-    icSigSignatureType                  = 0x73696720,  /* 'sig ' */
-    icSigTextType                       = 0x74657874,  /* 'text' */
-    icSigTextDescriptionType            = 0x64657363,  /* 'desc' V2.0 - V2.4 */
-    icSigU16Fixed16ArrayType            = 0x75663332,  /* 'uf32' */
-    icSigUcrBgType                      = 0x62666420,  /* 'bfd ' V2.0 - V4.0 */
-    icSigUInt16ArrayType                = 0x75693136,  /* 'ui16' */
-    icSigUInt32ArrayType                = 0x75693332,  /* 'ui32' */
-    icSigUInt64ArrayType                = 0x75693634,  /* 'ui64' */
-    icSigUInt8ArrayType                 = 0x75693038,  /* 'ui08' */
-    icSigVideoCardGammaType             = 0x76636774,  /* 'vcgt' ColorSync 2.5+ */
-    icSigViewingConditionsType          = 0x76696577,  /* 'view' */
-    icSigXYZType                        = 0x58595A20,  /* 'XYZ ' */
-    icMaxEnumType                       = icMaxTagVal   
+    icSigChromaticityType              = 0x6368726D,  /* 'chrm' V2.3+ */ 
+	icSigCicpType                      = 0x63696370,  /* 'cicp' V4.4+ */ 
+    icSigColorantOrderType             = 0x636C726F,  /* 'clro' V4.0+ */
+    icSigColorantTableType             = 0x636C7274,  /* 'clrt' V4.0+ */
+    icSigCrdInfoType                   = 0x63726469,  /* 'crdi' V2.1 - V4.0 */
+    icSigCurveType                     = 0x63757276,  /* 'curv' */
+    icSigDataType                      = 0x64617461,  /* 'data' */
+    icSigDateTimeType                  = 0x6474696D,  /* 'dtim' */
+    icSigDictType                      = 0x64696374,  /* 'dict' V4.4+ */
+    icSigDeviceSettingsType            = 0x64657673,  /* 'devs' V2.2 - V4.0 */
+    icSigLut16Type                     = 0x6d667432,  /* 'mft2' */
+    icSigLut8Type                      = 0x6d667431,  /* 'mft1' */
+    icSigLutAToBType                   = 0x6d414220,  /* 'mAB ' V4.0+ */
+    icSigLutBToAType                   = 0x6d424120,  /* 'mBA ' V4.0+ */
+    icSigMeasurementType               = 0x6D656173,  /* 'meas' */
+    icSigMultiLocalizedUnicodeType     = 0x6D6C7563,  /* 'mluc' V4.0+ */
+    icSigMultiProcessElementsType      = 0x6D706574,  /* 'mpet' V4.3+ */
+    icSigNamedColorType                = 0x6E636f6C,  /* 'ncol' V2.0 - V2.4 (deprecated) */
+    icSigNamedColor2Type               = 0x6E636C32,  /* 'ncl2' V2.0+ */
+    icSigParametricCurveType           = 0x70617261,  /* 'para' V4.0+ */
+    icSigProfileSequenceDescType       = 0x70736571,  /* 'pseq' */
+    icSigProfileSequenceIdentifierType = 0x70736964,  /* 'psid' V4.3+ */
+    icSigResponseCurveSet16Type		   = 0x72637332,  /* 'rcs2' V2.2+ */
+    icSigS15Fixed16ArrayType           = 0x73663332,  /* 'sf32' */
+    icSigScreeningType                 = 0x7363726E,  /* 'scrn' V2.0 - V4.0 */
+    icSigSignatureType                 = 0x73696720,  /* 'sig ' */
+    icSigTextType                      = 0x74657874,  /* 'text' */
+    icSigTextDescriptionType           = 0x64657363,  /* 'desc' V2.0 - V2.4 */
+    icSigU16Fixed16ArrayType           = 0x75663332,  /* 'uf32' */
+    icSigUcrBgType                     = 0x62666420,  /* 'bfd ' V2.0 - V4.0 */
+    icSigUInt16ArrayType               = 0x75693136,  /* 'ui16' */
+    icSigUInt32ArrayType               = 0x75693332,  /* 'ui32' */
+    icSigUInt64ArrayType               = 0x75693634,  /* 'ui64' */
+    icSigUInt8ArrayType                = 0x75693038,  /* 'ui08' */
+    icSigVideoCardGammaType            = 0x76636774,  /* 'vcgt' ColorSync 2.5+ */
+    icSigViewingConditionsType         = 0x76696577,  /* 'view' */
+    icSigXYZType                       = 0x58595A20,  /* 'XYZ ' */
+	/* MultiProcessElements sub-tagtypes */
+    icSigCurveSetElement               = 0x63767374,  /* 'cvst' V4.3+ */ 
+    icSigOneDCurveEncoding             = 0x63757266,  /* 'curf' V4.3+ */ 
+    icSigFormulaCurveSegEncoding       = 0x70617266,  /* 'parf' V4.3+ */ 
+    icSigSampledCurveSegEncoding       = 0x73616D66,  /* 'samf' V4.3+ */ 
+    icSigMatrixElement                 = 0x6D617466,  /* 'matf' V4.3+ */ 
+    icSigCLUTElement                   = 0x636C7574,  /* 'clut' V4.3+ */ 
+    icSigBACSElement                   = 0x62414353,  /* 'bACS' V4.3+ */ 
+    icSigEACSElement                   = 0x65414353,  /* 'eACS’ V4.3+ */ 
+
+    icMaxEnumTagType                   = icMaxTagVal   
 } icTagTypeSignature;
 
 /* Aliases */
@@ -326,7 +339,7 @@ typedef enum {
     icSigMchEData                       = 0x4D434845,  /* 'MCHE' Colorsync ? */
     icSigMchFData                       = 0x4D434846,  /* 'MCHF' Colorsync ? */
 
-    icMaxEnumData                       = icMaxTagVal   
+    icMaxEnumColorSpace					= icMaxTagVal   
 } icColorSpaceSignature;
 
 /* profileClass enumerations */
@@ -343,7 +356,7 @@ typedef enum {
 
 /* Platform Signatures */
 typedef enum {
-    icSigPlatformUnknown                = 0x00000000,  /* */
+    icSigNoPlatform                     = 0x00000000,  /* Not specified (V2.2+) */
     icSigMacintosh                      = 0x4150504C,  /* 'APPL' */
     icSigMicrosoft                      = 0x4D534654,  /* 'MSFT' */
     icSigSolaris                        = 0x53554E57,  /* 'SUNW' */
@@ -395,14 +408,9 @@ typedef enum {
 	icMaxEnumCMM                           = icMaxTagVal 
 } icCMMSignature;
 
-/* Reference Medium Gamut Signatures */
-typedef enum {
-    icSigPerceptualReferenceMediumGamut = 0x70726d67,  /* 'prmg' V4.3+ */
-    icMaxEnumReferenceMediumGamut       = icMaxTagVal  
-} icReferenceMediumGamutSignature;
-
 /* Technology signature descriptions */
 typedef enum {
+    icSigTechnologyUnknown              = 0x00000000,  /* (from profileSequenceDescType) */
     icSigFilmScanner                    = 0x6673636E,  /* 'fscn' */
     icSigDigitalCamera                  = 0x6463616D,  /* 'dcam' */
     icSigReflectiveScanner              = 0x7273636E,  /* 'rscn' */
@@ -444,13 +452,6 @@ typedef enum {
     icGeometry0dord0                    = 0x00000002,  /* 0/d or d/0 */
     icMaxEnumGeometry                   = icMaxTagVal   
 } icMeasurementGeometry;
-
-/* Measurement Flare, used in the measurmentType tag */
-typedef enum {
-    icFlare0                            = 0x00000000,  /* 0% flare */
-    icFlare100                          = 0x00000001,  /* 100% flare */
-    icMaxEnumFlare                      = icMaxTagVal   
-} icMeasurementFlare;
 
 /* Rendering Intents, used in the profile header */
 typedef enum {
@@ -595,29 +596,15 @@ typedef enum {
 	icMaxEnumPhCol                   = icMaxTagVal
 } icPhColEncoding;
 
-/* icSigMultiProcessElementsType elements */
+/* Formula curve segment encoding (V4.3+) */
 typedef enum {
-    icSigCurveSetElement               = 0x6D666C74,  /* 'cvst' */ 
-    icSigOneDCurveEncoding             = 0x63757266,  /* 'curf' */ 
-    icSigFormulaCurveSegEncoding       = 0x70617266,  /* 'parf' */ 
-    icSigSampledCurveSegEncoding       = 0x73616D66,  /* 'samf' */ 
-    icSigMatrixElement                 = 0x6D617466,  /* 'matf' */ 
-    icSigCLUTElement                   = 0x636C7574,  /* 'clut' */ 
-    icSigBACSElement                   = 0x62414353,  /* 'bACS' */ 
-    icSigEACSElement                   = 0x65414353,  /* 'eACS’' */ 
-    icMaxEnumMPElement                 = icMaxTagVal
-} icMultiProcessElementSig;
-
-/* Formula curve segment encoding */
-typedef enum {
-    icCurveSegFunction1        = 0x0000, /* Y = (a * X + b)^l + c */
-    icCurveSegFunction2        = 0x0001, /* Y = a * log10(b * X^l + c) + d */
+    icCurveSegFunction1        = 0x0000, /* Y = (a * X + b)^g + c */
+    icCurveSegFunction2        = 0x0001, /* Y = a * log10(b * X^g + c) + d */
     icCurveSegFunction3        = 0x0002, /* Y = a * b^(c * X + d) + e */
     icMaxEnumCurveSegFunctionType = icMaxTagVal
 } icCurveSegFunctionType;
 
-
-/* Parametric curve types for icSigParametricCurveType */
+/* Parametric curve types for icSigParametricCurveType (V4.0+) */
 typedef enum {
     icCurveFunction1        = 0x0000, /* Y = X ^ p0 */
     icCurveFunction2        = 0x0001, /* Y = X >= -p2/p1 ? Y = (p1 * X + p2)^p0 : 0 */
@@ -635,15 +622,13 @@ typedef enum {
 	icReflectionHardcopyOriginalColorimetry	= 0x72686F63, /* 'rhoc' */
 	icReflectionPrintOutputColorimetry		= 0x72706F63, /* 'rpoc' */
     icMaxEnumColorimetricIntentImageState   = icMaxTagVal
-} icColorimetricIntentImageStateType;
+} icColorimetricIntentImageStateSig;
 
-/* Types for icSigPerceptualRenderingIntentGamutTag (V4.3+) */
-/* and icSigSaturationRenderingIntentGamutTag */
+/* Reference Medium Gamut Signatures (V4.3+) */
 typedef enum {
-    icPerceptualReferenceMediumGamut		= 0x70726D67, /* 'prmg' */
-	icMaxEnumRenderingIntentGamut           = icMaxTagVal
-} icSigRenderingIntentGamutType;
-
+    icSigPerceptualReferenceMediumGamut = 0x70726d67,  /* 'prmg' */
+    icMaxEnumReferenceMediumGamut       = icMaxTagVal  
+} icReferenceMediumGamutSignature;
 
 #ifdef __cplusplus
 	}

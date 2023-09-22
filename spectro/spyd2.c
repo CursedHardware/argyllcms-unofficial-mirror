@@ -2982,6 +2982,7 @@ spyd2_init_inst(inst *pp) {
 		int rwbytes;			/* Data bytes read or written */
 
 		
+		a1logd(p->log, 3, "spyd3/4/5 flush any stale data:\n");
 		for (i = 0; i < 10; i++) {
 			if ((p->icom->usb_read(p->icom, NULL, 0x81, buf, 8, &rwbytes, 0.1) & ICOM_TO)
 			 && i > 9)

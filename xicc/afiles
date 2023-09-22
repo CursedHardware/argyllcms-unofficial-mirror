@@ -7,7 +7,6 @@ xicc.c
 xmono.c
 xmatrix.c
 xlut.c
-xlutfix.c
 xcal.h
 xcal.c
 mpp.h

@@ -34,7 +34,7 @@ void usage(void) {
 	fprintf(stderr," -o observ       Choose CIE Observer for spectral data:\n");
 	fprintf(stderr,"                 1931_2, 1964_10, 2012_2, 2012_10, S&B 1955_2, shaw, J&V 1978_2 or file.cmf\n");
 	fprintf(stderr," -w st,en,sp     Output start, end and spacing nm\n");
-	fprintf(stderr," -5 		     Commenf output wavelegths every 5\n");
+	fprintf(stderr," -5 		     Comment output wavelegths every 5\n");
 	exit(1);
 }
 

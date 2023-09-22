@@ -19,6 +19,7 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <math.h>
 #include "aconfig.h"
 #include "cgats.h"

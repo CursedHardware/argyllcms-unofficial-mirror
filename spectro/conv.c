@@ -264,8 +264,9 @@ int amutex_chk(CRITICAL_SECTION *lock) {
 		static volatile LONG ilock = 0;
 
 		/* Try ilock */
-//		if (InterlockedCompareExchange((LONG **)&ilock, (LONG *)1, (LONG *)0) == 0) {
-		if (InterlockedCompareExchange(&ilock, (LONG)1, (LONG)0) == 0) {
+//		if (InterlockedCompareExchange((LONG **)&ilock, (LONG *)1, (LONG *)0) == 0)
+		if (InterlockedCompareExchange(&ilock, (LONG)1, (LONG)0) == 0)
+		{
 			/* We locked it */
 			if (lock->LockCount == amutex_static_LockCount) {	/* Still not inited */
 				InitializeCriticalSection(lock);				/* So we init it */

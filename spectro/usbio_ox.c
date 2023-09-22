@@ -411,6 +411,10 @@ char **pnames		/* List of process names to try and kill before opening */
 			a1logd(p->log, 6, "usb_open_port: SetConfiguration %d OK\n",config);
 		}
 
+		/* For some devices (Spyder 3/4 ?) on some versions of OS X (Ventura ?), */
+		/* we seem to need to let the device recover from the set configuration. */
+		msec_sleep(50);
+
 		/* Get interfaces */
 		{
 			int i, j;

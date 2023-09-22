@@ -4,6 +4,7 @@
  * the AtoB1 table, and also correct the neutral
  * axis of the BtoA0 and BtoA2 tables.
  *
+ * This only works with profiles with icSigLut16Type & icSigLut8Type Luts
  *
  * Author:  Graeme W. Gill
  * Date:    9/7/00
@@ -37,6 +38,9 @@
 
 #define USE_CAM_CLIP_OPT		/* Clip in CAM Jab space rather than Lab */
 #undef DEBUG		/* Print each value changed */
+
+
+typedef icmLut1 icmLut;			/* Will only work for icSigLut16Type & icSigLut8Type */
 
 void usage(void) {
 	fprintf(stderr,"Invert AtoB1 to make BtoA1 for CMYK profiles, Version %s\n",ARGYLL_VERSION_STR);
@@ -120,7 +124,9 @@ static void do_abstract(callback *p, double out[3], double in[3]) {
 
 /* - - - - - - - - - */
 /* New input table */
-void Lab_Labp(void *cntx, double out[3], double in[3]) {
+void Lab_Labp(void *cntx, double out[3], double in[3]
+, int tn
+) {
 	callback *p = (callback *)cntx;
 
 #ifdef DEBUG
@@ -144,7 +150,9 @@ void Lab_Labp(void *cntx, double out[3], double in[3]) {
 /*  clut  */
 
 /* Normal CLUT routine */
-void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
+void Labp_CMYKp(void *cntx, double out[4], double in[3]
+, int tn
+) {
 	double temp[4], targetk = 0.0;
 	int rv;
 	callback *p = (callback *)cntx;
@@ -250,7 +258,9 @@ void Labp_CMYKp(void *cntx, double out[4], double in[3]) {
 
 /* - - - - - - - - - */
 /* New output table */
-void CMYKp_CMYK(void *cntx, double out[4], double in[4]) {
+void CMYKp_CMYK(void *cntx, double out[4], double in[4]
+, int tn
+) {
 	callback *p = (callback *)cntx;
 
 #ifdef DEBUG
@@ -702,21 +712,6 @@ main(int argc, char *argv[]) {
 			if (wo->ttype != icSigLut16Type && wo->ttype != icSigLut8Type)
 				error("Lut table isn't Lut8 or Lut16 Type");
 
-			/* Set reverse input table resolution to same as fwd output */
-			wo->inputEnt = cb.AtoB->lut->outputEnt;
-
-			/* Let user override for BtoA1 */
-			if (sig == icSigBToA1Tag && clutres > 0) {
-				if (verb)
-					printf("Overriding existing clut resolution %d with %d\n",wo->clutPoints,clutres);
-		    	wo->clutPoints = clutres;
-			}
-			/* If Lut8, make sure the input and output tables have 256 enries. */
-			if (wo->ttype == icSigLut8Type) {
-		    	wo->inputEnt = 256;
-		    	wo->outputEnt = 256;
-			}
-			wo->allocate(wo);	/* Allocate space */
 
 			/* Make sure that we don't process a table twice */
 			done[ii] = wo;
@@ -730,6 +725,30 @@ main(int argc, char *argv[]) {
 					printf("Skipping %s table - already done\n", icm2str(icmRenderingIntent, intent));
 
 			} else {
+				icmXformSigs sigs[1];
+				unsigned int inputEnt;
+				unsigned int cres, clutPoints[MAX_CHAN];
+				unsigned int outputEnt;
+
+				sigs[0].sig = sig;
+				sigs[0].ttype = icSigLut16Type;
+
+				if ((inputEnt = cb.AtoB->plu->max_out_res(cb.AtoB->plu, NULL)) == 0)
+					inputEnt = 1024;
+
+				if ((cres = cb.AtoB->plu->max_clut_res(cb.AtoB->plu, NULL)) == 0)
+					cres = 17;
+
+				/* Let user override for BtoA1 */
+				if (sig == icSigBToA1Tag && clutres > 0) {
+					if (verb)
+						printf("Overriding existing clut resolution %d with %d\n",cres,clutres);
+			    	cres = clutres;
+				}
+				for (i = 0; i < 3; i++)
+					clutPoints[i] = cres; 
+				if ((outputEnt = cb.AtoB->plu->max_in_res(cb.AtoB->plu, NULL)) == 0)
+					outputEnt = 1024;
 		
 				if (verb)
 					printf("About to start processing %s\n", icm2str(icmRenderingIntent, intent));
@@ -737,28 +756,35 @@ main(int argc, char *argv[]) {
 				if (cb.verb) {
 					unsigned int ui;
 					int extra;
-					for (cb.total = 1, ui = 0; ui < wo->inputChan; ui++, cb.total *= wo->clutPoints)
+					for (cb.total = 1, ui = 0; ui < 3; cb.total *= clutPoints[ui], ui++)
 						; 
 					/* Add in cell center points */
-					for (extra = 1, ui = 0; ui < wo->inputChan; ui++, extra *= (wo->clutPoints-1))
+					for (extra = 1, ui = 0; ui < 3; extra *= clutPoints[ui]-1, ui++)
 						;
 					cb.total += extra;
 					printf(" 0%%"), fflush(stdout);
 				}
-				/* Use helper function to do the hard work. */
-				if (wo->set_tables(wo,
-						ICM_CLUT_SET_APXLS,
-						&cb,				/* Context */
-						icSigLabData, 		/* Input color space */
-						icSigCmykData, 		/* Output color space */
-						Lab_Labp,			/* Linear input transform Lab->Lab' */
-						NULL, NULL,			/* Use default Lab' range */
-						Labp_CMYKp,			/* Lab' -> CMYK' transfer function */
-						NULL, NULL,			/* Use default CMYK' range */
-						CMYKp_CMYK,		 	/* Output transfer function, CMYK'->CMYK */
-						NULL, NULL			/* default APXLS range */
-				) != 0)
+
+				if (icco->create_lut_xforms(
+					icco,
+					ICM_CLUT_SET_APXLS,
+					&cb,				/* Context */
+					1,					/* One table */
+					sigs,				/* signatures and tag types for each table */
+					2,					/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+					inputEnt, clutPoints, outputEnt,	/* Table resolutions */
+					icSigLabData, 		/* Input color space */
+					icSigCmykData, 		/* Output color space */
+					NULL, NULL,			/* Use default input range */
+					Lab_Labp,			/* Linear input transform Lab->Lab' */
+					NULL, NULL,			/* Use default Lab' range */
+					Labp_CMYKp,			/* Lab' -> CMYK' transfer function */
+					NULL, NULL,			/* Use default CMYK' range */
+					CMYKp_CMYK,		 	/* Output transfer function, CMYK'->CMYK */
+					NULL, NULL			/* default APXLS range */
+				) != ICM_ERR_OK)
 					error("Setting 16 bit Lab->CMYK Lut failed: %d, %s",icco->e.c,icco->e.m);
+
 	
 				if (verb)
 					printf("\nDone processing %s\n", icm2str(icmRenderingIntent, intent));
@@ -787,6 +813,10 @@ main(int argc, char *argv[]) {
 	/* Open up the other profile for writing */
 	if ((wr_fp = new_icmFileStd_name(&err, out_name,"w")) == NULL)
 		error ("Can't open file '%s' (0x%x, '%s')",out_name,err.c,err.m);
+
+	/* Relax format so we don't barf on input profile contents */
+	icco->set_cflag(icco, icmCFlagWrFormatWarn);
+	icco->set_cflag(icco, icmCFlagWrVersionWarn);
 
 	if ((rv = icco->write(icco,wr_fp,0)) != 0)
 		error ("Write file: %d, %s",rv,icco->e.m);

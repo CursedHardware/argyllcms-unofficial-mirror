@@ -296,23 +296,10 @@ i1d3_command(
 		rv = i1d3_interp_code((inst *)p, I1D3_BAD_RD_LENGTH);
 	}
 
-#ifdef NEVER
 	/* The rev B. seems to return error code 0x83 if it doesn't find any edges */
-	/* within its timeout period, rather than simply returning 0 like the Rev. A. */
-	/* Ignore the error and process the 0 values. */
-	if ((rv == inst_ok && cc == i1d3_periodmeas && recv[1] == 0x02 && recv[0] == 0x83)
-	 || (rv == inst_ok && cc == i1d3_aiomeas    && recv[1] == 0x04 && recv[0] == 0x83)) {
-		int i;
-		for (i = 2; i < 14; i++) {
-			if (recv[i] != 0)
-				break;
-		}
-		if (i >= 14) {		/* returned all zero's */
-			if (!nd) a1logd(p->log, 1, "i1d3_command: ignoring status byte = 0x%x\n",recv[0]);
-			recv[0] = 0x00;	/* Fudge OK status */
-		}
-	}
-#endif
+	/* within its timeout period, rather than simply returning 0 for that channel */
+	/* like the Rev. A. Return our own error code so that the higher level code */
+	/* can retry using frequency measurement mode. */
 
 	/* The first byte returned seems to be a command result error code. */
 	if (rv == inst_ok && recv[0] != 0x00) {
@@ -550,7 +537,7 @@ i1d3_get_firmver(
 	return inst_ok;
 }
 
-/* Get more hw information. 
+/* Get more hw information. */
 /* On Rev A this will fail. */
 /* On Rev B returns two nibbles of info */
 static inst_code
@@ -2100,11 +2087,12 @@ i1d3_take_emis_measurement(
 
 			/* Deal with Rev B quirk */
 			if (0) {
+				double int2;
 		permeasfail:;
-				double int2 = 10.0;
 
 				a1logd(p->log,3,"Mitigating unexpected period measurement failure\n");
 
+				int2 = 10.0;
 				if (p->refperiod > 0.0) {		/* If we have a refresh period */
 					int n;
 					n = (int)ceil(int2/p->refperiod);	/* Quantize */
@@ -2185,7 +2173,7 @@ i1d3_take_aio_measurement(
 			p->th_en = isth;
 			return ev; 
 		} else {
-			/* This may not actually occur with a small enough inttime. 
+			/* This may not actually occur with a small enough inttime. */
 			/* Assume it's close to zero. */
 			/* May not be so accurate for non-adaptive, but we'll re-measure if is. */
 			rgb[0] = rgb[1] = rgb[2] = 0.0;
@@ -4311,20 +4299,59 @@ i1d3_get_set_opt(inst *pp, inst_opt_type m, ...) {
 		return inst_ok;
 	}
 
-	/* Get the spectral sensitivities */
+	/* Get the raw & XYZ spectral sensitivities */
 	if (m == inst_opt_get_cal_sp_sens) {
-		xspect *sp;
+		xspect *sp1, *sp2;
 		inst_code rv;
 		va_list args;
 		int i;
 
 		va_start(args, m);
-		sp = va_arg(args, xspect *);
+		sp1 = va_arg(args, xspect *);
+		sp2 = va_arg(args, xspect *);
 		va_end(args);
 
-		sp[0] = p->sens[0];		/* Struct copy */
-		sp[1] = p->sens[1];
-		sp[2] = p->sens[2];
+		if (sp1 != NULL) {
+			sp1[0] = p->sens[0];		/* Struct copy */
+			sp1[1] = p->sens[1];
+			sp1[2] = p->sens[2];
+		}
+
+		if (sp2 != NULL) {
+			/* Compute the calibrated sensor spectra */
+			int i, j, k;
+			xspect calcmfs[3];
+			double scale;
+			xspect *xyz[3];
+			standardObserver(xyz, icxOT_CIE_1931_2);
+
+			for (j = 0; j < 3; j++) {
+				XSPECT_COPY_INFO(&calcmfs[j], &p->sens[j]); 
+			}
+
+			/* For each wavelength */
+			for (i = 0; i < p->sens[0].spec_n; i++) {
+				/* Do matrix multiply */
+				for (j = 0; j < 3; j++) {
+					calcmfs[j].spec[i] = 0.0;
+					for (k = 0; k < 3; k++) {
+						calcmfs[j].spec[i] += p->emis_cal[j][k] * p->sens[k].spec[i];
+					}
+				}
+			}
+
+			/* Scale the X to be 1.0 */
+			scale = value_xspect(xyz[1], 555.0)/value_xspect(&calcmfs[1], 555.0);
+			for (i = 0; i < p->sens[0].spec_n; i++) {
+				for (j = 0; j < 3; j++) {
+					calcmfs[j].spec[i] *= scale;
+				}
+			}
+
+			sp2[0] = calcmfs[0];		/* Struct copy */
+			sp2[1] = calcmfs[1];
+			sp2[2] = calcmfs[2];
+		}
 
 		return inst_ok;
 	}

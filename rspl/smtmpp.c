@@ -120,12 +120,12 @@ double *in
 }
 
 
-/* Setup the reference convertion object to imitate the given dimentionality */
+/* Setup the reference convertion object to imitate the given dimensionality */
 /* return nz if the given idex is out of range */
 static int set_refconv(
 	refconv *s,
 	int ix,				/* Index of convertion, typicall 0-3 */
-	int di				/* Chosen dimentionalty */
+	int di				/* Chosen dimensionalty */
 ) {
 	int e;
 

@@ -263,9 +263,9 @@ main(int argc, char *argv[]) {
 		for (i = 0; i < ro->inputChan; i++) {				/* Input tables */
 			double val;
 			j = MOD_A2B;
-			val = ro->inputTable[i * ro->inputEnt + j];
+			val = ro->pe_ic[i]->data[j];
 			val = pow(val, 2.0);
-			ro->inputTable[i * ro->inputEnt + j] = val;
+			ro->pe_ic[i]->data[j] = val;
 		}
 	}
 #endif /* MOD_A2B */

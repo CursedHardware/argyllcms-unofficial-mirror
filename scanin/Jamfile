@@ -9,8 +9,10 @@ Libraries = libscanrd ;
 Executables = scanin ;
 Headers = scanrd.h ;
 Samples = it8.cht it8Wolf.cht ColorChecker.cht ColorChecker.cie ColorCheckerDC.cht
-          ColorCheckerDC.ti2 ColorCheckerSG.cht ColorCheckerSG.ti2 Hutchcolor.cht
-          i1_RGB_Scan_1.4.cht ColorCheckerPassport.cht ColorCheckerPassport.cie
+          Hutchcolor.cht i1_RGB_Scan_1.4.cht
+          ColorCheckerDC.ti2 ColorCheckerSG.cht ColorCheckerSG.ti2
+          ColorCheckerPassport.cht ColorCheckerPassport.cie ColorCheckerPassport.ti2
+          ColorCheckerHalfPassport.cht ColorCheckerHalfPassport.cie ColorCheckerHalfPassport.ti2
           QPcard_201.cht QPcard_201.cie QPcard_202.cht QPcard_202.cie CMP_DT_003.cht
           CMP_Digital_Target-4.cht CMP_Digital_Target-4.ti2 CMP_Digital_Target-4.cie
           CMP_Digital_Target-7.cht CMP_Digital_Target-2019.cht CMP_Digital_Target_Studio.cht

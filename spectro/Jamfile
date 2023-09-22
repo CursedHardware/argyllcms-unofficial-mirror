@@ -200,7 +200,7 @@ LINKLIBS = libinst libinstapp
            ../gamut/libgamut
            ../rspl/librspl ../cgats/libcgats
            ../icc/libicc ../plot/libplot ../plot/libvrml
-		   ../ccast/libccast $(SSLLIB) ../yajl/libyajl ../render/librender
+		   ../ccast/libccast $(SSLLIB) ../yajl/libyajl
            $(TIFFLIB) $(JPEGLIB) $(PNGLIB) $(ZLIB)
            ../numlib/libui libconv ../numlib/libnum
            $(CMMLIBS) ;
@@ -229,7 +229,7 @@ echo "HOME = " $(HOME) ;
 echo "PWD = " $(PWD) ;
 
 # CCMX and CCSStool
-Main ccxxmake : ccxxmake.c : : : : : libdisp ;
+Main ccxxmake : ccxxmake.c : : : : : libdisp ../render/librender ;
 
 # Gretag Spectroscan/T filmstrip reader
 #Main filmread : filmread.c : : : : : ;
@@ -238,10 +238,10 @@ Main ccxxmake : ccxxmake.c : : : : : libdisp ;
 Main synthcal : synthcal.c ;
 
 # Display calibration program
-Main dispcal : dispcal.c : : : ../target : : libdisp ;
+Main dispcal : dispcal.c : : : ../target : : libdisp ../render/librender ;
 
 # Display tester program
-Main dispread : dispread.c : : : : : libdisp ;
+Main dispread : dispread.c : : : : : libdisp ../render/librender ;
 
 if $(USE_CMFM) = true && [ GLOB [ NormPaths . ] : 1501_cal.c ] {
 	echo "Compiling LedCool support" ;
@@ -264,7 +264,7 @@ if [ GLOB [ NormPaths . ] : i1d3test2.c ]  {
 #display test window test/Lut loader utility
 # [ Could avoid need for libinst libusb etc.
 #   by separating system dependent utils to a separate library .] 
-MainVariant dispwin : dispwin.c webwin.c ccwin.c dummywin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : $(LibWin) ;
+MainVariant dispwin : dispwin.c webwin.c ccwin.c dummywin.c $(MADVRSOURCE) : : STANDALONE_TEST : : mongoose : ../render/librender $(LibWin) ;
 
 LINKLIBS = libinsttypes libdisptechs ../xicc/libxicc ../gamut/libgamut ../rspl/librspl
            ../cgats/libcgats ../icc/libicc ../plot/libplot libconv ../numlib/libnum

@@ -25,9 +25,9 @@ typedef enum {
 	prof_default          = 0,		/* Default for type of device */
 	prof_clutLab          = 1,		/* Lab clut. */
 	prof_clutXYZ          = 2,		/* XYZ clut. */
-	prof_gammat           = 3,		/* XYZ gamut + matrix */
+	prof_gammat           = 3,		/* XYZ gamma + matrix */
 	prof_shamat           = 4,		/* XYZ shaper + matrix */
-	prof_gam1mat          = 5,		/* XYZ shared TRC gamut + matrix */
+	prof_gam1mat          = 5,		/* XYZ shared TRC gamma + matrix */
 	prof_sha1mat          = 6,		/* XYZ shared TRC shaper + matrix */
 	prof_matonly          = 7		/* XYZ matrix, linear */
 } prof_atype;
@@ -36,7 +36,7 @@ typedef enum {
 void make_output_icc(
 	prof_atype ptype,		/* Profile output type */
 	int mtxtoo,				/* NZ if matrix tags should be created for Display XYZ cLUT */
-	icmTV iccver,			/* ICC profile version to create */
+	icxTransformCreateType icctype, /* ICC profile type to create */
 	int verb,				/* Vebosity level, 0 = none */
 	int iquality,			/* A2B table quality, 0..2 */
 	int oquality,			/* B2A table quality, 0..2 */
@@ -87,7 +87,7 @@ void make_output_icc(
 /* Input device */
 void make_input_icc(
 	prof_atype ptype,		/* Profile algorithm type */
-	icmTV iccver,			/* ICC profile version to create */
+	icxTransformCreateType icctype, /* ICC profile type to create */
 	int verb,
 	int iquality,			/* A2B table quality, 0..3 */
 	int oquality,			/* B2A table quality, 0..3 */

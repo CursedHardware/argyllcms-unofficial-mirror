@@ -16,30 +16,15 @@
 /*
  * The distinction between "core" and "utility" functions is somewhat
  * arbitrary. We do this just to make filesize a bit more managable.
+ * This file is #included in icc.c.
  */
+
+/* This file is #included in icc.c */
 
 /*
  * TTBD:
  *
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <ctype.h>
-#include <math.h>
-#include <time.h>
-#ifdef __sun
-#include <unistd.h>
-#endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
-#include "icc.h"
 
 #ifndef M_PI
 # define M_PI 3.14159265358979323846
@@ -212,6 +197,8 @@ void icmScale3x3(double dst[3][3], double src[3][3], double scale) {
 [     ] * [] => []
 [     ]   []    []
 
+So indexes are mat[out][in]
+
  */
 
 /* Multiply 3 array by 3x3 transform matrix */
@@ -364,11 +351,10 @@ double icmDet3x3(double in[3][3]) {
     return ans;
 }
 
-#define ICM_SMALL_NUMBER	1.e-8
 /* 
  *   inverse( original_matrix, inverse_matrix )
  * 
- *    calculate the inverse of a 4x4 matrix
+ *    calculate the inverse of a 3x3 matrix
  *
  *     -1     
  *     A  = ___1__ adjoint A
@@ -532,7 +518,7 @@ int icmClip3sig(double out[3], double in[3]) {
 }
 
 /* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
+/* and return any clipping margine over the limits. */
 double icmClip3marg(double out[3], double in[3]) {
 	int j;
 	double tt, marg = 0.0;
@@ -552,7 +538,6 @@ double icmClip3marg(double out[3], double in[3]) {
 	}
 	return marg;
 }
-
 
 /* Normalise a 3 vector to the given length. Return nz if not normalisable */
 int icmNormalize3(double out[3], double in[3], double len) {
@@ -1350,6 +1335,207 @@ void icmMulBy2x2(double out[2], double mat[2][2], double in[2]) {
 	out[1] = tt[1];
 }
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - */
+
+/* Set a vector to a single value */
+void icmSetN(double *dst, double src, int len) {
+	int j;
+	for (j = 0; j < len; j++)
+		dst[j] = src;
+}
+
+/* Copy a vector */
+void icmCpyN(double *dst, double *src, int len) {
+	int j;
+	if (dst != src)
+		for (j = 0; j < len; j++)
+			dst[j] = src[j];
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+void icmClipN(double out[3], double in[3], unsigned int len) {
+	int j;
+	for (j = 0; j < len; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0)
+			out[j] = 0.0;
+		else if (out[j] > 1.0)
+			out[j] = 1.0;
+	}
+}
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine over the limit */
+double icmClipNmarg(double *out, double *in, unsigned int len) {
+	int j;
+	double tt, marg = 0.0;
+	for (j = 0; j < len; j++) {
+		out[j] = in[j];
+		if (out[j] < 0.0) {
+			tt = 0.0 - out[j];
+			out[j] = 0.0;
+			if (tt > marg)
+				marg = tt;
+		} else if (out[j] > 1.0) {
+			tt = out[j] - 1.0;
+			out[j] = 1.0;
+			if (tt > marg)
+				marg = tt;
+		}
+	}
+	return marg;
+}
+
+/* Return the magnitude (norm) of the difference between two vectors */
+double icmDiffN(double *s1, double *s2, int len) {
+	int i;
+	double rv = 0.0;
+
+	for (i = 0; i < len; i++) {
+		double tt = s1[i] - s2[i];
+		rv += tt * tt;
+	}
+
+	return sqrt(rv);
+}
+
+/* ----------------------------------------------- */
+/* Pseudo - Hilbert count sequencer */
+
+/* This multi-dimensional count sequence is a distributed */
+/* Gray code sequence, with direction reversal on every */
+/* alternate power of 2 scale. */
+/* It is intended to aid cache coherence in multi-dimensional */
+/* regular sampling. It approximates the Hilbert curve sequence. */
+
+/* Initialise, returns total usable count */
+unsigned
+psh_initN(
+psh *p,				/* Pointer to structure to initialise */
+int di,				/* Dimensionality */
+unsigned int res[],	/* Size per coordinate */
+int co[]			/* Coordinates to initialise (May be NULL) */
+) {
+	int e;
+
+	p->di = di;
+	for (e = 0; e < di; e++)
+		p->res[e] = res[e];
+	p->xbits = 0;
+
+	/* Compute bits per axis and total bits */
+	for (p->tbits = e = 0; e < di; e++) {
+		for (p->bits[e] = 0; (1u << p->bits[e]) < p->res[e]; p->bits[e]++)
+			;
+		p->tbits += p->bits[e];
+		if (p->bits[e] > p->xbits)
+			p->xbits = p->bits[e];
+	}
+
+	if (p->tbits > 32)		/* Hmm */
+		return 0;
+
+	/* Compute the total count mask */
+	p->tmask = ((((unsigned)1) << p->tbits)-1);
+
+	/* Compute usable count */
+	p->count = 1;
+	for (e = 0; e < di; e++)
+		p->count *= p->res[e];
+
+	p->ix = 0;		/* Initial binary index */
+
+	if (co != NULL) {
+		for (e = 0; e < di; e++)
+			co[e] = 0;
+	}
+
+	return p->count;
+}
+
+/* Backwards compatible same res per axis init */
+unsigned
+psh_init(
+psh *p,			/* Pointer to structure to initialise */
+int di,				/* Dimensionality */
+unsigned int res,	/* Size */
+int co[]			/* Coordinates to initialise (May be NULL) */
+) {
+	int e;
+	unsigned int mres[MAX_CHAN];
+
+	for (e = 0; e < di; e++)
+		mres[e] = res;
+
+	return psh_initN(p, di, mres, co);
+}
+
+/* Reset the counter */
+void
+psh_reset(
+psh *p	/* Pointer to structure */
+) {
+	p->ix = 0;
+}
+
+/* Increment pseudo-hilbert coordinates */
+/* Return non-zero if count rolls over to 0 */
+int
+psh_inc(
+psh *p,	/* Pointer to structure */
+int co[]		/* Coordinates to return */
+) {
+	int di = p->di;
+	int e;
+
+	do {
+		unsigned int b;
+		int gix;	/* Gray code index */
+		
+		p->ix = (p->ix + 1) & p->tmask;
+
+		gix = p->ix ^ (p->ix >> 1);		/* Convert to gray code index */
+	
+		for (e = 0; e < di; e++) 
+			co[e] = 0;
+		
+		for (b = 0; b < p->xbits; b++) {			/* Distribute bits */
+			if (b & 1) {
+				for (e = di-1; e >= 0; e--)  {		/* In reverse order */
+					if (b < p->bits[e]) {
+						co[e] |= (gix & 1) << b;
+						gix >>= 1;
+					}
+				}
+			} else {
+				for (e = 0; e < di; e++)  {			/* In normal order */
+					if (b < p->bits[e]) {
+						co[e] |= (gix & 1) << b;
+						gix >>= 1;
+					}
+				}
+			}
+		}
+	
+		/* Convert from Gray to binary coordinates */
+		for (e = 0; e < di; e++)  {
+			unsigned int sh, tv;
+
+			for(sh = 1, tv = co[e];; sh <<= 1) {
+				unsigned ptv = tv;
+				tv ^= (tv >> sh);
+				if (ptv <= 1 || sh == 16)
+					break;
+			}
+			if (tv >= p->res[e])	/* Dumbo filter - increment again if outside cube range */
+				break;
+			co[e] = tv;
+		}
+
+	} while (e < di);
+	
+	return (p->ix == 0);
+}
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */
 /* CIE Y (range 0 .. 1) to perceptual CIE 1976 L* (range 0 .. 100) */
@@ -1376,7 +1562,7 @@ icmL2Y(double val) {
 	return val;
 }
 
-/* CIE XYZ to perceptual CIE 1976 L*a*b* */
+/* CIE XYZ (range 0 .. 1) to perceptual CIE 1976 L*a*b* */
 void
 icmXYZ2Lab(icmXYZNumber *w, double *out, double *in) {
 	double X = in[0], Y = in[1], Z = in[2];
@@ -1406,7 +1592,7 @@ icmXYZ2Lab(icmXYZNumber *w, double *out, double *in) {
 	out[2] = 200.0 * (fy - fz);
 }
 
-/* Perceptual CIE 1976 L*a*b* to CIE XYZ */
+/* Perceptual CIE 1976 L*a*b* to CIE XYZ (range 0 .. 1) */
 void
 icmLab2XYZ(icmXYZNumber *w, double *out, double *in) {
 	double L = in[0], a = in[1], b = in[2];
@@ -2377,8 +2563,8 @@ void icmQuantize3x3S15Fixed16(
 	double sum[3];			/* == target */
 	double tmp[3];			/* Uncorrected sum */
 
-	printf("In     = %.8f %.8f %.8f\n",in[0], in[1], in[2]);
-	printf("Target = %.8f %.8f %.8f\n",targ[0], targ[1], targ[2]);
+//	printf("In     = %.8f %.8f %.8f\n",in[0], in[1], in[2]);
+//	printf("Target = %.8f %.8f %.8f\n",targ[0], targ[1], targ[2]);
 
 	for (j = 0; j < 3; j++)
 		sum[j] = targ[j];
@@ -2419,8 +2605,8 @@ void icmQuantize3x3S15Fixed16(
 		for (j = 0; j < 3; j++)
 			sum[i] += mat[i][j] * in[j];
 	}
-	printf("Q Sum     = %.8f %.8f %.8f\n",tmp[0], tmp[1], tmp[2]);
-	printf("Q cor Sum = %.8f %.8f %.8f\n",sum[0], sum[1], sum[2]);
+//	printf("Q Sum     = %.8f %.8f %.8f\n",tmp[0], tmp[1], tmp[2]);
+//	printf("Q cor Sum = %.8f %.8f %.8f\n",sum[0], sum[1], sum[2]);
 }
 
 /* Pre-round RGB device primary values to ensure that */
@@ -3067,10 +3253,39 @@ char *icmPiv(int di, int *p) {
 /* Print a double color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPdv(int di, double *p) {
-	static char buf[5][MAX_CHAN * 16];
+	static char buf[5][MAX_CHAN * 8 * 16];
 	static int ix = 0;
 	int e;
 	char *bp;
+
+	if (++ix >= 5)
+		ix = 0;
+	bp = buf[ix];
+
+	if (di > (MAX_CHAN * 8))
+		di = (MAX_CHAN * 8);	/* Make sure that buf isn't overrun */
+
+	for (e = 0; e < di; e++) {
+		if (e > 0)
+			*bp++ = ' ';
+		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+	}
+	return buf[ix];
+}
+
+/* Print a double color vector to a string with format. */
+/* Returned static buffer is re-used every 5 calls. */
+char *icmPdvf(int di, char *fmt, double *p) {
+	static char buf[5][MAX_CHAN * 50];
+	static int ix = 0;
+	int e;
+	char *bp;
+
+	if (p == NULL)
+		return "(null)";
+
+	if (fmt == NULL)
+		fmt = "%.8f";
 
 	if (++ix >= 5)
 		ix = 0;
@@ -3082,10 +3297,11 @@ char *icmPdv(int di, double *p) {
 	for (e = 0; e < di; e++) {
 		if (e > 0)
 			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+		sprintf(bp, fmt, p[e]); bp += strlen(bp);
 	}
 	return buf[ix];
 }
+
 
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
@@ -3108,6 +3324,15 @@ char *icmPfv(int di, float *p) {
 		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
 	}
 	return buf[ix];
+}
+
+/* Print an XYZ */
+/* Returned static buffer is re-used every 5 calls. */
+char *icmPXYZ(icmXYZNumber *p) {
+	double xyz[3];
+
+	icmXYZ2Ary(xyz, *p);
+	return icmPdv(3, xyz);
 }
 
 /* Print an 0..1 range XYZ as a D50 Lab string */
@@ -3266,30 +3491,35 @@ static const icmUTF8 firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0x
 
 /* --------------------------------------------------------------------- */
 
+// ~8
+/* LEGACY serialisation */
 /* Convert ICC buffer of UTF16 to UTF8. */
 /* Input is expected to be nul terminated on the last character. */
 /* Checks and repairs UTF16 string to be legal UTF-8. */
 /* Output will be nul terminated. */
-/* len is number of UTF16 characters including nul. */
+/* len is number of UTF16 bytes including nul. */
 /* Return resulting size in bytes. */
 /* out pointer can be NULL. */
 /* pillegal can be NULL. */
-
-// ~8 need to convert to icmFBuf & icmSnImp_us_UInt16 reads.
-// ~8 also need option to not expect a NULL terminator.
-
-size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, int len) {
+size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, size_t len) {
 	int fix = 1;			/* We always fix */
 	icmUTFerr illegal = icmUTF_ok;
-	ORD8 *iin = in;
+	size_t ilen = len;
 	icmUTF8 *iout = out;
 
-//printf("\n~1 icmUTF16BEtoUTF8: len %d\n",len);
+//printf("\n~1 icmUTF16BEtoUTF8: len %d bytes\n",len);
+
+	if (len & 1)
+		illegal |= icmUTF_odd_bytes;
+
+	if (in == NULL)
+		len = 0;
+
 	for (;;) {
 		unsigned short bytesToWrite = 0;
 		icmUTF32 ch;
 
-		if (len <= 0) {
+		if (len < 2) {
 			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
 //printf(" ~1 icmUTF_no_nul\n");
 			break;
@@ -3297,21 +3527,21 @@ size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, int len) {
 
 	    ch = 256 * (icmUTF32)in[0] + (icmUTF32)in[1];
 		in += 2;
-		len--;
+		len -= 2;
 
 //printf(" ~1 ch = 0x%x remaining len = %d\n",ch, len);
 
 		if (ch == 0) {
-			if (len > 0) {		/* nul terminator prior to end */
+			if (len >= 2) {		/* nul terminator prior to end */
 				illegal |= icmUTF_prem_nul;
-//printf(" ~1 icmUTF_no_nul\n");
+//printf(" ~1 icmUTF_prem_nul\n");
 			}
 			break;
 		}
 
 		/* ICC UTF-16 should not have a Byte Order Mark, */
 		/* and resulting UTF-8 should not reproduce it. */
-		if (ch == UNI_BOM_CHAR && iin == (in-2)) {
+		if (ch == UNI_BOM_CHAR && (ilen == (len+2))) {
 			illegal |= icmUTF_unn_bom;
 //printf(" ~1 icmUTF_unn_bom\n");
 			continue;
@@ -3323,7 +3553,7 @@ size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, int len) {
 
 //printf(" ~1 found high surrogate\n");
 
-			if (len <= 0) {
+			if (len < 2) {
 				illegal |= icmUTF_bad_surr;
 				if (fix) ch = UNI_REPLACEMENT_CHAR;
 //printf(" ~1 icmUTF_bad_surr 1\n");
@@ -3339,10 +3569,153 @@ size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, int len) {
 				ch = ((ch - UNI_SUR_HIGH_START) << halfShift)
 					+ (ch2 - UNI_SUR_LOW_START) + halfBase;
 				in += 2;
-				len--;
+				len -= 2;
 
 			/* A stranded surrogate high */
 			} else {
+				illegal |= icmUTF_bad_surr;
+				if (fix) ch = UNI_REPLACEMENT_CHAR;
+//printf(" ~1 icmUTF_bad_surr 2\n");
+			}
+
+		/* An unexpected surrogate low */
+		} else if (ch >= UNI_SUR_LOW_START && ch <= UNI_SUR_LOW_END) {
+//printf(" ~1 found low surrogate\n");
+			illegal |= icmUTF_bad_surr;
+			if (fix) ch = UNI_REPLACEMENT_CHAR;
+//printf(" ~1 icmUTF_bad_surr 3\n");
+		}
+
+		/* We have a UTF32 value. Convert to UTF8 */
+
+		if (ch == 0) {
+			illegal |= icmUTF_emb_nul;		/* Embedded nul */
+			ch = UNI_REPLACEMENT_CHAR;
+//printf(" ~1 icmUTF_emb_nul\n");
+		}
+
+		/* Figure out how many bytes the result will require */
+		if (ch < (icmUTF32)0x80) {			 	bytesToWrite = 1;
+		} else if (ch < (icmUTF32)0x800) {	 	bytesToWrite = 2;
+		} else if (ch < (icmUTF32)0x10000) {   bytesToWrite = 3;
+		} else if (ch < (icmUTF32)0x110000) {  bytesToWrite = 4;
+		} else {							bytesToWrite = 3;
+			/* Shouldn't happen ? */
+			illegal |= icmUTF_bad_surr;
+			ch = UNI_REPLACEMENT_CHAR;
+//printf(" ~1 icmUTF_bad_surr 4\n");
+		}
+
+		if (iout != NULL) {
+			const icmUTF32 byteMask = 0xBF;
+			const icmUTF32 byteMark = 0x80; 
+
+			out += bytesToWrite;
+			switch (bytesToWrite) { /* note: everything falls through. */
+				case 4:
+					*--out = (icmUTF8)((ch | byteMark) & byteMask); ch >>= 6;
+				case 3:
+					*--out = (icmUTF8)((ch | byteMark) & byteMask); ch >>= 6;
+				case 2:
+					*--out = (icmUTF8)((ch | byteMark) & byteMask); ch >>= 6;
+				case 1:
+					*--out =  (icmUTF8)(ch | firstByteMark[bytesToWrite]);
+			}
+		}
+		out += bytesToWrite;
+	}
+
+	if (iout != NULL)
+		*out = 0;
+	out++;
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+	return (out - iout) * sizeof(icmUTF8);
+}
+
+/* Convert ICC buffer of UTF16 to UTF8 using icmSn serialisation. */
+/* Input is expected to be nul terminated on the last character. */
+/* Checks and repairs UTF16 string to be legal UTF-8. */
+/* Output will be nul terminated. */
+/* len is number of UTF16 bytes including nul. */
+/* Return resulting size in bytes. */
+/* out pointer can be NULL. */
+/* pillegal can be NULL. */
+/* If nonul is nz then UTF16 is not expected to have a nul terminator */
+size_t icmUTF16SntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len, int nonul) {
+	int fix = 1;			/* We always fix */
+	icmUTFerr illegal = icmUTF_ok;
+	size_t ilen = len;
+	icmUTF8 *iout = out;
+
+//printf("\n~1 icmUTF16SntoUTF8: len %d bytes\n",len);
+
+	if (len & 1)
+		illegal |= icmUTF_odd_bytes;
+
+	for (;;) {
+		unsigned short bytesToWrite = 0;
+		icmUTF32 ch;
+
+		if (len < 2) {
+			if (!nonul) {
+				illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+//printf(" ~1 icmUTF_no_nul\n");
+			}
+			break;
+		}
+
+		icmSn_ui_UInt16(bin, &ch);	
+		len -= 2;
+
+//printf(" ~1 ch = 0x%x remaining len = %d bytes\n",ch, len);
+
+		if (ch == 0) {
+			if (len >= 2) {		/* nul terminator prior to end */
+				illegal |= icmUTF_prem_nul;
+//printf(" ~1 icmUTF_prem_nul\n");
+			}
+			if (nonul) {
+				illegal |= icmUTF_unex_nul;
+			}
+			break;
+		}
+
+		/* ICC UTF-16 should not have a Byte Order Mark, */
+		/* and resulting UTF-8 should not reproduce it. */
+		if (ch == UNI_BOM_CHAR && (ilen == (len+2))) {
+			illegal |= icmUTF_unn_bom;
+//printf(" ~1 icmUTF_unn_bom\n");
+			continue;
+		}
+
+		/* If we have a surrogate pair, decode them into UTF32 */
+		if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_HIGH_END) {
+			icmUTF32 ch2;	/* Next UTF16 */
+
+//printf(" ~1 found high surrogate\n");
+			if (len < 2) {
+				illegal |= icmUTF_bad_surr;
+				if (fix) ch = UNI_REPLACEMENT_CHAR;
+//printf(" ~1 icmUTF_bad_surr 1\n");
+				break;
+			}
+
+			icmSn_ui_UInt16(bin, &ch2);	
+//printf(" ~1 next ch = 0x%x\n",ch2);
+
+			/* If the next input is the low pair, convert to UTF32. */
+			if (ch2 >= UNI_SUR_LOW_START && ch2 <= UNI_SUR_LOW_END) {
+//printf(" ~1 found low surrogate\n");
+				ch = ((ch - UNI_SUR_HIGH_START) << halfShift)
+					+ (ch2 - UNI_SUR_LOW_START) + halfBase;
+				len -= 2;
+
+			/* A stranded surrogate high */
+			} else {
+				icmSn_rseek(bin, -2);		/* Put back the character */
 				illegal |= icmUTF_bad_surr;
 				if (fix) ch = UNI_REPLACEMENT_CHAR;
 //printf(" ~1 icmUTF_bad_surr 2\n");
@@ -3507,26 +3880,28 @@ size_t icmUTF16toUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmUTF16 *in) {
 
 /* --------------------------------------------------------------------- */
 
-// ~8 need to convert to icmFBuf & icmSnImp_us_UInt16 reads.
-// ~8 also need option to not output a NULL terminator.
-
+// ~8
+/* LEGACY serialisation */
 /* Convert UTF-8 to ICC buffer of UTF-16. */
 /* Input must be nul terminated, and so will output. */
 /* len is number of UTF8 characters including nul. */
 /* Return resulting size in bytes. */
 /* out can be NULL. */
-size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, int len) {
+size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, size_t len) {
 	icmUTFerr illegal = icmUTF_ok;
 	icmUTF16 val;
 	ORD8 *iout = out;
 
 //printf("\n~1 icmUTF8toUTF16BE:\n");
 
+	if (in == NULL)
+		len = 0;
+
 	for (;;) {
 		unsigned short extraBytesToRead;
 		icmUTF32 ch;
 
-		if (len <= 0) {
+		if (len == 0) {
 			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
 			break;
 		}
@@ -3556,8 +3931,7 @@ size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, int len) {
 			for (i = 0; i < extraBytesToRead; i++) {
 				icmUTF32 tch;
 
-				if (len <= 0) {
-					len = -1;
+				if (len == 0) {
 					illegal |= icmUTF_no_nul;		/* No nul terminator before end */
 					break;
 				}
@@ -3589,7 +3963,8 @@ size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, int len) {
 			}
 		}
 
-		if (len < 0)		/* Ran out of continuation bytes */
+		if (len == 0
+		 && (illegal & icmUTF_no_nul))	/* No nul terminator before end */
 			break;
 
 		/* We now have UTF32 values, so convert to UTF16 */
@@ -3666,6 +4041,168 @@ size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, int len) {
 		*pillegal = illegal;
 
 	return (out - iout) * sizeof(ORD8);
+}
+
+/* Convert UTF-8 to ICC buffer of UTF-16 using icmSn serialisation. */
+/* Input must be nul terminated, and so will output. */
+/* len is number of UTF8 characters including nul. */
+/* Return resulting size in bytes. */
+/* bout may be NULL. */
+/* If nonul is nz then UTF16 is not expected to have a nul terminator */
+size_t icmUTF8toUTF16Sn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t len, int nonul) {
+	icmUTFerr illegal = icmUTF_ok;
+	icmUTF16 val;
+	size_t osize = 0;
+
+//printf("\n~1 icmUTF8toUTF16Sn:\n");
+
+	if (in == NULL)
+		len = 0;
+
+	for (;;) {
+		unsigned short extraBytesToRead;
+		icmUTF32 ch;
+
+//printf("~1 len %zu\n",len);
+		if (len == 0) {
+			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			break;
+		}
+
+		ch = *in++;
+		len--;
+
+//printf(" ~1 raw ch = 0x%x\n",ch);
+		if (ch == 0) {
+			break;				/* We're done */
+		}
+
+		if ((ch & 0xc0) == 0x80) { 
+			illegal |= icmUTF_unex_cont;		/* Unexpected continuation byte */
+			ch = UNI_REPLACEMENT_CHAR;
+
+		} else {
+			int i;
+
+			extraBytesToRead = trailingBytesForUTF8[ch];
+
+			ch &= paylloadMaskForUTF8[ch];		/* Just the payload bits */
+
+			if (extraBytesToRead > 3)
+				illegal |= icmUTF_tmany_cont;		/* Too many continuation bytes */
+													/* (we'll decode them anyway) */
+
+			/* Read trailing bytes while checking for nul terminator and bad encoding */
+			for (i = 0; i < extraBytesToRead; i++) {
+				icmUTF32 tch;
+
+				if (len == 0) {
+					illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+					break;
+				}
+
+				tch = *in++;
+
+				if (tch == 0) {
+					illegal |= icmUTF_short_cont;	/* Cut short by end of string */ 
+					ch = UNI_REPLACEMENT_CHAR;
+					break;
+				}
+
+				/* If byte hasn't got continuation code */
+				if ((tch & 0xc0) != 0x80) {
+					illegal |= icmUTF_short_cont; 	/* Cut short by next non-continuation */
+					ch = UNI_REPLACEMENT_CHAR;
+					break;
+				}
+
+				tch &= 0x3f;		/* Just payload bits */
+
+				ch = (ch << 6) + tch;
+			}
+
+			/* See if the encoding is over long */
+			if (extraBytesToRead > 0
+			 && (ch & msbitsTrailingBytesForUTF8[extraBytesToRead]) == 0) {
+				illegal |= icmUTF_overlong;			/* overlong (doesn't affect decoding) */
+			}
+		}
+
+		if (len == 0
+		 && (illegal & icmUTF_no_nul))	/* No nul terminator before end */
+			break;
+
+		/* We now have UTF32 values, so convert to UTF16 */
+
+//printf(" ~1 cooked ch = 0x%x\n",ch);
+
+		if (ch == 0) {
+			illegal |= icmUTF_emb_nul;		/* Embedded nul */
+			ch = UNI_REPLACEMENT_CHAR;
+		}
+
+		/* Is a character <= 0xFFFF */
+		if (ch <= UNI_MAX_BMP) {
+
+			/* UTF-16 surrogate values are illegal in UTF-32 */
+			if (ch >= UNI_SUR_HIGH_START && ch <= UNI_SUR_LOW_END) {
+				illegal |= icmUTF_inv_cdpnt;			/* Bad code point - surrogate */
+				if (bout != NULL) {
+					val = UNI_REPLACEMENT_CHAR;
+					icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+				}
+				osize += 2;
+
+			/* Normal UTF-16 character */
+			} else {
+				if (bout != NULL) {
+					val = (icmUTF16)ch;
+					icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+				}
+				osize += 2;
+			}
+
+		/* Outside unicode range */
+		} else if (ch > UNI_MAX_UTF16) {
+			illegal |= icmUTF_ovr_cdpnt;			/* Bad code point - beyond unicode */
+			if (bout != NULL) {
+				val = UNI_REPLACEMENT_CHAR;
+				icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+			}
+			osize += 2;
+
+		/* Is a character in range 0x10000 - 0x10FFFF, */
+		/* so output a surrogate pair */
+		} else {
+			ch -= halfBase;
+			if (bout != NULL) {
+				val = (icmUTF16)((ch >> halfShift) + UNI_SUR_HIGH_START);
+				icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+				val = (icmUTF16)((ch  & halfMask)  + UNI_SUR_LOW_START);
+				icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+			}
+			osize += 4;
+		}
+	}
+	if (!nonul) {
+		if (bout != NULL) {
+			val = 0;
+			icmSn_us_UInt16(bout, &val);
+//printf("  ~1 output 0x%x\n",val);
+		}
+		osize += 2;
+	}
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+//printf("  ~1 returning osize %zu\n",osize * sizeof(ORD8));
+	return osize * sizeof(ORD8);
 }
 
 
@@ -3785,9 +4322,9 @@ size_t icmUTF8toUTF16(icmUTFerr *pillegal, icmUTF16 *out, icmUTF8 *in) {
 /* Convert UTF-8 to printable ASCII + HTML escapes. */
 /* Input must be nul terminated, and so will output. */
 /* Return resulting size in bytes (including terminating nul). */
-/* *u8 will be set nz if any utf-8 found. */
+/* *pillegal will have icmUTF_non_ascii set if any non-ASCII found. */
 /* All output pointers may be NULL */
-size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
+size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, char *out, icmUTF8 *in) {
 	icmUTFerr illegal = icmUTF_ok;
 	int u8 = 0; 
 	char *iout = out;
@@ -3848,8 +4385,7 @@ size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
 		/* We now have UTF32 values */
 
 		if (ch > 0x7f)
-			u8 = 1;
-
+			illegal |= icmUTF_non_ascii;		/* non-ASCII found */
 		
 		/* HTML special characters */
 		if (ch == '&') {
@@ -3914,9 +4450,6 @@ size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
 		*out = 0;
 	out++;
 
-	if (pu8 != NULL)
-		*pu8 = u8;
-
 	if (pillegal != NULL)
 		*pillegal = illegal;
 
@@ -3925,12 +4458,13 @@ size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
 
 /* --------------------------------------------------------------------- */
 
+/* LEGACY ?? ~8 */
 /* Convert UTF-8 to ASCII. Out of range characters are replaced by '?'. */
 /* Input must be nul terminated, and so will output. */
 /* Return resulting size in bytes (including terminating nul). */
-/* *u8 will be set nz if any utf-8 found. */
+/* *pillegal will have icmUTF_non_ascii set if any non-ASCII found. */
 /* All output pointers may be NULL */
-size_t icmUTF8toASCII(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
+size_t icmUTF8toASCII(icmUTFerr *pillegal, char *out, icmUTF8 *in) {
 	icmUTFerr illegal = icmUTF_ok;
 	int u8 = 0; 
 	char *iout = out;
@@ -3993,7 +4527,7 @@ size_t icmUTF8toASCII(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
 
 		if (ch > 0x7f) {
 			ch = replacement_char;
-			u8 = 1;
+			illegal |= icmUTF_non_ascii;		/* non-ASCII found */
 		}
 
 		if (iout != NULL) *out = ch;
@@ -4004,13 +4538,360 @@ size_t icmUTF8toASCII(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in) {
 		*out = 0;
 	out++;
 
-	if (pu8 != NULL)
-		*pu8 = u8;
-
 	if (pillegal != NULL)
 		*pillegal = illegal;
 
 	return (out - iout) * sizeof(char);
+}
+
+/* Convert ICC buffer of ASCIIZ to UTF8 using icmSn serialisation. */
+/* Input is expected to be nul terminated on the last character. */
+/* ilen is the expected number of ASCIIZ input bytes including nul. */
+/* If fxlen is > 0, then the input is from a fixed length buffer of fxlen. */
+/* If fxlen is < 0, then the input has a maximum length of -fxlen */
+/* (If fxlen != 0 then usually ilen = abs(fxlen)) */
+/* Output will be nul terminated. */
+/* Return resulting size in bytes. */
+/* out pointer can be NULL. */
+/* pillegal can be NULL. */
+size_t icmASCIIZSntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t ilen, int fxlen) {
+	icmUTFerr illegal = icmUTF_ok;
+	char replacement_char = '?';
+	icmUTF8 *iout = out;
+	size_t remin = ilen;	/* fixed/max length buffer bytes left */
+	icmUTF32 ch;
+
+//printf("~1 icmASCIIZSntoUTF8 got ilen %zu fxlen %zu\n",ilen,fxlen);
+
+	if (fxlen > 0) {
+		remin = fxlen;
+	} else if (fxlen < 0) {
+		remin = -fxlen;
+	}
+
+	if (fxlen != 0 && ilen > remin) {
+		illegal |= icmUTF_ascii_toolong;	/* Can't be longer than fixed/max length */
+		ilen = remin;
+	}
+
+	for (;;) {
+
+		if (ilen < 1) {
+			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			break;
+		}
+
+		icmSn_ui_UInt8(bin, &ch);	
+		ilen --;
+		if (fxlen != 0)
+			remin--;
+
+		if (ch == 0) {		/* Got to the end */
+			if (fxlen == 0 && ilen > 0)
+				illegal |= icmUTF_prem_nul;
+			break;
+		}
+
+		/* Make sure this is legal ASCII */
+		if (ch > 0x7f) {
+			ch = replacement_char;
+			illegal |= icmUTF_non_ascii;		/* non-ASCII found */
+		}
+
+		/* Since this is ASCII, we don't need any conversion to UTF-8 */
+		if (iout != NULL)
+			*out = (icmUTF8)ch; 
+		out++;
+	}
+
+	/* Use up the rest of a fixed buffer */
+	while (fxlen > 0 && remin > 0) {
+		icmSn_ui_UInt8(bin, &ch);	
+		remin--;
+	}
+
+	if (iout != NULL)	/* Add nul terminator */
+		*out = 0;
+	out++;
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+//printf("~1 returning %zu\n",(out - iout) * sizeof(icmUTF8));
+	return (out - iout) * sizeof(icmUTF8);
+}
+
+/* Convert UTF-8 to ICC buffer of ASCIIZ using icmSn serialisation. */
+/* Input must be nul terminated, and so will output. */
+/* ilen is number of UTF8 characters including nul of the input. */
+/* If fxlen is > 0, then the output is to a fixed length buffer of that length, */
+/* and will be padded with 0 up to that length. */
+/* If fxlen < 0, then the otput has a maxumum length of -fxlen. */
+/* Return resulting size in bytes. */
+/* bout may be NULL. */
+size_t icmUTF8toASCIIZSn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t ilen, int fxlen) {
+	icmUTFerr illegal = icmUTF_ok;
+	icmUTF32 replacement_char = '?';
+	ORD8 val;
+	size_t osize = 0;
+	size_t remout;		/* fixed/max length buffer bytes left */
+	icmUTF32 ch;
+
+	if (fxlen > 0) {
+		remout = fxlen;
+	} else if (fxlen < 0) {
+		remout = -fxlen;
+	}
+
+	if (in == NULL)
+		ilen = 0;
+
+	for (;;) {
+		unsigned short extraBytesToRead;
+
+		if (ilen == 0) {
+			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			break;
+		}
+
+		ch = *in++;
+		ilen--;
+
+		if (ch == 0) {
+			if (ilen > 0)
+				illegal |= icmUTF_prem_nul;
+			break;				/* We're done */
+		}
+
+		if ((ch & 0xc0) == 0x80) { 
+			illegal |= icmUTF_unex_cont;		/* Unexpected continuation byte */
+			ch = replacement_char;
+
+		} else {
+			int i;
+
+			extraBytesToRead = trailingBytesForUTF8[ch];
+
+			ch &= paylloadMaskForUTF8[ch];		/* Just the payload bits */
+
+			if (extraBytesToRead > 3)
+				illegal |= icmUTF_tmany_cont;		/* Too many continuation bytes */
+													/* (we'll decode them anyway) */
+
+			/* Read trailing bytes while checking for nul terminator and bad encoding */
+			for (i = 0; i < extraBytesToRead; i++) {
+				icmUTF32 tch;
+
+				if (ilen == 0) {
+					illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+					break;
+				}
+
+				tch = *in++;
+
+				if (tch == 0) {
+					illegal |= icmUTF_short_cont;	/* Cut short by end of string */ 
+					ch = replacement_char;
+					break;
+				}
+
+				/* If byte hasn't got continuation code */
+				if ((tch & 0xc0) != 0x80) {
+					illegal |= icmUTF_short_cont; 	/* Cut short by next non-continuation */
+					ch = replacement_char;
+					break;
+				}
+
+				tch &= 0x3f;		/* Just payload bits */
+
+				ch = (ch << 6) + tch;
+			}
+
+			/* See if the encoding is over long */
+			if (extraBytesToRead > 0
+			 && (ch & msbitsTrailingBytesForUTF8[extraBytesToRead]) == 0) {
+				illegal |= icmUTF_overlong;			/* overlong (doesn't affect decoding) */
+			}
+		}
+
+		if (ilen == 0
+		 && (illegal & icmUTF_no_nul))	/* No nul terminator before end */
+			break;
+
+		/* We now have UTF32 values, so convert to UTF16 */
+
+		if (ch > 0x7f) {
+			ch = replacement_char;
+			illegal |= icmUTF_non_ascii;		/* non-ASCII found */
+		}
+
+		if (fxlen != 0 && remout <= 1) {		/* Won't be room for final nul */
+			illegal |= icmUTF_ascii_toolong;	/* Can't be longer than fixed/max buffer */
+			break;
+		}
+
+		if (bout != NULL) {
+			val = (ORD8) ch;
+			icmSn_uc_UInt8(bout, &val);
+		}
+		osize++;
+		if (fxlen != 0)
+			remout--;
+	}
+
+	/* add nul terminator */
+	if (bout != NULL) {
+		val = 0;
+		icmSn_uc_UInt8(bout, &val);
+	}
+	osize++;
+	if (fxlen != 0)
+		remout--;
+
+	/* if fixed length, pad */
+	while (fxlen > 0 && remout > 0) {
+		ch = 0;
+		if (bout != NULL) {
+			icmSn_ui_UInt8(bout, &ch);
+		}
+		remout--;
+	}
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+	return osize * sizeof(ORD8);
+}
+
+/* --------------------------------------------------------------------- */
+/* ICC ScriptCode support */
+
+/* Convert ICC buffer of ScriptCode to UTF8 using icmSn serialisation. */
+/* Input is expected to be nul terminated on the last character. */
+/* len is number of ASCIIZ bytes including nul. */
+/* Output will be nul terminated. */
+/* Return resulting size in bytes. */
+/* out pointer can be NULL. */
+/* pillegal can be NULL. */
+size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len) {
+	icmUTFerr illegal = icmUTF_ok;
+	char replacement_char = '?';
+	size_t ilen = len;
+	icmUTF8 *iout = out;
+	icmUTF32 ch;
+	size_t remin = 67;
+
+	if (len > remin) {
+		illegal |= icmUTF_sc_toolong;		/* Can't be longer than 67 */
+		len = remin;
+	}
+
+	for (;;) {
+
+		if (len < 1) {
+			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			break;
+		}
+
+		icmSn_ui_UInt8(bin, &ch);	
+		len--;
+		remin--;
+
+		if (ch == 0) {
+			if (len > 0)
+				illegal |= icmUTF_no_nul;
+			break;
+		}
+
+		if (iout != NULL)
+			*out = (icmUTF8)ch; 
+		out++;
+	}
+
+	/* Use up the rest of the ScriptCode length */
+	while (remin > 0) {
+		if (bin->get_space(bin) == 0) {			/* Wasn't padded */
+			illegal |= icmUTF_sc_tooshort;
+			break;
+		}
+		icmSn_ui_UInt8(bin, &ch);		/* Could check if ch == 0 ? */
+		remin--;
+	}
+
+	/* Add nul */
+	if (iout != NULL)
+		*out = 0;
+	out++;
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+	return (out - iout) * sizeof(icmUTF8);
+}
+
+/* Convert ScriptCode to ICC buffer of ScriptCode using icmSn serialisation. */
+/* Input must be nul terminated, and so will output. */
+/* len is number of UTF8 characters including nul. */
+/* Output will be nul terminated and always 67 bytes */
+/* If buffer is NULL or len is 0, the output will be 67 bytes of 0 */ 
+/* Return resulting string size in bytes. (file may be larger with padding) */
+/* bout may be NULL. */
+size_t icmScriptCodetoSn(icmUTFerr *pillegal, icmFBuf *bout, ORD8 *in, size_t len) {
+	icmUTFerr illegal = icmUTF_ok;
+	icmUTF32 replacement_char = '?';
+	ORD8 ch;
+	size_t osize = 0;
+	size_t remout = 67;		/* Remaining output space */
+
+	if (in == NULL)
+		len = 0;
+	
+	for (;;) {
+
+		if (len == 0) {
+			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			break;
+		}
+
+		ch = *in++;
+		len--;
+
+		if (ch == 0)
+			break;				/* We're done */
+
+		if (remout <= 1) {	/* No room for final nul */
+			illegal |= icmUTF_sc_toolong;		/* Can't be longer than 67 */
+			break;
+		}
+
+		if (bout != NULL) {
+			icmSn_uc_UInt8(bout, &ch);
+		}
+		osize++;
+		remout--;
+	}
+
+	/* nul terminator */
+	if (bout != NULL) {
+		ch = 0;
+		icmSn_uc_UInt8(bout, &ch);
+	}
+	osize++;
+	remout--;
+
+	/* pad until remout== 0 */
+	while (remout > 0) {
+		if (bout != NULL) {
+			ch = 0;
+			icmSn_uc_UInt8(bout, &ch);
+		}
+		remout--;
+	}
+
+	if (pillegal != NULL)
+		*pillegal = illegal;
+
+	return osize * sizeof(ORD8);
 }
 
 /* --------------------------------------------------------------------- */
@@ -4023,6 +4904,7 @@ struct {
 } UTFerrStrings[] = {
 	{ icmUTF_emb_nul, 	"embedded nul" },
 	{ icmUTF_no_nul,	"no nul terminator" },
+	{ icmUTF_unex_nul,	"unexpected nul terminator" },
 	{ icmUTF_prem_nul,	"premture nul terminator" },
 	{ icmUTF_bad_surr,	"bad surrogate" },
 	{ icmUTF_unn_bom,	"unnecessary BOM" },
@@ -4032,6 +4914,10 @@ struct {
 	{ icmUTF_overlong, 	"overlong encoding" },
 	{ icmUTF_inv_cdpnt, "invalid codepoint" },
 	{ icmUTF_ovr_cdpnt, "over-range codepoint" },
+	{ icmUTF_non_ascii, "non-ASCII characters" },
+	{ icmUTF_ascii_toolong,"ASCII longer than fixed sized buffer" },
+	{ icmUTF_sc_tooshort,"ScriptCode occupies less than 67 bytes" },
+	{ icmUTF_sc_toolong,"ScriptCode longer than 67 bytes" },
 	{ 0, NULL },
 
 };

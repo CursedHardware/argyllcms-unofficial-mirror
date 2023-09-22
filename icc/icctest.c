@@ -33,13 +33,14 @@
 	each tag type, since icc.h might otherwise take
 	some effort to understand.
 
-    Note XYZ scaling to 1.0, not 100.0
+    (Note XYZ scaling to 1.0, not 100.0)
  
  */
 
 #define NTRIALS 100
 
 #define TEST_UNICODE 0		/* Test unicode translation code */
+#define TEST_MATXINV 0		/* Test matrix inversion code (invmatrix() must be public) */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,15 +58,19 @@ void error(char *fmt, ...), warning(char *fmt, ...);
 void set_seed(ORD32 o32);
 
 /* Rounded floating test numbers */
-int rand_int(int low, int high);
+unsigned int rand_int(unsigned int low, unsigned int high);
 unsigned int rand_o8(void), rand_o16(void), rand_o32(void);
-double rand_8f(void), rand_L8(void), rand_ab8(void);
-double rand_16f(void), rand_XYZ16(void), rand_u8f8(void), rand_L16(void), rand_ab16(void);
+double rand_8f(void), rand_XYZ8(void), rand_L8(void), rand_ab8(void);
+double rand_16f(void), rand_32f(void);
+double rand_XYZ16(void), rand_u8f8(void), rand_L16(void), rand_ab16(void);
 double rand_u16f16(void), rand_s15f16(void);
+double rand_rangef(double min, double max, int bits);
+void rand_Color(double *vals, icColorSpaceSignature sig, int bits);
 int dcomp(double a, double b);
 
 /* random ICC specific values */
-unsigned int rand_ScreenEncodings(void);
+void rand_XYZ(icmXYZNumber *pXYZ);
+icScreening rand_ScreenEncodings(void);
 unsigned int rand_DeviceAttributes(void);
 unsigned int rand_ProfileHeaderFlags(void);
 unsigned int rand_AsciiOrBinaryData(void);
@@ -74,21 +79,31 @@ icColorSpaceSignature rand_PCS(void);
 icTechnologySignature rand_TechnologySignature(void);
 icProfileClassSignature rand_ProfileClassSignature(void);
 icPlatformSignature rand_PlatformSignature(void);
-icMeasurementFlare rand_MeasurementFlare(void);
 icMeasurementGeometry rand_MeasurementGeometry(void);
 icRenderingIntent rand_RenderingIntent(void);
 icSpotShape rand_SpotShape(void);
 icStandardObserver rand_StandardObserver(void);
 icIlluminant rand_Illuminant(void);
+icPhColEncoding rand_ColorantEncoding(void);
+icMeasUnitsSig rand_MeasUnitsSig();
+icDevSetMsftIDSignature rand_DevSetMsftIDSignature(void);
+icDevSetMsftMedia rand_DevSetMsftMedia(void);
+icDevSetMsftDither rand_DevSetMsftDither(void);
+
 char *rand_ascii_string(int lenmin, int lenmax);
-char *rand_utf8_string(int lenmin, int lenmax);
+icmUTF8 *rand_utf8_string(int lenmin, int lenmax);
 icmUTF16 *rand_utf16_string(int lenmin, int lenmax);
 size_t strlen_utf16(icmUTF16 *in);
 int strcmp_utf16(icmUTF16 *in1, icmUTF16 *in2);
+void rand_id(unsigned char id[16]);
+int idcomp(unsigned char a[16], unsigned char b[16]);
 
 /* declare some test functions */
 #if TEST_UNICODE > 0
 int unicode_test(void);
+#endif
+#if TEST_MATXINV > 0
+int matxinv_test(void);
 #endif
 int md5_test(void);
 
@@ -103,17 +118,20 @@ int md5_test(void);
 	In a real application, one wouldn't do it this way.
 */
 
-int doit(int mode, icc *wr_icco, icc *rd_icco);
+int doit(int pass, int mode, icc *wr_icco, icc *rd_icco, int v3);
 
 void usage(void) {
 	printf("ICC library regression test, V%s\n",ICCLIB_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill\n");
 	fprintf(stderr,"usage: icctest [-v level] [-1] [-n pass] [-w] [-r]\n");
 	fprintf(stderr," -v level      Verbosity level\n");
+	fprintf(stderr," -N            No startup description\n");
 	fprintf(stderr," -1            Do just first pass\n");
 	fprintf(stderr," -n x          Do just pass x\n");
 	fprintf(stderr," -w            Do write side of pass\n");
 	fprintf(stderr," -r            Do read side of pass\n");
+	fprintf(stderr," -2            Only do icclib v2 checks\n");
+	fprintf(stderr," -z            Always put data at zero offset\n");
 	fprintf(stderr," -W            Show any warnings\n");
 	exit(1);
 }
@@ -130,16 +148,18 @@ main(
 	char *argv[]
 ) {
 	int fa,nfa;
-	int nointro = 0;
+	int nointro = 0;							/* No introduction vebosity */
 	int verb = 0;
 	int passn = 0;
 	int wonly = 0;
 	int ronly = 0;
 	int warn = 0;
-	icmErr e = { 0, { '\000'} };					/* Place to get error details back */
+	int v3 = 1;									/* Check icclib V3 additions */
+	int zoffset = 0;							/* Always use zero file offset */
+	icmErr e = { 0, { '\000'} };				/* Place to get error details back */
 	char *file_name = "xxxx.icm";
-	icmFile *wr_fp, *rd_fp;
-	icc *wr_icco, *rd_icco;		/* Keep object separate */
+	icmFile *wr_fp = NULL, *rd_fp = NULL;
+	icc *wr_icco = NULL, *rd_icco = NULL;		/* Keep object separate */
 	int rv = 0;
 	int i;
 	unsigned int offset = 0;	/* File write/read offset, 0 for standard icc */
@@ -206,6 +226,16 @@ main(
 				ronly = 1;
 			}
 
+			/* icclib v2 only */
+			else if (argv[fa][1] == '2') {
+				v3 = 0;
+			}
+
+			/* Zero file offset */
+			else if (argv[fa][1] == 'z') {
+				zoffset = 1;
+			}
+
 			/* Warn */
 			else if (argv[fa][1] == 'W') {
 				warn = 1;
@@ -225,6 +255,10 @@ main(
 #if TEST_UNICODE > 0
 	if (unicode_test())
 		error ("Unicode translation routines are faulty");
+#endif
+#if TEST_MATXINV > 0
+	if (matxinv_test())
+		error ("Matrix inversion routine is faulty");
 #endif
 
 	if (md5_test() != 0)
@@ -252,6 +286,8 @@ main(
 			/* choose another file offset to test */
 			offset = rand_int(0,72789);
 		}
+		if (zoffset)
+			offset = 0;
 
 		/* -------------------------- */
 		/* Deal with writing the file */
@@ -263,7 +299,7 @@ main(
 			if ((wr_fp = new_icmFileStd_name(&e, file_name,"w")) == NULL)
 				error("Write: Open file '%s' failed with 0x%x, '%s'",file_name,e.c, e.m);
 		} else {
-			/* Open up the file for reading */
+			/* Open up the file for reading rather than writing, so we can seek. */
 			if ((wr_fp = new_icmFileStd_name(&e, file_name,"r")) == NULL)
 				error("Write: Open file '%s' failed with 0x%x, '%s'",file_name,e.c, e.m);
 		}
@@ -274,16 +310,20 @@ main(
 		if (warn)
 			wr_icco->warning = Warning;
 
+		/* Default to V2.4 */
+#define TEST_DEFAULT_TV ICMTV_24
+		wr_icco->set_version(wr_icco, TEST_DEFAULT_TV);
+
 		/* Don't check for required tags, so that we can test range of profile */
 		/* classes with full range of tags. */
 		wr_icco->set_cflag(wr_icco, icmCFlagNoRequiredCheck);
 
 		/* Relax format so we can use the full range of tagtypes */
-//		wr_icco->set_cflag(wr_icco, icmCFlagWrVersionWarn);
+		wr_icco->set_cflag(wr_icco, icmCFlagWrFormatWarn);
 		wr_icco->set_vcrange(wr_icco, &icmtvrange_all); 
 
 		/* Add all the tags with their tag types */
-		if ((rv = doit(0, wr_icco, NULL)) != 0)
+		if ((rv = doit(i, 0, wr_icco, NULL, v3)) != 0)
 			error ("Write tags: %d, 0x%x '%s'",rv,wr_icco->e.c,wr_icco->e.m);
 	
 		/* Write the file (including all tags) out */
@@ -342,11 +382,11 @@ main(
 			/* an embedded profile this needs to be 0, but it might be non-zero */
 			/* if you are writing an embedded profile. */
 			if ((rv = rd_icco->read(rd_icco,rd_fp,offset)) != 0)
-				error ("Read: %d, 0x%x '%s'",rv,rd_icco->e.c,rd_icco->e.m);
+				error ("Read: icc read returned %d, 0x%x '%s'",rv,rd_icco->e.c,rd_icco->e.m);
 	
 			/* Read and verify all the tags and their tag types */
-			if ((rv = doit(1, wr_icco, rd_icco)) != 0)
-				error ("Read: %d, 0x%x '%s'",rv,rd_icco->e.c,rd_icco->e.m);
+			if ((rv = doit(i, 1, wr_icco, rd_icco, v3)) != 0)
+				error ("Read: do write/read/verify return %d, 0x%x '%s'",rv,rd_icco->e.c,rd_icco->e.m);
 	
 			/* -------- */
 			/* Clean up */
@@ -358,6 +398,7 @@ main(
 			if (verb)
 				printf(" OK\n");
 		} else {
+			wr_icco->del(wr_icco);
 			if (verb)
 				printf(" Written\n");
 		}
@@ -520,9 +561,86 @@ int unicode_test() {
 
 	return 0;
 }
-
 #endif
 
+#if TEST_MATXINV > 0
+int invmatrix(
+	double out[MAX_CHAN][MAX_CHAN],
+	double in[MAX_CHAN][MAX_CHAN],
+	int n
+);
+
+static void dump_mtx(FILE *fp, char *id, char *pfx, double a[MAX_CHAN][MAX_CHAN], int nr,  int nc) {
+	int i, j;
+	fprintf(fp, "%s%s[%d][%d]\n",pfx,id,nr,nc);
+
+	for (j = 0; j < nr; j++) {
+		fprintf(fp, "%s ",pfx);
+		for (i = 0; i < nc; i++)
+			fprintf(fp, "%f%s",a[j][i], i < (nc-1) ? ", " : "");
+		fprintf(fp, "\n");
+	}
+}
+
+int matxinv_test() {
+	double mx[MAX_CHAN][MAX_CHAN];
+	double imx[MAX_CHAN][MAX_CHAN];
+	double ch[MAX_CHAN][MAX_CHAN];
+	int m, n, i, j, k;
+	double max;
+
+	for (m = 0; m < 20; m++) {
+		/* Create a random matrix */
+		n = rand_int(2,8);
+		for (i = 0;  i < n; i++) {
+			for (j = 0;  j < n; j++) {
+				mx[i][j] = rand_32f();
+			}
+		}
+	
+//		dump_mtx(stdout, "mx","",mx,n,n);
+	
+		if (invmatrix(imx, mx, n)) {
+			printf("invmatrix failed\n");
+			return 1;
+		}
+	
+//		dump_mtx(stdout, "imx","",imx,n,n);
+	
+		for (i = 0;  i < n; i++) {
+			for (j = 0;  j < n; j++) {
+				ch[i][j] = 0.0;
+				for (k = 0; k < n; k++) {
+					ch[i][j] += mx[i][k] * imx[k][j]; 
+				}
+			}
+		}
+	
+//		dump_mtx(stdout, "ch","",ch,n,n);
+	
+		max = 0.0;
+		for (i = 0;  i < n; i++) {
+			for (j = 0;  j < n; j++) {
+				double vv = ch[i][j];
+				if (i == j)
+					vv -= 1.0;
+				vv = fabs(vv);
+				if (vv > max)
+					max = vv;
+			}
+		}
+	
+		printf("max matrix invert error %e\n",max);
+	
+		if (max > 1e-11) {
+			dump_mtx(stdout, "ch","",ch,n,n);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+#endif
 
 /* Test the MD5 function. Return nz if fail. */
 int md5_test() {
@@ -617,11 +735,17 @@ int md5_test() {
 /* that are specific to this library. */
 
 int doit(
+	int pass,		/* Pass number */
 	int mode,		/* 0 - write, 1 = read/verify */
 	icc *wr_icco,	/* The write icc object */
-	icc *rd_icco	/* The read icc object */
+	icc *rd_icco,	/* The read icc object */
+	int v3			/* Do iccib v3 checks */
 ) {
 	int rv = 0;
+	int minc = 0;	/* Minimum arrary/number count */
+
+	if (v3)
+		minc = 1;	/* For compatibility with SampleIcc */
 
 	/* ----------- */
 	/* The header: */
@@ -629,8 +753,6 @@ int doit(
 		icmHeader *wh = wr_icco->header;
 
 		/* Values that must be set before writing */
-// ~~~999
-//		wh->deviceClass     = icSigAbstractClass;
 		wh->deviceClass     = rand_ProfileClassSignature();
     	wh->colorSpace      = rand_ColorSpaceSignature();
     	wh->pcs             = rand_PCS();
@@ -661,6 +783,13 @@ int doit(
     	wh->illuminant.X = rand_XYZ16();		/* Defaults to D50 */
     	wh->illuminant.Y = rand_XYZ16();
     	wh->illuminant.Z = rand_XYZ16();
+
+		/* Avoid device encodings that aren't handled by icctest v2  */
+		if (!v3 && (wh->colorSpace == icSigXYZData || wh->colorSpace == icSigLabData
+		 || wh->colorSpace == icSigLuvData || wh->colorSpace == icSigYCbCrData
+		 || wh->colorSpace == icSigYxyData))
+			wh->colorSpace = icSigRgbData;        /* ICC doesn't say how to encode these... */
+
 	} else {
 		icmHeader *rh = rd_icco->header;
 		icmHeader *wh = wr_icco->header;
@@ -696,7 +825,7 @@ int doit(
 	/* --------------------- */
 	/* Unknown */ 
 	{
-	icTagSignature sig = ((icTagTypeSignature)icmMakeTag('5','6','7','8'));
+	icTagSignature sig = ((icTagSignature)icmMakeTag('5','6','7','8'));
 	static icmUnknown *wo;
 
 	if (mode == 0) {
@@ -707,8 +836,9 @@ int doit(
 		}
 
 		wo->uttype = icmMakeTag('1','2','3','4');
-		wo->count = rand_int(0,1034);	/* Space we need for data */
-		wo->allocate(wo);/* Allocate space */
+		wo->count = rand_int(minc,1034);	/* Space we need for data */
+		if (wo->allocate(wo)) /* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i ++) 
 			wo->data[i] = rand_o8();
 	} else {
@@ -726,7 +856,7 @@ int doit(
 			return 1;
 	
 		if (ro->uttype != wo->uttype)
-			error ("Unknown uttype doesn't match");
+			error ("Unknown uttype doesn't match (%s != %s",icmtag2str(ro->uttype),icmtag2str(wo->uttype));
 
 		if (ro->count != wo->count)
 			error ("Unknown count doesn't match (found %d should be %d)",ro->count,wo->count);
@@ -738,6 +868,68 @@ int doit(
 			error ("Unknown verify failed");
 	}
 	}
+
+	/* ------------- */
+	/* Chromaticity: */
+
+	if (v3) {		/* icclib v2 release doesn't have this */
+	static icmChromaticity *wo;
+	if (mode == 0) {
+		unsigned int i;
+		if ((wo = (icmChromaticity *)wr_icco->add_tag(
+		           wr_icco, icSigChromaticityTag, icSigChromaticityType)) == NULL) { 
+			printf("Add icSigChromaticityType failed\n");
+			return 1;
+		}
+
+		wo->enc = rand_ColorantEncoding();
+
+		if (wo->enc != icPhColUnknown) {
+			wo->setup(wo);		/* Create tag compatible with encoding */
+
+		} else {				/* Invent chromaticities */
+	   		wo->count = rand_int(minc, 15);	/* Should actually be same as device colorspace */
+			if (wo->allocate(wo))				/* Allocate Chromaticity structures */
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+			for (i = 0; i < wo->count; i++) {
+				wo->data[i].xy[0] = rand_u16f16();
+				wo->data[i].xy[1] = rand_u16f16();
+			}
+
+		}
+	} else {
+		icmChromaticity *ro;
+		unsigned int i;
+
+		/* Try and read the tag from the file */
+		ro = (icmChromaticity *)rd_icco->read_tag(rd_icco, icSigChromaticityTag);
+		if (ro == NULL) {
+			printf("read_tag icSigChromaticityType failed\n");
+			return 1;
+		}
+
+		/* Need to check that the cast is appropriate. */
+		if (ro->ttype != icSigChromaticityType) {
+			printf("cast icSigChromaticityType failed\n");
+			return 1;
+		}
+
+		/* Now check it out */	
+    	rv |= (ro->enc != wo->enc);
+		if (rv) error("Chromaticity verify failed on encoding");
+
+    	rv |= (ro->count != wo->count);
+		if (rv) error("Chromaticity verify failed on count");
+
+		for (i = 0; i < ro->count; i++) {
+			rv |= diff_u16f16(ro->data[i].xy[0], wo->data[i].xy[0]);
+			rv |= diff_u16f16(ro->data[i].xy[1], wo->data[i].xy[1]);
+			if (rv) error("Chromaticity verify failed on values");
+		}
+	}
+	}
+
 	/* ------------- */
 	/* CrdInfo info: */
 	{
@@ -753,11 +945,12 @@ int doit(
 		           wr_icco, icSigCrdInfoTag, icSigCrdInfoType)) == NULL) 
 			return 1;
 
-		wo->ppsize = strlen(str1)+1; 			/* Allocated and used size of text, inc null */
+		wo->ppcount = strlen(str1)+1; 			/* Allocated and used size of text, inc null */
 		for (i = 0; i < 4; i++)
-			wo->crdsize[i] = strlen(str2[i])+1;	/* Allocated and used size of text, inc null */
+			wo->crdcount[i] = strlen(str2[i])+1;	/* Allocated and used size of text, inc null */
 
-		wo->allocate(wo);			/* Allocate space */
+		if (wo->allocate(wo))			/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		/* Note we could allocate and copy as we go, rather than doing them all at once. */
 
 		strcpy(wo->ppname, str1);				/* Copy the text in */
@@ -777,10 +970,10 @@ int doit(
 			return 1;
 	
 		/* Now check it out */	
-		if (ro->ppsize != wo->ppsize)
+		if (ro->ppcount != wo->ppcount)
 		for (i = 0; i < 4; i++) {
-			if (ro->crdsize[i] != wo->crdsize[i])
-				error ("CrdInfo crdsize[%d] doesn't match",i);
+			if (ro->crdcount[i] != wo->crdcount[i])
+				error ("CrdInfo crdcount[%d] doesn't match",i);
 		}
 
 		rv |= strcmp(ro->ppname, wo->ppname);
@@ -801,8 +994,9 @@ int doit(
 		           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
 			return 1;
 
-		wo->flag = icmCurveLin; 	/* Linear version */
-		wo->allocate(wo);/* Allocate space */
+		wo->ctype = icmCurveLin; 	/* Linear version */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 	} else {
 		icmCurve *ro;
 
@@ -816,7 +1010,7 @@ int doit(
 			return 1;
 	
 		/* Now check it out */	
-		if (ro->flag != wo->flag)
+		if (ro->ctype != wo->ctype)
 			error ("Curve flag doesn't match for Linear");
 
 		if (ro->count != wo->count)
@@ -835,8 +1029,9 @@ int doit(
 		           wr_icco, icSigGreenTRCTag, icSigCurveType)) == NULL) 
 			return 1;
 
-		wo->flag = icmCurveGamma; 		/* Gamma version */
-		wo->allocate(wo);	/* Allocate space */
+		wo->ctype = icmCurveGamma; 		/* Gamma version */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		wo->data[0] = rand_u8f8();		/* Gamma value */
 	} else {
 		icmCurve *ro;
@@ -851,7 +1046,7 @@ int doit(
 			return 1;
 	
 		/* Now check it out */	
-		if (ro->flag != wo->flag)
+		if (ro->ctype != wo->ctype)
 			error ("Curve flag doesn't match for Gamma");
 
 		if (ro->count != wo->count)
@@ -873,9 +1068,10 @@ int doit(
 		           wr_icco, icSigBlueTRCTag, icSigCurveType)) == NULL) 
 			return 1;
 
-		wo->flag = icmCurveSpec; 	/* Specified version */
+		wo->ctype = icmCurveSpec; 	/* Specified version */
 		wo->count = rand_int(2,23);	/* Number of entries (min must be 2!) */
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++)
 			wo->data[i] = rand_16f();	/* Curve values 0.0 - 1.0 */
 	} else {
@@ -892,7 +1088,7 @@ int doit(
 			return 1;
 	
 		/* Now check it out */	
-		if (ro->flag != wo->flag)
+		if (ro->ctype != wo->ctype)
 			error ("Curve flag doesn't match for specified");
 
 		if (ro->count != wo->count)
@@ -915,9 +1111,10 @@ int doit(
 		           wr_icco, icSigPs2CRD0Tag,	icSigDataType)) == NULL) 
 			return 1;
 
-		wo->flag = icmDataASCII;	/* Holding ASCII data */
+		wo->flag = icAsciiData;	/* Holding ASCII data */
 		wo->count = strlen(ts1)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		strcpy((char *)wo->data, ts1);		/* Copy the text in */
 	} else {
 		icmData *ro;
@@ -954,9 +1151,10 @@ int doit(
 		           wr_icco, icSigPs2CRD1Tag,	icSigDataType)) == NULL) 
 			return 1;
 
-		wo->flag = icmDataBin;		/* Holding binary data */
-		wo->count = rand_int(0,43);	/* Space we need for data */
-		wo->allocate(wo);/* Allocate space */
+		wo->flag = icBinaryData;		/* Holding binary data */
+		wo->count = rand_int(minc,43);	/* Space we need for data */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i ++) 
 			wo->data[i] = rand_o8();
 	} else {
@@ -1028,24 +1226,26 @@ int doit(
 	/* ----------- */
 	/* 16 bit lut: */
 	{
-	static icmLut *wo;
+	static icmLut1 *wo;
 	if (mode == 0) {
 		unsigned int i, j, k;
-		if ((wo = (icmLut *)wr_icco->add_tag(
+
+		if ((wo = (icmLut1 *)wr_icco->add_tag(
 		           wr_icco, icSigAToB0Tag,	icSigLut16Type)) == NULL) 
 			return 1;
 
-		wo->inputChan = 2;
+		wo->inputChan = 2;			/* (Hard coded into cLut access) */
 		wo->outputChan = 3;
     	wo->clutPoints = 5;
     	wo->inputEnt = 56;
     	wo->outputEnt = 73;
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 
 		/* The matrix is only applicable to XYZ input space */
 		for (i = 0; i < 3; i++)							/* Matrix */
 			for (j = 0; j < 3; j++)
-				wo->e[i][j] = rand_s15f16();
+				wo->pe_mx->mx[i][j] = rand_s15f16();
 
 		/* See icc.getNormFuncs() for normalizing functions */
 		/* The input table index range is over the normalized range 0.0 - 1.0. */
@@ -1053,36 +1253,37 @@ int doit(
 		/* the values 0.0 - 1.0. */
 		for (i = 0; i < wo->inputChan; i++)				/* Input tables */
 			for (j = 0; j < wo->inputEnt; j++)
-				wo->inputTable[i * wo->inputEnt + j] = rand_16f();
+				wo->pe_ic[i]->data[j] = rand_16f();
 
 														/* Lut */
-		/* The multidimentional lut has a normalized index range */
+		/* The multidimensional lut has a normalized index range */
 		/* of 0.0 - 1.0 in each dimension. Its entry values are also */
 		/* normalized values in the range 0.0 - 1.0. */
 		for (i = 0; i < wo->clutPoints; i++)			/* Input chan 0 - slow changing */
 			for (j = 0; j < wo->clutPoints; j++)		/* Input chan 1 - faster changing */
-				for (k = 0; k < wo->outputChan; k++)	/* Output chans */
-					wo->clutTable[(i * wo->clutPoints + j) * wo->outputChan + k] = rand_16f();
+				for (k = 0; k < wo->outputChan; k++) {	/* Output chans */
+					int idx = (i * wo->clutPoints + j) * wo->outputChan + k;
+					wo->pe_cl->clutTable[idx] = rand_16f();
+				}
 
 		/* The output color space values should be normalized to the */
 		/* range 0.0 - 1.0 for use as output table entry values. */
 		for (i = 0; i < wo->outputChan; i++)			/* Output tables */
 			for (j = 0; j < wo->outputEnt; j++)
-				wo->outputTable[i * wo->outputEnt + j] = rand_16f();
+				wo->pe_oc[i]->data[j] = rand_16f();
 
 	} else {
-		icmLut *ro;
-		unsigned int size;
-		unsigned int i, j;
+		icmLut1 *ro;
+		unsigned int i, j, k;
 
 		/* Try and read the tag from the file */
-		ro = (icmLut *)rd_icco->read_tag(rd_icco, icSigAToB0Tag);
+		ro = (icmLut1 *)rd_icco->read_tag(rd_icco, icSigAToB0Tag);
 		if (ro == NULL) 
 			return 1;
 
 		/* Need to check that the cast is appropriate. */
 		if (ro->ttype != icSigLut16Type)
-			return 1;
+			error ("Lut16 ttype mismatch");
 	
 		/* Now check it out */	
 		rv |= (ro->inputChan != wo->inputChan);
@@ -1090,45 +1291,50 @@ int doit(
     	rv |= (ro->clutPoints != wo->clutPoints);
     	rv |= (ro->inputEnt != wo->inputEnt);
     	rv |= (ro->outputEnt != wo->outputEnt);
+		if (rv) error ("Lut16 dimensions mismatch");
 
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 3; j++)
-				rv |= dcomp(ro->e[i][j], wo->e[i][j]);
+				rv |= dcomp(ro->pe_mx->mx[i][j], wo->pe_mx->mx[i][j]);
+		if (rv) error ("Lut16 matrix mismatch");
 
-		size = (wo->inputChan * wo->inputEnt);
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->inputTable[i], wo->inputTable[i]);
-
-		size = wo->outputChan;
 		for (i = 0; i < wo->inputChan; i++)
-			size *= wo->clutPoints;
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->clutTable[i], wo->clutTable[i]);
+			for (j = 0; j < wo->inputEnt; j++) {
+				rv |= dcomp(ro->pe_ic[i]->data[j], wo->pe_ic[i]->data[j]);
+				if (rv) error ("Lut16 input table mismatch chan %d entry %d, is %f should be %f",
+				i,j,ro->pe_ic[i]->data[j], wo->pe_ic[i]->data[j]);
+			}
 
-		size = (wo->outputChan * wo->outputEnt);
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->outputTable[i], wo->outputTable[i]);
-		if (rv)
-			error ("Lut16 verify failed");
+		for (i = 0; i < wo->clutPoints; i++)			/* Input chan 0 - slow changing */
+			for (j = 0; j < wo->clutPoints; j++)		/* Input chan 1 - faster changing */
+				for (k = 0; k < wo->outputChan; k++) {	/* Output chans */
+					int idx = (i * wo->clutPoints + j) * wo->outputChan + k;
+					rv |= dcomp( ro->pe_cl->clutTable[idx], wo->pe_cl->clutTable[idx]);
+				}
+		if (rv) error ("Lut16 cLut mismatch");
+
+		for (i = 0; i < wo->outputChan; i++)
+			for (j = 0; j < wo->outputEnt; j++)
+				rv |= dcomp(ro->pe_oc[i]->data[j], wo->pe_oc[i]->data[j]);
+		if (rv) error ("Lut16 output table mismatch");
 	}
 	}
 	/* ------------------ */
 	/* 16 bit lut - link: */
 	{
-	static icmLut *wo;
+	static icmLut1 *wo;
 	if (mode == 0) {
 		/* Just link to the existing LUT. This is often used when there */
 		/* is no distinction between intents, and saves file and memory space. */
-		if ((wo = (icmLut *)wr_icco->link_tag(
+		if ((wo = (icmLut1 *)wr_icco->link_tag(
 		           wr_icco, icSigAToB1Tag,	icSigAToB0Tag)) == NULL) 
 			return 1;
 	} else {
-		icmLut *ro;
-		unsigned int size;
-		unsigned int i;
+		icmLut1 *ro;
+		unsigned int i, j, k;
 
 		/* Try and read the tag from the file */
-		ro = (icmLut *)rd_icco->read_tag(rd_icco, icSigAToB1Tag);
+		ro = (icmLut1 *)rd_icco->read_tag(rd_icco, icSigAToB1Tag);
 		if (ro == NULL) 
 			return 1;
 
@@ -1142,50 +1348,59 @@ int doit(
     	rv |= (ro->clutPoints != wo->clutPoints);
     	rv |= (ro->inputEnt != wo->inputEnt);
     	rv |= (ro->outputEnt != wo->outputEnt);
+		if (rv) error ("Lut16 link dimensions mismatch");
 
-		size = (wo->inputChan * wo->inputEnt);
-		for (i = 0; i < size; i++)
-			rv |= (ro->inputTable[i] != wo->inputTable[i]);
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 3; j++)
+				rv |= dcomp(ro->pe_mx->mx[i][j], wo->pe_mx->mx[i][j]);
+		if (rv) error ("Lut16 link matrix mismatch");
 
-		size = wo->outputChan;
 		for (i = 0; i < wo->inputChan; i++)
-			size *= wo->clutPoints;
-		for (i = 0; i < size; i++)
-			rv |= (ro->clutTable[i] != wo->clutTable[i]);
+			for (j = 0; j < wo->inputEnt; j++)
+				rv |= dcomp(ro->pe_ic[i]->data[j], wo->pe_ic[i]->data[j]);
+		if (rv) error ("Lut16 link input table mismatch");
 
-		size = (wo->outputChan * wo->outputEnt);
-		for (i = 0; i < size; i++)
-			rv |= (ro->outputTable[i] != wo->outputTable[i]);
-		if (rv)
-			error ("Lut16 link verify failed");
+		for (i = 0; i < wo->clutPoints; i++)			/* Input chan 0 - slow changing */
+			for (j = 0; j < wo->clutPoints; j++)		/* Input chan 1 - faster changing */
+				for (k = 0; k < wo->outputChan; k++) {	/* Output chans */
+					int idx = (i * wo->clutPoints + j) * wo->outputChan + k;
+					rv |= dcomp( ro->pe_cl->clutTable[idx], wo->pe_cl->clutTable[idx]);
+				}
+		if (rv) error ("Lut16 link cLut mismatch");
+
+		for (i = 0; i < wo->outputChan; i++)
+			for (j = 0; j < wo->outputEnt; j++)
+				rv |= dcomp(ro->pe_oc[i]->data[j], wo->pe_oc[i]->data[j]);
+		if (rv) error ("Lut16 link output table mismatch");
 	}
 	}
 	/* ---------- */
 	/* 8 bit lut: */
 	{
-	static icmLut *wo;
+	static icmLut1 *wo;
 	if (mode == 0) {
 		unsigned int i, j, m, k;
-		if ((wo = (icmLut *)wr_icco->add_tag(
+		if ((wo = (icmLut1 *)wr_icco->add_tag(
 		           wr_icco, icSigAToB2Tag,	icSigLut8Type)) == NULL) 
 			return 1;
 
-		wo->inputChan = 3;
+		wo->inputChan = 3;			/* (Hard coded into cLut access) */
 		wo->outputChan = 2;
     	wo->clutPoints = 4;
     	wo->inputEnt = 256;			/* Must be 256 for Lut8 */
     	wo->outputEnt = 256;
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))			/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 
-		for (i = 0; i < 3; i++)						/* Matrix */
+		for (i = 0; i < 3; i++)							/* Matrix */
 			for (j = 0; j < 3; j++)
-				wo->e[i][j] = rand_s15f16();
+				wo->pe_mx->mx[i][j] = rand_s15f16();
 
-		for (i = 0; i < wo->inputChan; i++)			/* Input tables */
+		for (i = 0; i < wo->inputChan; i++)				/* Input tables */
 			for (j = 0; j < wo->inputEnt; j++)
-				wo->inputTable[i * wo->inputEnt + j] = rand_8f();
+				wo->pe_ic[i]->data[j] = rand_8f();
 
-													/* Lut */
+														/* Lut */
 		for (i = 0; i < wo->clutPoints; i++)				/* Input chan 0 */
 			for (j = 0; j < wo->clutPoints; j++)			/* Input chan 1 */
 				for (m = 0; m < wo->clutPoints; m++)		/* Input chan 2 */
@@ -1193,20 +1408,20 @@ int doit(
 						int idx = ((i * wo->clutPoints + j)
 						              * wo->clutPoints + m)
 						              * wo->outputChan + k;
-						wo->clutTable[idx] = rand_8f();
+						wo->pe_cl->clutTable[idx] = rand_8f();
 						}
 
-		for (i = 0; i < wo->outputChan; i++)		/* Output tables */
+		for (i = 0; i < wo->outputChan; i++)			/* Output tables */
 			for (j = 0; j < wo->outputEnt; j++)
-				wo->outputTable[i * wo->outputEnt + j] = rand_8f();
+				wo->pe_oc[i]->data[j] = rand_8f();
 
 	} else {
-		icmLut *ro;
+		icmLut1 *ro;
 		unsigned int size;
-		unsigned int i, j;
+		unsigned int i, j, k, m;
 
 		/* Try and read the tag from the file */
-		ro = (icmLut *)rd_icco->read_tag(rd_icco, icSigAToB2Tag);
+		ro = (icmLut1 *)rd_icco->read_tag(rd_icco, icSigAToB2Tag);
 		if (ro == NULL)
 			return 1;
 
@@ -1223,29 +1438,37 @@ int doit(
 
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 3; j++)
-				rv |= dcomp(ro->e[i][j], wo->e[i][j]);
+				rv |= dcomp(ro->pe_mx->mx[i][j], wo->pe_mx->mx[i][j]);
+		if (rv) error ("Lut8 matrix mismatch");
 
-		size = (wo->inputChan * wo->inputEnt);
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->inputTable[i], wo->inputTable[i]);
-
-		size = wo->outputChan;
 		for (i = 0; i < wo->inputChan; i++)
-			size *= wo->clutPoints;
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->clutTable[i], wo->clutTable[i]);
+			for (j = 0; j < wo->inputEnt; j++)
+				rv |= dcomp(ro->pe_ic[i]->data[j], wo->pe_ic[i]->data[j]);
+		if (rv) error ("Lut8 input table mismatch");
 
-		size = (wo->outputChan * wo->outputEnt);
-		for (i = 0; i < size; i++)
-			rv |= dcomp(ro->outputTable[i], wo->outputTable[i]);
-		if (rv)
-			error ("Lut8 verify failed");
+		for (i = 0; i < wo->clutPoints; i++)				/* Input chan 0 */
+			for (j = 0; j < wo->clutPoints; j++)			/* Input chan 1 */
+				for (m = 0; m < wo->clutPoints; m++)		/* Input chan 2 */
+					for (k = 0; k < wo->outputChan; k++) {	/* Output chans */
+						int idx = ((i * wo->clutPoints + j)
+						              * wo->clutPoints + m)
+						              * wo->outputChan + k;
+						rv |= dcomp( ro->pe_cl->clutTable[idx], wo->pe_cl->clutTable[idx]);
+						}
+
+		if (rv) error ("Lut8 cLut mismatch");
+
+		for (i = 0; i < wo->outputChan; i++)
+			for (j = 0; j < wo->outputEnt; j++)
+				rv |= dcomp(ro->pe_oc[i]->data[j], wo->pe_oc[i]->data[j]);
+		if (rv) error ("Lut8 output table mismatch");
 	}
 	}
 	/* ----------------- */
 	/* Measurement: */
 	{
 	static icmMeasurement *wo;
+
 	if (mode == 0) {
 		if ((wo = (icmMeasurement *)wr_icco->add_tag(
 		           wr_icco, icSigMeasurementTag, icSigMeasurementType)) == NULL) 
@@ -1340,28 +1563,41 @@ int doit(
 			error ("Measurement verify failed");
 	}
 	}
+
+
 	/* ----------------- */
 	/* Old style NamedColor: */
 	{
 	static icmNamedColor *wo;
 	if (mode == 0) {
+		char *prefix = "Prefix", *suffix = "Suffix";
+		char buf[100];
 		unsigned int i;
+
 		if ((wo = (icmNamedColor *)wr_icco->add_tag(
 		           wr_icco, icSigNamedColorTag, icSigNamedColorType)) == NULL) 
 			return 1;
 
    		wo->vendorFlag = rand_int(0,65535) << 16;	/* Bottom 16 bits for IC use */
    		wo->count = 3;			/* Count of named colors */
-		strcpy(wo->prefix,"Prefix"); /* Prefix for each color name, max 32, null terminated */
-		strcpy(wo->suffix,"Suffix"); /* Suffix for each color name, max 32, null terminated */
+		wo->pcount = strlen(prefix) + 1;
+		wo->scount = strlen(suffix) + 1;
 
-		wo->allocate(wo);	/* Allocate named color structures */
+		if (wo->allocate(wo))	/* Allocate strings and named color structures */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+		strcpy(wo->prefix,prefix); /* Prefix for each color name, max 32, null terminated */
+		strcpy(wo->suffix,suffix); /* Suffix for each color name, max 32, null terminated */
 
 		for (i = 0; i < wo->count; i++) {
 			unsigned int j;
-			sprintf(wo->data[i].root,"Color %d",i); /* Root name, max 32, null terminated */
-			for (j = 0; j < wo->nDeviceCoords; j++)	/* nDeviceCoords defaults appropriately */
-				wo->data[i].deviceCoords[j] = rand_8f(); /* Device coords of color */
+			icColorSpaceSignature dsig = wr_icco->header->colorSpace;
+			sprintf(buf,"Color %d",i); /* Root name, max 32, null terminated */
+			wo->data[i].rcount = strlen(buf) + 1;
+			if (wo->allocate(wo))	/* Allocate root string */
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+			strcpy(wo->data[i].root,buf);
+			rand_Color(wo->data[i].deviceCoords, wr_icco->header->colorSpace, 8);
 		}
 	} else {
 		icmNamedColor *ro;
@@ -1384,17 +1620,19 @@ int doit(
 		rv |= strcmp(ro->suffix, wo->suffix);
 
 		if (rv)
-			error ("NamedColor verify failed");
+			error ("NamedColor info verify failed");
 
 		for (i = 0; i < wo->count; i++) {
 			unsigned int j;
 			rv |= strcmp(ro->data[i].root, wo->data[i].root);
-			for (j = 0; j < wo->nDeviceCoords; j++)
+			if (rv) error ("NamedColor entry %d root verify failed",i);
+			for (j = 0; j < wo->nDeviceCoords; j++) {
 				rv |= dcomp(ro->data[i].deviceCoords[j], wo->data[i].deviceCoords[j]);
+				if (rv) error ("NamedColor entry %d value %d verify failed: is %f should be %f",
+				                i,j, ro->data[i].deviceCoords[j], wo->data[i].deviceCoords[j]);
+			}
 		}
 
-		if (rv)
-			error ("NamedColor verify failed");
 	}
 	}
 	/* ----------------- */
@@ -1402,39 +1640,35 @@ int doit(
 	{
 	static icmNamedColor *wo;	/* Shares same machine specific structure */
 	if (mode == 0) {
+		char *prefix = "Prefix-ix", *suffix = "Suffix-ixix";
+		char buf[100];
 		unsigned int i;
+
 		if ((wo = (icmNamedColor *)wr_icco->add_tag(
 		           wr_icco, icSigNamedColor2Tag, icSigNamedColor2Type)) == NULL) 
 			return 1;
 
    		wo->vendorFlag = rand_int(0,65535) << 16;	/* Bottom 16 bits for ICC use */
    		wo->count = 4;			/* Count of named colors */
-   		wo->nDeviceCoords =	3;	/* Num of device coordinates */
-		         /* Could set this different to that implied by wr_icco->header->colorSpace */
+		wo->nDeviceCoords =	icmCSSig2nchan(wr_icco->header->colorSpace);
+								/* Num of device coordinates */
+		wo->pcount = strlen(prefix) + 1;
+		wo->scount = strlen(suffix) + 1;
+
+		if (wo->allocate(wo))	/* Allocate strings and named color structures */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
 		strcpy(wo->prefix,"Prefix-ix"); /* Prefix for each color name, max 32, null terminated */
 		strcpy(wo->suffix,"Suffix-ixix"); /* Suffix for each color name, max 32, null terminated */
 
-		wo->allocate(wo);	/* Allocate named color structures */
-
 		for (i = 0; i < wo->count; i++) {
-			unsigned int j;
-			sprintf(wo->data[i].root,"Pigment %d",i); /* Root name, max 32, null terminated */
-			for (j = 0; j < wo->nDeviceCoords; j++)
-				wo->data[i].deviceCoords[j] = rand_8f(); /* Device coords of color */
-			switch(wo->icp->header->pcs) {
-				case icSigXYZData:
-						wo->data[i].pcsCoords[0] = rand_XYZ16();
-						wo->data[i].pcsCoords[1] = rand_XYZ16();
-						wo->data[i].pcsCoords[2] = rand_XYZ16();
-					break;
-			   	case icSigLabData:
-						wo->data[i].pcsCoords[0] = rand_L16();
-						wo->data[i].pcsCoords[1] = rand_ab16();
-						wo->data[i].pcsCoords[2] = rand_ab16();
-					break;
-				default:
-					break;
-			}
+			sprintf(buf,"Pigment %d",i); /* Root name, max 32, null terminated */
+			wo->data[i].rcount = strlen(buf) + 1;
+			if (wo->allocate(wo))	/* Allocate root string */
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+			strcpy(wo->data[i].root,buf);
+			rand_Color(wo->data[i].pcsCoords, wr_icco->header->pcs, 16);
+			rand_Color(wo->data[i].deviceCoords, wr_icco->header->colorSpace, 16);
 		}
 	} else {
 		icmNamedColor *ro;
@@ -1462,84 +1696,16 @@ int doit(
 		for (i = 0; i < wo->count; i++) {
 			unsigned int j;
 			rv |= strcmp(ro->data[i].root, wo->data[i].root);
-			for (j = 0; j < wo->nDeviceCoords; j++)
+			for (j = 0; j < wo->nDeviceCoords; j++) {
 				rv |= dcomp(ro->data[i].deviceCoords[j], wo->data[i].deviceCoords[j]);
+				if (rv) error ("NamedColor2 verify entry %d device value %d failed is %f should be %f",i,j,ro->data[i].deviceCoords[j], wo->data[i].deviceCoords[j]);
+			}
 			for (j = 0; j < 3; j++) {
 				rv |= dcomp(ro->data[i].pcsCoords[j], wo->data[i].pcsCoords[j]);
+				if (rv) error ("NamedColor2 verify entry %d pcs value %d failed, is %f should be %f",i,j,ro->data[i].pcsCoords[j], wo->data[i].pcsCoords[j]);
 			}
 		}
 
-		if (rv)
-			error ("NamedColor2 verify failed");
-	}
-	}
-	/* ----------------- */
-	/* ColorantTable: */
-	{
-	static icmColorantTable *wo;
-	if (mode == 0) {
-		unsigned int i;
-		icColorSpaceSignature pcs;
-
-		if (wr_icco->header->deviceClass != icSigLinkClass)
-			pcs = wr_icco->header->pcs;
-		else
-			pcs = icSigLabData;
-
-		if ((wo = (icmColorantTable *)wr_icco->add_tag(
-		           wr_icco, icSigColorantTableTag, icSigColorantTableType)) == NULL) 
-			return 1;
-
-   		wo->count = 4;		/* Count of colorants - should be same as implied by device space */
-		wo->allocate(wo);	/* Allocate ColorantTable structures */
-
-		for (i = 0; i < wo->count; i++) {
-			sprintf(wo->data[i].name,"Color %d",i); /* Colorant name, max 32, null terminated */
-			switch(pcs) {
-				case icSigXYZData:
-						wo->data[i].pcsCoords[0] = rand_XYZ16();
-						wo->data[i].pcsCoords[1] = rand_XYZ16();
-						wo->data[i].pcsCoords[2] = rand_XYZ16();
-					break;
-			   	case icSigLabData:
-						wo->data[i].pcsCoords[0] = rand_L16();
-						wo->data[i].pcsCoords[1] = rand_ab16();
-						wo->data[i].pcsCoords[2] = rand_ab16();
-					break;
-				default:
-					break;
-			}
-		}
-	} else {
-		icmColorantTable *ro;
-		unsigned int i;
-		icColorSpaceSignature pcs;
-
-		/* Try and read the tag from the file */
-		ro = (icmColorantTable *)rd_icco->read_tag(rd_icco, icSigColorantTableTag);
-		if (ro == NULL) 
-			return 1;
-
-		/* Need to check that the cast is appropriate. */
-		if (ro->ttype != icSigColorantTableType)
-			return 1;
-
-		/* Now check it out */	
-    	rv |= (ro->count != wo->count);
-
-		if (rv)
-			error ("ColorantTable count verify failed");
-
-		for (i = 0; i < wo->count; i++) {
-			int j;
-			rv |= strcmp(ro->data[i].name, wo->data[i].name);
-			for (j = 0; j < 3; j++) {
-				rv |= dcomp(ro->data[i].pcsCoords[j], wo->data[i].pcsCoords[j]);
-			}
-		}
-
-		if (rv)
-			error ("ColorantTable name/value verify failed");
 	}
 	}
 	/* ----------------- */
@@ -1553,12 +1719,15 @@ int doit(
 		           wr_icco, icSigProfileSequenceDescTag, icSigProfileSequenceDescType)) == NULL) 
 			return 1;
 
-		wo->count = 3; 		/* Number of descriptions in sequence */
-		wo->allocate(wo);	/* Allocate space for all the DescStructures */
+		wo->count = 3; 			/* Number of descriptions in sequence */
+		if (wo->allocate(wo))	/* Allocate space for all the DescStructures */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 
 		/* Fill in each description structure in sequence */
 		for (i = 0; i < wo->count; i++) {
-			char *ts1, *ts2, *ts3;
+			icmTextDescription *wp;		/* We're assuming ICCV2 here */
+			char *ts1, *ts3;
+			icmUTF8 *ts2;
 
 			wo->data[i].deviceMfg   = icmstr2tag("mfg7");
 			wo->data[i].deviceModel = icmstr2tag("2345");
@@ -1571,22 +1740,22 @@ int doit(
 			ts2 = rand_utf8_string(8, 111);
 			ts3 = rand_ascii_string(7, 67-1);
 
-			wo->data[i].device.count = strlen(ts1)+1;
-			wo->data[i].allocate(&wo->data[i]); 		/* Allocate space */
-			strcpy(wo->data[i].device.desc, ts1);		/* Copy the string in */
+			wp = (icmTextDescription *)wo->data[i].mfgDesc;
+			wp->count = strlen(ts1)+1;
+			wp->allocate(wp); 		/* Allocate space */
+			strcpy(wp->desc, ts1);		/* Copy the string in */
 	
 			/* utf-8 */
-			wo->data[i].device.ucLangCode = 8765;		/* UniCode language code */
-			wo->data[i].device.ucCount = strlen(ts2)+1;	/* Size in chars inc null */
-			wo->data[i].allocate(&wo->data[i]);			/* Allocate space */
-			strcpy((icmUTF8 *)wo->data[i].device.uc8Desc, ts2);	/* Copy the string in */
+			wp->ucLangCode = 8765;		/* UniCode language code */
+			wp->uc8count = strlen((char *)ts2)+1;/* Size in chars inc null */
+			wp->allocate(wp);			/* Allocate space */
+			strcpy((char *)wp->uc8desc, (char *)ts2);	/* Copy the string in */
 	
 			/* Script code */
-			wo->data[i].device.scCode = 37;				/* Fudge scriptCode code */
-			wo->data[i].device.scCount = strlen(ts3)+1;	/* Used size of scDesc in bytes, inc null */
-			if (wo->data[i].device.scCount > 67)
-				error("Device ScriptCode string longer than 67 (%d)",wo->data[i].device.scCount);
-			strcpy((char *)wo->data[i].device.scDesc, ts3);	/* Copy the string in */
+			wp->scCode = 37;				/* Fudge scriptCode code */
+			wp->scCount = strlen(ts3)+1;	/* Used size of scDesc in bytes, inc null */
+			wp->allocate(wp);			/* Allocate space */
+			strcpy((char *)wp->scDesc, ts3);	/* Copy the string in */
 
 			free(ts1);
 			free(ts2);
@@ -1597,21 +1766,21 @@ int doit(
 			ts2 = rand_utf8_string(8, 111);
 			ts3 = rand_ascii_string(7, 67-1);
 
-			wo->data[i].model.count = strlen(ts1)+1;
-			wo->data[i].allocate(&wo->data[i]);			/* Allocate space */
-			strcpy(wo->data[i].model.desc, ts1);		/* Copy the string in */
+			wp = (icmTextDescription *)wo->data[i].modelDesc;
+			wp->count = strlen(ts1)+1;
+			wp->allocate(wp);			/* Allocate space */
+			strcpy(wp->desc, ts1);		/* Copy the string in */
 	
 			/* We'll fudge up the Unicode string */
-			wo->data[i].model.ucLangCode = 7856;		/* UniCode language code */
-			wo->data[i].model.ucCount = strlen(ts2)+1;	/* Size in chars inc null */
-			wo->data[i].allocate(&wo->data[i]);			/* Allocate space */
-			strcpy((icmUTF8 *)wo->data[i].model.uc8Desc, ts2);	/* Copy string in */
+			wp->ucLangCode = 7856;		/* UniCode language code */
+			wp->uc8count = strlen((char *)ts2)+1;	/* Size in chars inc null */
+			wp->allocate(wp);			/* Allocate space */
+			strcpy((char *)wp->uc8desc, (char *)ts2);	/* Copy string in */
 	
-			wo->data[i].model.scCode = 67;				/* Fudge scriptCode code */
-			wo->data[i].model.scCount = strlen(ts3)+1;	/* Used size of scDesc in bytes, inc null */
-			if (wo->data[i].model.scCount > 67)
-				error("Model ScriptCode string longer than 67 (%d)",wo->data[i].model.scCount);
-			strcpy((char *)wo->data[i].model.scDesc, ts3);	/* Copy the string in */
+			wp->scCode = 67;				/* Fudge scriptCode code */
+			wp->scCount = strlen(ts3)+1;	/* Used size of scDesc in bytes, inc null */
+			wp->allocate(wp);			/* Allocate space */
+			strcpy((char *)wp->scDesc, ts3);	/* Copy the string in */
 
 			free(ts1);
 			free(ts2);
@@ -1635,7 +1804,7 @@ int doit(
 			error ("ProfileSequenceDesc count doesn't match");
 
 		for (i = 0; i < wo->count; i++) {
-			char *ts1, *ts2, *ts3;
+			icmTextDescription *wp, *rp;		/* We're assuming ICCV2 here */
 
 			rv |= (ro->data[i].deviceMfg    != wo->data[i].deviceMfg);
 			rv |= (ro->data[i].deviceModel  != wo->data[i].deviceModel);
@@ -1643,51 +1812,295 @@ int doit(
 			rv |= (ro->data[i].attributes.h != wo->data[i].attributes.h);
 			rv |= (ro->data[i].technology   != wo->data[i].technology);
 
-			/* device Text description */
-			ts1 = rand_ascii_string(9, 81);
-			ts2 = rand_utf8_string(8, 111);
-			ts3 = rand_ascii_string(7, 67);
+			wp = (icmTextDescription *)wo->data[i].mfgDesc;
+			rp = (icmTextDescription *)ro->data[i].mfgDesc;
 
-			rv |= (ro->data[i].device.count  != wo->data[i].device.count);
-			rv |= strcmp(ro->data[i].device.desc, wo->data[i].device.desc);
+			rv |= (rp->count  != wp->count);
+			rv |= strcmp(rp->desc, wp->desc);
 	
-			rv |= (ro->data[i].device.ucLangCode != wo->data[i].device.ucLangCode);
-			rv |= (ro->data[i].device.ucCount != wo->data[i].device.ucCount);
-			rv |= strcmp((icmUTF8 *)ro->data[i].device.uc8Desc, (icmUTF8 *)wo->data[i].device.uc8Desc);
+			rv |= (rp->ucLangCode != wp->ucLangCode);
+			rv |= (rp->uc8count != wp->uc8count);
+			rv |= strcmp((char *)rp->uc8desc, (char *)wp->uc8desc);
 	
-			rv |= (ro->data[i].device.scCode != wo->data[i].device.scCode);
-			rv |= (ro->data[i].device.scCount != wo->data[i].device.scCount);
-			rv |= strcmp((char *)ro->data[i].device.scDesc, (char *)wo->data[i].device.scDesc);
+			rv |= (rp->scCode != wp->scCode);
+			rv |= (rp->scCount != wp->scCount);
+			rv |= strcmp((char *)rp->scDesc, (char *)wp->scDesc);
 
-			free(ts1);
-			free(ts2);
-			free(ts3);
+			wp = (icmTextDescription *)wo->data[i].modelDesc;
+			rp = (icmTextDescription *)ro->data[i].modelDesc;
 
-			/* model Text description */
-			ts1 = rand_ascii_string(9, 81);
-			ts2 = rand_utf8_string(8, 111);
-			ts3 = rand_ascii_string(7, 67);
-
-			rv |= (ro->data[i].model.count  != wo->data[i].model.count);
-			rv |= strcmp(ro->data[i].model.desc, wo->data[i].model.desc);
+			rv |= (rp->count  != wp->count);
+			rv |= strcmp(rp->desc, wp->desc);
 	
-			rv |= (ro->data[i].model.ucLangCode != wo->data[i].model.ucLangCode);
-			rv |= (ro->data[i].model.ucCount != wo->data[i].model.ucCount);
-			rv |= strcmp((icmUTF8 *)ro->data[i].model.uc8Desc, (icmUTF8 *)wo->data[i].model.uc8Desc);
+			rv |= (rp->ucLangCode != wp->ucLangCode);
+			rv |= (rp->uc8count != wp->uc8count);
+			rv |= strcmp((char *)rp->uc8desc, (char *)wp->uc8desc);
 	
-			rv |= (ro->data[i].model.scCode != wo->data[i].model.scCode);
-			rv |= (ro->data[i].model.scCount != wo->data[i].model.scCount);
-			rv |= strcmp((char *)ro->data[i].model.scDesc, (char *)wo->data[i].model.scDesc);
-
-			free(ts1);
-			free(ts2);
-			free(ts3);
+			rv |= (rp->scCode != wp->scCode);
+			rv |= (rp->scCount != wp->scCount);
+			rv |= strcmp((char *)rp->scDesc, (char *)wp->scDesc);
 		}
 
 		if (rv)
 			error ("ProfileSequenceDesc verify failed");
 	}
 	}
+	/* ----------------- */
+	/* ResponseCurveSet16: */
+
+	if (v3) {
+	static icmResponseCurveSet16 *wo;
+	unsigned int m, n, q;
+	if (mode == 0) {
+		unsigned int i;
+		if ((wo = (icmResponseCurveSet16 *)wr_icco->add_tag(
+		           wr_icco, icSigOutputResponseTag, icSigResponseCurveSet16Type)) == NULL) 
+			return 1;
+
+   		wo->nchan = rand_int(1, 15);	/* Should actually be same as device colorspace */
+   		wo->typeCount = rand_int(1, 4);	/* Number of measurement types. */
+		if (wo->allocate(wo))				/* Allocate measurement types array. */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+		for (m = 0; m < wo->typeCount; m++) {
+			icmRCS16Struct *wp = &wo->typeData[m];
+
+			wp->measUnit = rand_MeasUnitsSig();
+
+			for (n = 0; n < wo->nchan; n++)
+	   			wp->nMeas[n] = rand_int(11, 23);	/* Number of measurements for each channel */
+			if (wo->allocate(wo))						/* Allocate respose arrays */
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+			/* Fill in response device & measurement values for each channel for these units */
+			for (n = 0; n < wo->nchan; n++) {
+
+				rand_XYZ(&wp->pcsData[n]);		/* max. colorant value */
+	
+				for (q = 0; q < wp->nMeas[n]; q++) {
+					wp->response[n][q].deviceValue = rand_16f(); 
+					wp->response[n][q].measurement = rand_s15f16();
+				}
+			}
+		}
+	} else {
+		icmResponseCurveSet16 *ro;
+		unsigned int i;
+
+		/* Try and read the tag from the file */
+		ro = (icmResponseCurveSet16 *)rd_icco->read_tag(rd_icco, icSigOutputResponseTag);
+		if (ro == NULL) 
+			return 1;
+
+		/* Need to check that the cast is appropriate. */
+		if (ro->ttype != icSigResponseCurveSet16Type)
+			return 1;
+	
+		/* Now check it out */	
+		if (ro->nchan != wo->nchan)
+			error ("ResponseCurveSet16 nchan doesn't match");
+
+		if (ro->typeCount != wo->typeCount)
+			error ("ResponseCurveSet16 typeCount doesn't match");
+
+		for (m = 0; m < wo->typeCount; m++) {
+			icmRCS16Struct *wp = &wo->typeData[m];
+			icmRCS16Struct *rp = &ro->typeData[m];
+
+			if (rp->measUnit != wp->measUnit) 
+				error ("ResponseCurveSet16 %u measUnit doesn't match",m);
+
+			for (n = 0; n < wo->nchan; n++) {
+	   			if (wp->nMeas[n] != rp->nMeas[n])
+					error ("ResponseCurveSet16 %u,%u nMeas doesn't match",m,n);
+
+		    	rv |= dcomp(rp->pcsData[n].X, wp->pcsData[n].X);
+		   	 	rv |= dcomp(rp->pcsData[n].Y, wp->pcsData[n].Y);
+    			rv |= dcomp(rp->pcsData[n].Z, wp->pcsData[n].Z);
+				if (rv) error ("ResponseCurveSet16 %u,%u pcsData failed",m,n);
+	
+				for (q = 0; q < wp->nMeas[n]; q++) {
+					rv |= wp->response[n][q].deviceValue != wp->response[n][q].deviceValue; 
+					rv |= wp->response[n][q].measurement != wp->response[n][q].measurement;
+					if (rv) error ("ResponseCurveSet16 %u,%u,%u response failed",m,n,q);
+				}
+			}
+		}
+		if (rv)
+			error ("ResponseCurveSet16 verify failed");
+	}
+	}
+
+	/* -------------- */
+	/* DeviceSettings */
+
+	if (v3) {
+	static icmDeviceSettings *wo;
+	if (mode == 0) {
+		unsigned int h, i, j, k, m;
+		if ((wo = (icmDeviceSettings *)wr_icco->add_tag(
+		           wr_icco, icSigDeviceSettingsTag, icSigDeviceSettingsType)) == NULL)  {
+			printf("Add icSigDeviceSettingsType failed\n");
+			return 1;
+		}
+
+		wo->count = rand_int(0,7);		/* Number of platforms */
+		if (wo->allocate(wo))				/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+		for (h = 0; h < wo->count; h++) {
+			icmPlatformEntry *pep = &wo->data[h];
+
+			if (rand_int(0,2) != 0)
+				pep->platform = icSigMicrosoft;			/* Make Msft more common */
+			else
+				pep->platform = rand_PlatformSignature();
+			pep->count = rand_int(0,7);		/* Number of setting combinations */
+			if (wo->allocate(wo))				/* Allocate space */
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+			for (i = 0; i < pep->count; i++) {
+				icmSettingComb *scp = &pep->data[i];
+
+				scp->count = rand_int(0,10);	/* Number of settings */
+				if (wo->allocate(wo))				/* Allocate space */
+					error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+				for (j = 0; j < scp->count; j++) {
+					icmSettingStruct *ssp = &scp->data[j];
+
+					if (pep->platform == icSigMicrosoft) {
+						ssp->msft.sig = rand_DevSetMsftIDSignature();
+						ssp->count = rand_int(0, 4);
+						ssp->ssize = rand_int(0, 4);	/* in case sig was unknown */
+						if (wo->allocate(wo))				/* Allocate space */
+							error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+
+						if (icSigMsftResolution == ssp->msft.sig) {
+							for (k = 0; k < ssp->count; k++) {
+								ssp->msft.resolution[k].xres = rand_int(0, 0xffffffff);
+								ssp->msft.resolution[k].yres = rand_int(0, 0xffffffff);
+							}
+						} else if (icSigMsftMedia == ssp->msft.sig) {
+							for (k = 0; k < ssp->count; k++)
+								ssp->msft.media[k] = rand_DevSetMsftMedia();
+						} else if (icSigMsftHalftone == ssp->msft.sig) {
+							for (k = 0; k < ssp->count; k++)
+								ssp->msft.halftone[k] = rand_DevSetMsftDither();
+						} else {
+							for (k = 0; k < ssp->count; k++)
+								for (m = 0; m < ssp->ssize; m++)
+									ssp->msft.unknown[k * ssp->size + m] = rand_int(0,255);
+						}
+					} else {
+						ssp->unknown.sig = rand_int(0, 0xffffffff);
+						ssp->count = rand_int(0, 4);
+						ssp->ssize = rand_int(0, 4);	/* Because this is unknown */
+						if (wo->allocate(wo))				/* Allocate space */
+							error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+						for (k = 0; k < ssp->count; k++)
+							for (m = 0; m < ssp->ssize; m++)
+								ssp->unknown.unknown[k * ssp->size + m] = rand_int(0,255);
+					}
+				}
+			}
+		}
+	} else {
+		icmDeviceSettings *ro;
+		unsigned int h, i, j, k, m;
+
+		/* Try and read the tag from the file */
+		ro = (icmDeviceSettings *)rd_icco->read_tag(rd_icco, icSigDeviceSettingsTag);
+		if (ro == NULL)  {
+			printf("read_tag icSigDeviceSettingsType failed\n");
+			return 1;
+		}
+
+		/* Need to check that the cast is appropriate. */
+		if (ro->ttype != icSigDeviceSettingsType) {
+			printf("cast icSigDeviceSettingsType failed\n");
+			return 1;
+		}
+	
+		if (ro->count != wo->count)
+			error("DeviceSettings number of platforms doesn't match");
+
+		/* Now check it out */	
+		for (h = 0; h < wo->count; h++) {
+			icmPlatformEntry *wpep = &wo->data[h];
+			icmPlatformEntry *rpep = &ro->data[h];
+
+			if (rpep->size != wpep->size)
+				error("DeviceSettings platform entry size in bytes doesn't match");
+			if (rpep->platform != wpep->platform)
+				error("DeviceSettings platform doesn't match");
+			if (rpep->count != wpep->count)
+				error("DeviceSettings number of setting combinations doesn't match");
+
+			for (i = 0; i < wpep->count; i++) {
+				icmSettingComb *wscp = &wpep->data[i];
+				icmSettingComb *rscp = &rpep->data[i];
+
+				if (rscp->size != wscp->size)
+					error("DeviceSettings combination size in bytes doesn't match");
+				if (rscp->count != wscp->count)
+					error("DeviceSettings number of settings doesn't match");
+
+				for (j = 0; j < wscp->count; j++) {
+					icmSettingStruct *wssp = &wscp->data[j];
+					icmSettingStruct *rssp = &rscp->data[j];
+
+					if (wpep->platform == icSigMicrosoft) {
+						if (rssp->msft.sig != wssp->msft.sig)
+							error("DeviceSettings Msft setting id doesn't match");
+						if (rssp->count != wssp->count)
+							error("DeviceSettings Msft setting values count doesn't match");
+						if (rssp->size != wssp->size)
+							error("DeviceSettings Msft setting values size doesn't match");
+
+						if (icSigMsftResolution == wssp->msft.sig) {
+							for (k = 0; k < wssp->count; k++) {
+								if (rssp->msft.resolution[k].xres != wssp->msft.resolution[k].xres)
+									error("DeviceSettings Msft X resolution doesn't match");
+								if (rssp->msft.resolution[k].yres != wssp->msft.resolution[k].yres)
+									error("DeviceSettings Msft Y resolution doesn't match");
+							}
+						} else if (icSigMsftMedia == wssp->msft.sig) {
+							for (k = 0; k < wssp->count; k++)
+								if (rssp->msft.media[k] != wssp->msft.media[k])
+									error("DeviceSettings Msft media doesn't match");
+						} else if (icSigMsftHalftone == wssp->msft.sig) {
+							for (k = 0; k < wssp->count; k++)
+								if (rssp->msft.halftone[k] != wssp->msft.halftone[k])
+									error("DeviceSettings Msft halftone doesn't match");
+						} else {
+							for (k = 0; k < wssp->count; k++)
+								for (m = 0; m < wssp->ssize; m++)
+									if (rssp->msft.unknown[k * rssp->size + m]
+									 != wssp->msft.unknown[k * wssp->size + m])
+									error("DeviceSettings Msft unknown value doesn't match");
+						}
+					} else {
+						if (rssp->unknown.sig != wssp->unknown.sig)
+							error("DeviceSettings Unknown setting id doesn't match");
+						if (rssp->count != wssp->count)
+							error("DeviceSettings Unknown setting values count doesn't match");
+						if (rssp->size != wssp->size)
+							error("DeviceSettings Unknown setting values size doesn't match");
+
+						for (k = 0; k < wssp->count; k++)
+							for (m = 0; m < wssp->ssize; m++)
+								if (rssp->unknown.unknown[k * rssp->size + m]
+								 != wssp->unknown.unknown[k * wssp->size + m])
+								error("DeviceSettings Unknown unknown value doesn't match");
+					}
+				}
+			}
+		}
+		if (rv)
+			error("DeviceSettings verify failed");
+	}
+	}
+
 	/* ----------------- */
 	/* S15Fixed16Array: */
 	{
@@ -1699,8 +2112,9 @@ int doit(
 		           wr_icco, icmstr2tag("sf32"), icSigS15Fixed16ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,17);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		wo->count = rand_int(minc,17);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i] = rand_s15f16(); /* Set numbers value */
 		}
@@ -1739,9 +2153,10 @@ int doit(
 		           wr_icco, icSigScreeningTag, icSigScreeningType)) == NULL) 
 			return 1;
 
-		wo->screeningFlag = rand_ScreenEncodings();
+		wo->screeningFlags = rand_ScreenEncodings();
 		wo->channels = rand_int(1,4);	/* Number of channels */
-		wo->allocate(wo);	/* Allocate space */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->channels; i++) {
 			wo->data[i].frequency = rand_s15f16();		/* Set screening frequency */
 			wo->data[i].angle = rand_s15f16();			/* Set screening angle */
@@ -1764,7 +2179,7 @@ int doit(
 		if (ro->channels != wo->channels)
 			error ("Screening channels doesn't match");
 
-		rv |= (ro->screeningFlag != wo->screeningFlag);
+		rv |= (ro->screeningFlags != wo->screeningFlags);
 
 		for (i = 0; i < wo->channels; i++) {
 			rv |= dcomp(ro->data[i].frequency, wo->data[i].frequency);
@@ -1811,7 +2226,8 @@ int doit(
 	static icmTextDescription *wo;
 
 	if (mode == 0) {
-		char *ts1, *ts2, *ts3;
+		char *ts1, *ts3;
+		icmUTF8 *ts2;
 
 		if ((wo = (icmTextDescription *)wr_icco->add_tag(
 		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
@@ -1824,19 +2240,22 @@ int doit(
 
 		/* Data in tag type wojects is always allocated and freed by the woject */
 		wo->count = strlen(ts1)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		strcpy(wo->desc, ts1);		/* Copy the string in */
 
 		/* We can treat utf-8 just like an ascii string */
 		wo->ucLangCode = 1234;			/* UniCode language code */
-		wo->ucCount = strlen(ts2)+1; 	/* Allocated and used size of desc, inc null */
-		wo->allocate(wo);/* Allocate space */
-		strcpy((char *)wo->uc8Desc, ts2);		/* Copy the string in */
+		wo->uc8count = strlen((char *)ts2)+1; 	/* Allocated and used size of desc, inc null */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+		strcpy((char *)wo->uc8desc, (char *)ts2);		/* Copy the string in */
 
 		/* Don't really know anything about scriptCode, but fudge some values */
 		wo->scCode = 23;			/* ScriptCode code */
 		wo->scCount = strlen(ts3)+1;	/* Used size of scDesc in bytes, inc null */
-					/* No allocations, since this has a fixed max of 67 bytes */
+		if (wo->allocate(wo))			/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		if (wo->scCount > 67)
 			error("textDescription ScriptCode string longer than 67 (%d)",wo->scCount);
 		strcpy((char *)wo->scDesc, ts3);	/* Copy the string in */
@@ -1847,7 +2266,6 @@ int doit(
 
 	} else {
 		icmTextDescription *ro;
-		char *ts1, *ts2, *ts3;
 
 		/* Try and read the tag from the file */
 		ro = (icmTextDescription *)rd_icco->read_tag(rd_icco, icSigProfileDescriptionTag);
@@ -1859,25 +2277,15 @@ int doit(
 		if (ro->ttype != icSigTextDescriptionType)
 			return 1;
 	
-		/* Create the test messages */
-		ts1 = rand_ascii_string(10, 90);
-		ts2 = rand_utf8_string(3, 131);
-		ts3 = rand_ascii_string(5, 67-1);
-
 		/* Now check it out */	
 		rv |= (ro->count != wo->count);
 		rv |= strcmp(ro->desc, wo->desc);
 		rv |= (ro->ucLangCode != wo->ucLangCode);
-		rv |= (ro->ucCount != wo->ucCount);
-		rv |= strcmp((char *)ro->uc8Desc, (char *)wo->uc8Desc);
-
+		rv |= (ro->uc8count != wo->uc8count);
+		rv |= strcmp((char *)ro->uc8desc, (char *)wo->uc8desc);
 		rv |= (ro->scCode != wo->scCode);
 		rv |= (ro->scCount != wo->scCount);
 		rv |= strcmp((char *)ro->scDesc, (char *)wo->scDesc);
-
-		free(ts1);
-		free(ts2);
-		free(ts3);
 
 		if (rv)
 			error ("Text Description verify failed");
@@ -1894,8 +2302,9 @@ int doit(
 			return 1;
 
 		wo->count = strlen(ts1)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate(wo);			/* Allocate space */
-		strcpy(wo->data, ts1);		/* Copy the text in */
+		if (wo->allocate(wo))			/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
+		strcpy(wo->desc, ts1);		/* Copy the text in */
 	} else {
 		icmText *ro;
 
@@ -1912,7 +2321,7 @@ int doit(
 		if (ro->count != wo->count)
 			error ("Text size doesn't match");
 
-		rv |= strcmp(ro->data, wo->data);
+		rv |= strcmp(ro->desc, wo->desc);
 
 		if (rv)
 			error ("Text verify failed");
@@ -1929,8 +2338,9 @@ int doit(
 		           wr_icco, icmstr2tag("uf32"), icSigU16Fixed16ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,17);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		wo->count = rand_int(minc,17);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i] = rand_u16f16(); /* Set numbers value */
 		}
@@ -1972,13 +2382,15 @@ int doit(
 
 		wo->UCRcount = rand_int(2,55);		/* Number in UCR curve */
 		wo->BGcount  = rand_int(2,32);		/* Number in BG array */
-		wo->allocate(wo);		/* Allocate space for both curves */
+		if (wo->allocate(wo))		/* Allocate space for both curves */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->UCRcount; i++)
 			wo->UCRcurve[i] = rand_16f();	/* Set numbers value */
 		for (i = 0; i < wo->BGcount; i++)
 			wo->BGcurve[i] = rand_16f();	/* Set numbers value */
 		wo->count = strlen(ts1)+1; 			/* Allocated and used size of text, inc null */
-		wo->allocate(wo);		/* Allocate space */
+		if (wo->allocate(wo))		/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		strcpy(wo->string, ts1);			/* Copy the text in */
 	} else {
 		icmUcrBg *ro;
@@ -2027,11 +2439,13 @@ int doit(
 
 		wo->UCRcount = 1;			/* 1 == UCR percentage */
 		wo->BGcount  = 1;			/* 1 == BG percentage */
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		wo->UCRcurve[0] = (double) rand_int(0,65535); 
 		wo->BGcurve[0] = (double) rand_int(0,65535); 
 		wo->count = strlen(ts1)+1; 	/* Allocated and used size of text, inc null */
-		wo->allocate(wo);/* Allocate space */
+		if (wo->allocate(wo))/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		strcpy(wo->string, ts1);	/* Copy the text in */
 	} else {
 		icmUcrBg *ro;
@@ -2075,8 +2489,12 @@ int doit(
 		           wr_icco, icmstr2tag("ui16"), icSigUInt16ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,17);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		if (v3)
+			wo->count = rand_int(1,17);		/* Number in array */
+		else
+			wo->count = rand_int(minc,17);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i] = rand_o16(); /* Set numbers value */
 		}
@@ -2116,8 +2534,12 @@ int doit(
 		           wr_icco, icmstr2tag("ui32"), icSigUInt32ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,18);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		if (v3)
+			wo->count = rand_int(1,18);		/* Number in array */
+		else
+			wo->count = rand_int(minc,18);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i] = rand_o32(); /* Set numbers value */
 		}
@@ -2157,8 +2579,9 @@ int doit(
 		           wr_icco, icmstr2tag("ui64"), icSigUInt64ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,19);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		wo->count = rand_int(minc,19);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i].l = rand_o32(); /* Set numbers value - low 32 bits */
 			wo->data[i].h = rand_o32(); /* Set numbers value - low 32 bits */
@@ -2200,8 +2623,9 @@ int doit(
 		           wr_icco, icmstr2tag("ui08"), icSigUInt8ArrayType)) == NULL) 
 			return 1;
 
-		wo->count = rand_int(0,18);		/* Number in array */
-		wo->allocate(wo);	/* Allocate space */
+		wo->count = rand_int(minc,18);		/* Number in array */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i] = rand_o8(); /* Set numbers value */
 		}
@@ -2231,32 +2655,33 @@ int doit(
 	}
 	}
 	/* --------------- */
-	/* VideoCardGamma: (ColorSync specific) */
+	/* VideoCardGamma - curves: (ColorSync specific) */
 	{
 		static icmVideoCardGamma *wo;
 		if (mode == 0) {
-			int i;
+			unsigned int c, i;
 			if ((wo = (icmVideoCardGamma *)wr_icco->add_tag(
 				 wr_icco, icSigVideoCardGammaTag, icSigVideoCardGammaType)) == NULL)
 				return 1;
 
-			wo->tagType = icmVideoCardGammaTableType;
+			wo->tagType = icVideoCardGammaTable;
 			wo->u.table.channels = rand_int(1,3);
 			wo->u.table.entryCount = rand_int(2,1024);
 			wo->u.table.entrySize = rand_int(1,2);
-			wo->allocate(wo);
+			if (wo->allocate(wo))
+				error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 			if (wo->u.table.entrySize == 1) {
-				unsigned char *cp = wo->u.table.data;
-				for (i=0; i<wo->u.table.channels*wo->u.table.entryCount;i++,cp++)
-					*cp = (unsigned char)rand_int(0,255);
+				for (c = 0; c < wo->u.table.channels; c++)
+					for (i = 0; i < wo->u.table.entryCount; i++)
+						wo->u.table.data[c][i] = rand_8f();
 			} else {
-				unsigned short *sp = wo->u.table.data;
-				for (i=0; i<wo->u.table.channels*wo->u.table.entryCount;i++,sp++)
-					*sp = (unsigned short)rand_int(0,65535);
+				for (c = 0; c < wo->u.table.channels; c++)
+					for (i = 0; i < wo->u.table.entryCount; i++)
+						wo->u.table.data[c][i] = rand_16f();
 			}
 		} else {
 			icmVideoCardGamma *ro;
-			int i;
+			unsigned int c, i;
 
 			/* Try and read tag from the file */
 			ro = (icmVideoCardGamma *)rd_icco->read_tag(rd_icco, icSigVideoCardGammaTag);
@@ -2269,17 +2694,65 @@ int doit(
 
 			/* Now check it out */
 			rv |= (ro->tagType != wo->tagType);
+			if (rv) error ("VideoCardGamma table verify tagtype failed");
 			rv |= (ro->u.table.channels != wo->u.table.channels);
 			rv |= (ro->u.table.entryCount != wo->u.table.entryCount);
 			rv |= (ro->u.table.entrySize != wo->u.table.entrySize);
-			for (i=0; i<ro->u.table.channels*ro->u.table.entryCount*ro->u.table.entrySize; i++) {
-				rv |= (((char*)ro->u.table.data)[i] != ((char*)wo->u.table.data)[i]);
+
+			for (c = 0; c < wo->u.table.channels; c++) {
+				for (i = 0; i < wo->u.table.entryCount; i++) {
+					rv |= dcomp(ro->u.table.data[c][i], wo->u.table.data[c][i]);
+					if (rv) break;
+				}
+			}
+			if (rv)
+				error ("VideoCardGamma table verify failed");
+		}
+	}
+	/* --------------- */
+	/* VideoCardGamma - formula: (ColorSync specific) */
+	if (v3) {
+		static icmVideoCardGamma *wo;
+		if (mode == 0) {
+			unsigned int i;
+			if ((wo = (icmVideoCardGamma *)wr_icco->add_tag(
+				 wr_icco, icmstr2tag("vcgf"), icSigVideoCardGammaType)) == NULL)
+				return 1;
+
+			wo->tagType = icVideoCardGammaFormula;
+			for (i = 0; i < 3; i++) {
+				wo->u.formula.gamma[i] = rand_s15f16();
+				wo->u.formula.min[i]   = rand_s15f16();
+				wo->u.formula.max[i]   = rand_s15f16();
+			}
+		} else {
+			icmVideoCardGamma *ro;
+			unsigned int c, i;
+
+			/* Try and read tag from the file */
+			ro = (icmVideoCardGamma *)rd_icco->read_tag(rd_icco, icmstr2tag("vcgf"));
+			if (ro == NULL)
+				return 1;
+
+			/* Need to check that the cast is appropriate */
+			if (ro->ttype != icSigVideoCardGammaType)
+				return 1;
+
+			/* Now check it out */
+			rv |= (ro->tagType != wo->tagType);
+			if (rv) error ("VideoCardGamma formula verify tagtype failed");
+
+			for (i = 0; i < 3; i++) {
+				rv |= dcomp(ro->u.formula.gamma[i], wo->u.formula.gamma[i]);
+				rv |= dcomp(ro->u.formula.min[i], wo->u.formula.min[i]);
+				rv |= dcomp(ro->u.formula.max[i], wo->u.formula.max[i]);
 				if (rv) break;
 			}
 			if (rv)
-				error ("VideoCardGamma verify failed");
+				error ("VideoCardGamma formula verify failed");
 		}
 	}
+
 	/* ------------------ */
 	/* ViewingConditions: */
 	{
@@ -2333,7 +2806,8 @@ int doit(
 			return 1;
 
 		wo->count = rand_int(1,7);	/* Should be one XYZ number, but test more */
-		wo->allocate(wo);	/* Allocate space */
+		if (wo->allocate(wo))	/* Allocate space */
+			error ("allocate: 0x%x '%s'",wr_icco->e.c,wr_icco->e.m);
 		for (i = 0; i < wo->count; i++) {
 			wo->data[i].X = rand_XYZ16();	/* Set numbers value */
 			wo->data[i].Y = rand_XYZ16();
@@ -2366,6 +2840,7 @@ int doit(
 			error ("XYZArray verify failed");
 	}
 	}
+
 
 	return 0;
 }
@@ -2409,10 +2884,14 @@ unsigned int rand_o32() {
 	return o32;
 }
 
-int rand_int(int low, int high) {
-	int i;
+unsigned int rand_int(unsigned int low, unsigned int high) {
+	unsigned int m, i;
 	seed = PSRAND(seed);
-	i = seed % (high - low + 1);
+	m = high - low + 1;
+	if (m != 0)
+		i = seed % (high - low + 1);
+	else
+		i = seed;
 	return i + low;
 }
 
@@ -2435,6 +2914,14 @@ double rand_s15f16() {
 	seed = PSRAND(seed);
 	i32 = seed;
 	return (double)i32/65536.0;
+}
+
+/* This really isn't a thing - but will pop up with our random combo's */
+double rand_XYZ8() {
+	ORD32 o32;
+	seed = PSRAND(seed);
+	o32 = seed & 0xff;
+	return (double)o32/128.0;
 }
 
 double rand_XYZ16() {
@@ -2486,10 +2973,100 @@ double rand_16f() {
 	return (double)rv/65535.0;
 }
 
+/* Generate float between 0.0 and 1.0 */
+double rand_32f() {
+	ORD32 sn = 0, ep = 0, ma;
+	double op;
+	seed = PSRAND(seed);
+
+	//sn = (seed >> 31) & 0x1;		/* Sign */
+	sn = 0;
+	//ep = (seed >> 23) & 0xff;		/* Exponent */
+	ep = 126;
+	ma = seed & 0x7fffff;			/* Mantissa */
+	if (ma == 0)
+		ep = 0;
+
+	if (ep == 0) { 		/* Zero or denormalised */
+		op = (double)ma/(double)(1 << 23);
+		op *= pow(2.0, (-126.0));
+	} else {
+		op = (double)(ma | (1 << 23))/(double)(1 << 23);
+		op *= pow(2.0, (((int)ep)-127.0));
+	}
+	if (sn)
+		op = -op;
+	return op;
+}
+
+double rand_rangef(double min, double max, int bits) {
+	if (bits == 8)
+		return rand_8f() * (max - min) + min;
+	else
+		return rand_16f() * (max - min) + min;
+}
+
+/* bits = 8 or 16 */
+void rand_Color(double *vals, icColorSpaceSignature sig, int bits) {
+	int i, nchan = icmCSSig2nchan(sig);
+
+	switch ((int)sig) {
+		case icSigXYZData:
+			if (bits == 8) {
+	    		vals[0] = rand_XYZ8();
+	   	 		vals[1] = rand_XYZ8();
+   		 		vals[2] = rand_XYZ8();
+			} else {
+	    		vals[0] = rand_XYZ16();
+	   	 		vals[1] = rand_XYZ16();
+   		 		vals[2] = rand_XYZ16();
+			}
+			break;
+		case icSigLabData:
+			if (bits == 8) {
+				vals[0] = rand_L8();
+				vals[1] = rand_ab8();
+				vals[2] = rand_ab8();
+			} else {
+				vals[0] = rand_L16();
+				vals[1] = rand_ab16();
+				vals[2] = rand_ab16();
+			}
+			break;
+		/* Undefined device spaces */
+		/* These aren't actually specified by ICC, so we punt. */
+		case icSigLuvData:
+			vals[0] = rand_rangef(0.0, 100.0, bits);
+			vals[1] = rand_rangef(-128, 127.0 + 255.0/256.0, bits);
+			vals[2] = rand_rangef(-128, 127.0 + 255.0/256.0, bits);
+			break;
+		case icSigYCbCrData:
+			vals[0] = rand_rangef(0.0, 1.0, bits);
+			vals[1] = rand_rangef(-0.5, 0.5, bits);
+			vals[2] = rand_rangef(-0.5, 0.5, bits);
+			break;
+		case icSigYxyData:
+			vals[0] = rand_rangef(0.0, 1.0, bits);
+			vals[1] = rand_rangef(0.0, 1.0, bits);
+			vals[2] = rand_rangef(0.0, 1.0, bits);
+			break;
+		/* By default assume a device 0..1 */
+		default:
+			if (bits == 8) {
+				for (i = 0; i < nchan; i++)
+					vals[i] = rand_8f();
+			} else {
+				for (i = 0; i < nchan; i++)
+					vals[i] = rand_16f();
+			}
+			break;
+	}
+}
+
 /* Random selectors for ICC flags and enumerayions */
 
-unsigned int rand_ScreenEncodings() {
-	unsigned int flags = 0;
+icScreening rand_ScreenEncodings() {
+	icScreening flags = 0;
 	
 	if (rand_int(0,1) == 0)
 		flags |= icPrtrDefaultScreensTrue;
@@ -2534,6 +3111,12 @@ unsigned int rand_AsciiOrBinaryData() {
 		flags |= icBinaryData;
 
 	return flags;
+}
+
+void rand_XYZ(icmXYZNumber *pXYZ) {
+   	pXYZ->X = rand_XYZ16();
+   	pXYZ->Y = rand_XYZ16();
+   	pXYZ->Z = rand_XYZ16();
 }
 
 icColorSpaceSignature rand_ColorSpaceSignature() {
@@ -2591,7 +3174,7 @@ icColorSpaceSignature rand_ColorSpaceSignature() {
     	case 25:
 			return icSig15colorData;
 	}
-    return icMaxEnumData;
+    return icMaxEnumColorSpace;
 }
 
 icColorSpaceSignature rand_PCS() {
@@ -2601,7 +3184,7 @@ icColorSpaceSignature rand_PCS() {
     	case 1:
 			return icSigLabData;
 	}
-    return icMaxEnumData;
+    return icMaxEnumColorSpace;
 }
 
 icTechnologySignature rand_TechnologySignature() {
@@ -2690,16 +3273,6 @@ icPlatformSignature rand_PlatformSignature() {
 	return icMaxEnumPlatform;
 }
 
-icMeasurementFlare rand_MeasurementFlare() {
-	switch(rand_int(0,1)) {
-		case 0:
-			return icFlare0;
-		case 1:
-			return icFlare100;
-	}
-	return icMaxEnumFlare;
-}
-
 icMeasurementGeometry rand_MeasurementGeometry() {
 	switch(rand_int(0,2)) {
 		case 0:
@@ -2784,6 +3357,110 @@ icIlluminant rand_Illuminant() {
 	return icMaxEnumIlluminant;
 }
 
+icPhColEncoding rand_ColorantEncoding() {
+	switch(rand_int(0,8)) {
+		case 0:
+		case 7:
+		case 8:
+			return icPhColUnknown;
+		case 1:
+			return icPhColITU_R_BT_709;
+		case 2:
+			return icPhColSMPTE_RP145_1994;
+		case 3:
+			return icPhColEBU_Tech_3213_E;
+		case 4:
+			return icPhColP22;
+		case 5:
+			return icPhColP3;
+		case 6:
+			return icPhColITU_R_BT2020;
+	}
+	return icMaxEnumPhCol;
+}
+
+icMeasUnitsSig rand_MeasUnitsSig() {
+	switch(rand_int(0,8)) {
+		case 0:
+    		return icSigStatusA;
+		case 1:
+    		return icSigStatusE;
+		case 2:
+    		return icSigStatusI;
+		case 3:
+    		return icSigStatusT;
+		case 4:
+    		return icSigStatusM;
+		case 5:
+    		return icSigDN;
+		case 6:
+    		return icSigDNP;
+		case 7:
+    		return icSigDNN;
+		case 8:
+    		return icSigDNN;
+	}
+	return icMaxEnumMeasUnits;
+}
+
+icDevSetMsftIDSignature rand_DevSetMsftIDSignature() {
+	switch(rand_int(0,3)) {
+    	case 0:
+			return icSigMsftResolution;
+    	case 1:
+			return icSigMsftMedia;
+    	case 2:
+			return icSigMsftHalftone;
+    	case 3:
+			return icSigMsftHalftone;
+	}
+	return icMaxEnumDevSetMsftID;
+}
+
+icDevSetMsftMedia rand_DevSetMsftMedia() {
+	switch(rand_int(0,3)) {
+    	case 0:
+			return icMsftMediaStandard;
+    	case 1:
+			return icMsftMediaTrans;
+    	case 2:
+			return icMsftMediaGloss;
+    	case 3:
+			return icMsftMediaUser1 + rand_int(0, 255);
+	}
+	return icMaxEnumMsftMedia;
+}
+
+icDevSetMsftDither rand_DevSetMsftDither() {
+	switch(rand_int(0,10)) {
+    	case 0:
+			return icMsftDitherNone;
+    	case 1:
+			return icMsftDitherCoarse;
+    	case 2:
+			return icMsftDitherFine;
+    	case 3:
+			return icMsftDitherLineArt;
+    	case 4:
+			return icMsftDitherErrorDiffusion;
+    	case 5:
+			return icMsftDitherReserved6;
+    	case 6:
+			return icMsftDitherReserved7;
+    	case 7:
+			return icMsftDitherReserved8;
+    	case 8:
+			return icMsftDitherReserved9;
+    	case 9:
+			return icMsftDitherGrayScale;
+    	case 10:
+			return icMsftDitherUser1 + rand_int(0, 255);
+	}
+	return icMsftMaxEnumMsftDither;
+}
+
+
+
 /* Malloc and initialize a random ascii string. */
 /* Input is range of number of characters. */
 /* Can free() buffer after use */
@@ -2824,7 +3501,7 @@ char *rand_ascii_string(int lenmin, int lenmax) {
 /* Malloc and initialize a random utf-8 string */
 /* Input is range of number of code points. */
 /* Can free() buffer after use */
-char *rand_utf8_string(int lenmin, int lenmax) {
+icmUTF8 *rand_utf8_string(int lenmin, int lenmax) {
 	int len;	/* Length of output string */ 
 	int olen;	/* Length of obuf allocation */
 	ORD8 *obuf, *ebuf, *out;
@@ -2875,9 +3552,9 @@ char *rand_utf8_string(int lenmin, int lenmax) {
 		}
 
 		/* Do we need to re-allocate output buffer ? */
-		if ((out + btw + 1) > ebuf) {
+		if ((out + btw + 1) >= ebuf) {
 			size_t off = out - obuf;
-			olen += len/2;
+			olen += btw + 1;
 			if ((obuf = realloc(obuf, olen)) == NULL)
 				error("Realloc of rand_utf8_string len %d failed\n",olen);
 			ebuf = obuf + olen;		/* One past end */
@@ -2944,9 +3621,9 @@ icmUTF16 *rand_utf16_string(int lenmin, int lenmax) {
 		/* We have a UTF32 value. Convert to UTF16 */
 
 		/* Do we need to re-allocate output buffer ? */
-		if ((out + 2 + 1) > ebuf) {
+		if ((out + 2 + 1) >= ebuf) {
 			size_t off = out - obuf;
-			olen += len/2;
+			olen += 2 + 1;
 			if ((obuf = (icmUTF16 *)realloc(obuf, olen * 2)) == NULL)
 				error("Realloc of rand_utf16_string len %d failed\n",olen);
 			ebuf = obuf + olen;		/* One past end */
@@ -3001,6 +3678,27 @@ int dcomp(double a, double b) {
 
 	return dif > (mag * 1e-10) ? 1 : 0;
 }
+
+
+/* Generate a random id */
+void rand_id(unsigned char id[16]) {
+	int i;
+
+	for (i = 0; i < 16; i++)
+		id[i] = rand_o8();
+}
+
+/* Compare to id's */
+int idcomp(unsigned char a[16], unsigned char b[16]) {
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		if (a[i] != b[i])
+			return 1;
+	}
+	return 0;
+}
+
 
 /* ------------------------------------------------ */
 /* Basic printf type error() and warning() routines */

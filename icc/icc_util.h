@@ -95,7 +95,7 @@ void icmPow3(double out[3], double in[3], double p);
 /* Square values */
 void icmSqr3(double out[3], double in[3]);
 
-/* Suqare root of values */
+/* Square root of values */
 void icmSqrt3(double out[3], double in[3]);
 
 /* Take absolute of a 3 vector */
@@ -141,7 +141,7 @@ void icmClip3(double out[3], double in[3]);
 int icmClip3sig(double out[3], double in[3]);
 
 /* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
+/* and return any clipping margine over the limits. */
 double icmClip3marg(double out[3], double in[3]);
 
 /* Normalise a 3 vector to the given length. Return nz if not normalisable */
@@ -256,7 +256,7 @@ void icmMulBy4x4(double out[4], double mat[4][4], double in[4]);
 void icmTranspose4x4(double out[4][4], double in[4][4]);
 
 /* Clip a vector to the range 0.0 .. 1.0 */
-/* and return any clipping margine */
+/* and return any clipping margine over the limit */
 double icmClip4marg(double out[4], double in[4]);
 
 /* - - - - - - - - - - - - - - - - - - - - - - - */
@@ -352,6 +352,51 @@ void icmVec2mat(double mat[2][2], double dx, double dy);
 
 /* Multiply 2 array by 2x2 transform matrix */
 void icmMulBy2x2(double out[2], double mat[2][2], double in[2]);
+
+/* - - - - - - - - - - - - - - */
+
+/* Set a vector to a single value */
+void icmSetN(double *dst, double src, int len);
+
+/* Copy a vector */
+void icmCpyN(double *dst, double *src, int len);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+void icmClipN(double out[3], double in[3], unsigned int len);
+
+/* Clip a vector to the range 0.0 .. 1.0 */
+/* and return any clipping margine over the limit */
+double icmClipNmarg(double *out, double *in, unsigned int len);
+
+/* Return the magnitude (norm) of the difference between two vectors */
+double icmDiffN(double *s1, double *s2, int len);
+
+/* ----------------------------------------------- */
+
+/* Structure to hold pseudo-hilbert counter info */
+struct _psh {
+	int      di;					/* Dimensionality */
+	unsigned int res[MAX_CHAN];		/* Resolution per coordinate */
+	unsigned int bits[MAX_CHAN];	/* Bits per coordinate */
+	unsigned int xbits;				/* Max of bits[] */
+	unsigned int tbits;				/* Total bits */
+	unsigned int tmask;				/* Total 2^tbits count mask */
+	unsigned int count;				/* Usable count */
+	unsigned int ix;				/* Current binary index */
+}; typedef struct _psh psh;
+
+/* Initialise a pseudo-hilbert grid counter, return total usable count. */
+extern ICCLIB_API unsigned psh_init(psh *p, int di, unsigned int res, int co[]);
+
+/* Same as above but with variable res per axis. */
+extern ICCLIB_API unsigned psh_initN(psh *p, int di, unsigned int res[], int co[]);
+
+/* Reset the counter */
+extern ICCLIB_API void psh_reset(psh *p);
+
+/* Increment pseudo-hilbert coordinates */
+/* Return non-zero if count rolls over to 0 */
+extern ICCLIB_API int psh_inc(psh *p, int co[]);
 
 /* - - - - - - - - - - - - - - */
 
@@ -480,15 +525,7 @@ extern double icmWrongVonKries[3][3];
 /* The Bradford chromatic transform matrix */
 extern double icmBradford[3][3];
 
-/* Initialise a pseudo-hilbert grid counter, return total usable count. */
-extern ICCLIB_API unsigned psh_init(psh *p, int di, unsigned int res, int co[]);
-
-/* Reset the counter */
-extern ICCLIB_API void psh_reset(psh *p);
-
-/* Increment pseudo-hilbert coordinates */
-/* Return non-zero if count rolls over to 0 */
-extern ICCLIB_API int psh_inc(psh *p, int co[]);
+/* ----------------------------------------------- */
 
 /* - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -697,39 +734,61 @@ void icmRad2RGB(double rgb[3], double ang);
 
 /* Error and warning codes from conversions */
 typedef enum {
-    icmUTF_ok            	= 0x000,	/* ok */
-    icmUTF_emb_nul			= 0x001,	/* embedded nul */
+    icmUTF_ok            	= 0x00000,	/* ok */
+    icmUTF_emb_nul			= 0x00001,	/* embedded nul */
 
 									/* UTF-16 errors */
-    icmUTF_no_nul          	= 0x002,	/* no nul terminator */
-    icmUTF_prem_nul 	    = 0x004,	/* nul before end */	
-    icmUTF_bad_surr         = 0x008,	/* badly formed surrogate pair */
-    icmUTF_unn_bom          = 0x010,	/* unecessary Byte Order Mark */
+    icmUTF_no_nul          	= 0x00002,	/* no nul terminator */
+    icmUTF_unex_nul 	    = 0x00004,	/* unexpected nul terminator */	
+    icmUTF_prem_nul 	    = 0x00008,	/* nul before end */	
+    icmUTF_bad_surr         = 0x00010,	/* badly formed surrogate pair */
+    icmUTF_unn_bom          = 0x00020,	/* unecessary Byte Order Mark */
+    icmUTF_odd_bytes        = 0x00040,	/* length is odd number of bytes */
 
 									/* UTF-8 errors */
-    icmUTF_unex_cont		= 0x020,	/* unexpected continuation byte */
-    icmUTF_tmany_cont		= 0x040,	/* too many continuation bytes */
-    icmUTF_short_cont		= 0x080,	/* continuation bytes are cut short */
-    icmUTF_overlong			= 0x100,	/* overlong encoding */
-    icmUTF_inv_cdpnt		= 0x200,	/* invalid code point - UTF-16 surrogate */
-    icmUTF_ovr_cdpnt		= 0x400		/* invalid code point - greater than unicode maximum */
+    icmUTF_unex_cont		= 0x00080,	/* unexpected continuation byte */
+    icmUTF_tmany_cont		= 0x00100,	/* too many continuation bytes */
+    icmUTF_short_cont		= 0x00200,	/* continuation bytes are cut short */
+    icmUTF_overlong			= 0x00400,	/* overlong encoding */
+    icmUTF_inv_cdpnt		= 0x00800,	/* invalid code point - UTF-16 surrogate */
+    icmUTF_ovr_cdpnt		= 0x01000,	/* invalid code point - greater than unicode maximum */
 
+									/* ASCII errors */
+    icmUTF_non_ascii		= 0x02000,	/* found non-ascii character in UTF-8 */
+	icmUTF_ascii_toolong	= 0x04000,	/* ASCII longer than fixed sized buffer */
+
+									/* ScriptCode errors */
+    icmUTF_sc_tooshort		= 0x08000,	/* ScriptCode size < 67 */
+    icmUTF_sc_toolong		= 0x10000	/* ScriptCode size > 67 */
 } icmUTFerr;
 
-size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, int len);
-size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, int len);
 
+/* LEGACY serialisation */
+size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, size_t len);
+size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, size_t len);
+
+/* NEW serialisation */
+size_t icmUTF16SntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len, int nonul);
+size_t icmUTF8toUTF16Sn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t len, int nonul);
+
+size_t icmASCIIZSntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len, int fxlen);
+size_t icmUTF8toASCIIZSn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t len, int fxlen);
+
+size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len);
+size_t icmScriptCodetoSn(icmUTFerr *pillegal, icmFBuf *bout, ORD8 *in, size_t len);
+
+/* General use */
 size_t icmUTF16toUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmUTF16 *in);
 size_t icmUTF8toUTF16(icmUTFerr *pillegal, icmUTF16 *out, icmUTF8 *in);
 
-/* Convert utf-8 to HTML escapes. *u8 will be set nz if any utf-8 found. */
+/* Convert utf-8 to HTML escapes. illegal will have icmUTF_non_ascii set if any non-ASCII found. */
 /* All output pointers may be NULL */
-size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, int *u8, char *out, icmUTF8 *in);
+size_t icmUTF8toHTMLESC(icmUTFerr *pillegal, char *out, icmUTF8 *in);
 
 /* Convert UTF-8 to ASCII. Out of range characters are replaced by '?'. */
-/* *u8 will be set nz if any utf-8 found. */
+/* illegal will have icmUTF_non_ascii set if any non-ASCII found. */
 /* All output pointers may be NULL */
-size_t icmUTF8toASCII(icmUTFerr *pillegal, int *pu8, char *out, icmUTF8 *in);
+size_t icmUTF8toASCII(icmUTFerr *pillegal, char *out, icmUTF8 *in);
 
 /* Convert icmUTFerr to a comma separated list of error descriptions. */
 char *icmUTFerr2str(icmUTFerr err);
@@ -743,15 +802,45 @@ char *icmPiv(int di, int *p);
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPdv(int di, double *p);
 
+/* Print a double color vector to a string with format. */
+/* Returned static buffer is re-used every 5 calls. */
+char *icmPdvf(int di, char *fmt, double *p);
+
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPfv(int di, float *p);
 
+/* Print an XYZ */
+/* Returned static buffer is re-used every 5 calls. */
+char *icmPXYZ(icmXYZNumber *p);
+
 /* Print an 0..1 range XYZ as a D50 Lab string */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPLab(double *p);
-/* - - - - - - - - - - - - - - - - - - - - - - - */
 
+/* ---------------------------------------------------------- */
+
+/* Cause a debug break or stack trace */
+#ifndef DEBUG_BREAK
+# ifdef NT
+#  define DEBUG_BREAK DebugBreak() 
+# else
+#  if defined(__APPLE__)
+//    extern void Debugger();
+//#   define DEBUG_BREAK Debugger() 	// deprecated ?
+    //extern void __debugbreak();
+//#  define DEBUG_BREAK __debugbreak()
+#   define DEBUG_BREAK *((volatile char *)0) = 0x55;
+#  else
+#   include <signal.h>
+#   if defined(SIGTRAP)
+#    define DEBUG_BREAK raise(SIGTRAP)
+#   else
+#    define DEBUG_BREAK raise(SIGABRT)
+#   endif
+#  endif
+# endif
+#endif
 
 #ifdef __cplusplus
 	}

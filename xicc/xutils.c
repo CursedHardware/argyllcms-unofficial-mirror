@@ -18,6 +18,7 @@
  * but is independent of other modules.
  */
 
+#include <stdarg.h>
 #include <sys/types.h>
 #include <string.h>
 #include <ctype.h>

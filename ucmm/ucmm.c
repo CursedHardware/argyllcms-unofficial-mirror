@@ -170,15 +170,16 @@ ucmm_error ucmm_install_monitor_profile(
 	/* Verify that we've been given a suitable ICC profile */
 	/* And read it into a memory buffer */
 	{
+		icmErr err = { 0, { '\000'} };
 		icmFile *fp;
 		icc *icco;
 
-		if ((fp = new_icmFileStd_name(sprof,"r")) == NULL) {
+		if ((fp = new_icmFileStd_name(&err, sprof,"r")) == NULL) {
 			debug2((errout,"Unable to ope file '%s'\n",sprof));
 			return ucmm_invalid_profile;
 		}
 
-		if ((icco = new_icc()) == NULL) {
+		if ((icco = new_icc(&err)) == NULL) {
 			debug2((errout,"new_icc() failed\n"));
 			fp->del(fp);
 			return ucmm_invalid_profile;

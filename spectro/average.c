@@ -523,7 +523,7 @@ int main(int argc, char *argv[]) {
 	
 						if (fabs(diff) > 0.001)
 							error ("File '%s' set %d has field '%s' value that differs from '%s'",
-					       inps[n].name, i+1, inps[n].c->t[0].fsym[j], inps[0].name);
+					       inps[n].name, i+1, inps[n].c->t[0].fsym[chix[j]], inps[0].name);
 					}
 				}
 			}

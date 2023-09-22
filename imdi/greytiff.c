@@ -339,15 +339,15 @@ main(int argc, char *argv[]) {
 	TIFFGetField(rh, TIFFTAG_PHOTOMETRIC, &photometric);
 	if  ((pmtc = ColorSpaceSignature2TiffPhotometric(ins)) == 0xffff)
 		error("ICC  input colorspace '%s' can't be handled by a TIFF file!",
-		      icm2str(icmColorSpaceSignature, ins));
+		      icm2str(icmColorSpaceSig, ins));
 	if (pmtc != photometric)
 		error("ICC  input colorspace '%s' doesn't match TIFF photometric '%s'!",
-		      icm2str(icmColorSpaceSignature, ins), Photometric2str(photometric));
+		      icm2str(icmColorSpaceSig, ins), Photometric2str(photometric));
 
 	TIFFGetField(rh, TIFFTAG_SAMPLESPERPIXEL, &samplesperpixel);
 	if (inn != samplesperpixel)
 		error ("TIFF Input file has %d input channels mismatched to colorspace '%s'",
-		       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+		       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 
 	TIFFGetField(rh, TIFFTAG_PLANARCONFIG, &pconfig);
 	if (pconfig != PLANARCONFIG_CONTIG)
@@ -369,7 +369,7 @@ main(int argc, char *argv[]) {
 	TIFFSetField(wh, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
 	if  ((pmtc = ColorSpaceSignature2TiffPhotometric(ins)) == 0xffff)
 		error("TIFF file can't handle output colorspace '%s'!",
-		      icm2str(icmColorSpaceSignature, ins));
+		      icm2str(icmColorSpaceSig, ins));
 	TIFFSetField(wh, TIFFTAG_PHOTOMETRIC, pmtc);
 	TIFFSetField(wh, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
 	if (resunits) {

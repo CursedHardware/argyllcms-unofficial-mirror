@@ -14,6 +14,15 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
 
 # Include all the sub-directory Jamfiles
 
+# Compile date
+Always compiledate.h ;
+if [ GLOB $(PATH) : awk awk.exe ] {
+	GenFileNND compiledate.h : "awk 'BEGIN {srand();print \"#define COMPILEDATE \" srand()}' > compiledate.h" ; 
+} else {
+	# make sure compilation fails if there is no awk and compiledate.h is needed
+	GenFileNND compiledate.h : $(RM) compiledate.h ; 
+}
+
 SubInclude numlib ;
 SubInclude plot ;
 SubInclude icc ;

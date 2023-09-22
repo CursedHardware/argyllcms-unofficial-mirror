@@ -48,6 +48,8 @@ void usage(void) {
 	fprintf(stderr," -o order      n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"               r = reverse (priority: monochrome > matrix > lut)\n");
 	fprintf(stderr," -s scale      Scale device range 0.0 - scale rather than 0.0 - 1.0\n");
+	fprintf(stderr," -D verb       Dump the Pe's of all conversions\n");
+	fprintf(stderr," -T            Trace each step of conversions\n");
 	fprintf(stderr,"\n");
 	fprintf(stderr,"    The colors to be translated should be fed into standard input,\n");
 	fprintf(stderr,"    one input color per line, white space separated.\n");
@@ -70,10 +72,23 @@ main(int argc, char *argv[]) {
 	char buf[200];
 	double oin[MAX_CHAN], in[MAX_CHAN], out[MAX_CHAN];
 
-	icmLuBase *luo;
-	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
-	int inn, outn;						/* Number of components */
-	icmLuAlgType alg;					/* Type of lookup algorithm */
+	int dump = 0;				/* Dump the conversions */
+	int trace = 0;				/* Trace the conversions */
+	icmLuSpace *luo;
+	icmCSInfo ini, outi, pcsi;			/* Type of input and output spaces */
+	icmCSInfo n_ini, n_outi, n_pcsi;	/* Native type of input and output spaces */
+	icTagSignature srctag;				/* Source tag of lookup */
+	icRenderingIntent rintent;			/* Rendering intent */
+	icmLookupFunc lufunc;				/* Lookup function */
+	icmLookupOrder luord;				/* Lookup order */
+	icmPeOp luop;						/* Dominant processing element operation */
+	int can_bwd;						/* Whether lookup is invertable */
+
+#define ins ini.sig				/* Compatibility until code is switched over */
+#define outs outi.sig
+#define inn ini.nch
+#define outn outi.nch
+
 
 	/* Lookup parameters */
 	icmLookupFunc     func   = icmFwd;				/* Default */
@@ -105,7 +120,7 @@ main(int argc, char *argv[]) {
 				usage();
 
 			/* Verbosity */
-			else if (argv[fa][1] == 'v' || argv[fa][1] == 'V') {
+			else if (argv[fa][1] == 'v') {
 				fa = nfa;
 				if (na == NULL)
 					verb = 2;
@@ -116,13 +131,15 @@ main(int argc, char *argv[]) {
 						verb = 1;
 					else if (na[0] == '2')
 						verb = 2;
+					else if (na[0] == '3')
+						verb = 3;
 					else
 						usage();
 				}
 			}
 
 			/* function */
-			else if (argv[fa][1] == 'f' || argv[fa][1] == 'F') {
+			else if (argv[fa][1] == 'f') {
 				fa = nfa;
 				if (na == NULL) usage();
     			switch (na[0]) {
@@ -148,7 +165,7 @@ main(int argc, char *argv[]) {
 			}
 
 			/* Intent */
-			else if (argv[fa][1] == 'i' || argv[fa][1] == 'I') {
+			else if (argv[fa][1] == 'i') {
 				fa = nfa;
 				if (na == NULL) usage();
     			switch (na[0]) {
@@ -177,16 +194,14 @@ main(int argc, char *argv[]) {
 			}
 
 			/* Search order */
-			else if (argv[fa][1] == 'o' || argv[fa][1] == 'O') {
+			else if (argv[fa][1] == 'o') {
 				fa = nfa;
 				if (na == NULL) usage();
     			switch (na[0]) {
 					case 'n':
-					case 'N':
 						order = icmLuOrdNorm;
 						break;
 					case 'r':
-					case 'R':
 						order = icmLuOrdRev;
 						break;
 					default:
@@ -195,7 +210,7 @@ main(int argc, char *argv[]) {
 			}
 
 			/* PCS override */
-			else if (argv[fa][1] == 'p' || argv[fa][1] == 'P') {
+			else if (argv[fa][1] == 'p') {
 				fa = nfa;
 				if (na == NULL) usage();
     			switch (na[0]) {
@@ -220,11 +235,23 @@ main(int argc, char *argv[]) {
 			}
 
 			/* Device scale */
-			else if (argv[fa][1] == 's' || argv[fa][1] == 'S') {
+			else if (argv[fa][1] == 's') {
 				fa = nfa;
 				if (na == NULL) usage();
 				scale = atof(na);
 				if (scale <= 0.0) usage();
+			}
+
+
+			else if (argv[fa][1] == 'D') {
+				fa = nfa;
+				if (na == NULL) usage();
+				dump = atoi(na);
+				if (dump <= 0.0) usage();
+			}
+
+			else if (argv[fa][1] == 'T') {
+				trace = 1;
 			}
 
 			else 
@@ -251,6 +278,7 @@ main(int argc, char *argv[]) {
 	if (icco->header->cmmId == icmstr2tag("argl"))
 		icco->allowclutPoints256 = 1;
 
+	/* Dump profile header if verbose */
 	if (verb > 1) {
 		icmFile *op;
 		if ((op = new_icmFileStd_fp(&e, stdout)) == NULL)
@@ -259,20 +287,112 @@ main(int argc, char *argv[]) {
 		op->del(op);
 	}
 
+	/* Compute a TAC */
+	if (verb > 1) {
+		double tac;
+		double chmax[MAX_CHAN];
+		
+		tac = icco->get_tac(icco, chmax, NULL, NULL);
+	
+		if (tac <= -1.0)
+			printf("No TAC\n\n");
+		else
+			printf("TAC = %f, chan max = %s\n\n",tac,
+			    icmPdv(icmCSSig2nchan(icco->header->colorSpace), chmax));
+	}
+
 	/* Get a conversion object */
-	if ((luo = icco->get_luobj(icco, func, intent, pcsor, order)) == NULL)
+	if ((luo = (icmLuSpace *)icco->get_luobj(icco, func, intent, pcsor, order)) == NULL)
 		error ("%d, %s",icco->e.c, icco->e.m);
 
+	if (dump > 0) {
+		icmErr err = { 0 };
+		icmFile *op;
+		int verb = 1;
+
+		if ((op = new_icmFileStd_fp(&err, stdout)) == NULL) {
+    		printf("Can't open stdout stream, failed with 0x%x, '%s'",err.c, err.m);
+		} else {
+			printf("\nOverall transform:\n");
+			luo->lookup->dump(luo->lookup, op, dump);
+		
+			printf("\n3 Step transform:\n");
+			luo->input->dump(luo->input, op, dump);
+			luo->core3->dump(luo->core3, op, dump);
+			luo->output->dump(luo->output, op, dump);
+
+			printf("\n5 Step transform:\n");
+			luo->input_fmt->dump(luo->input_fmt, op, dump);
+			luo->input_pch->dump(luo->input_pch, op, dump);
+			luo->core5->dump(luo->core5, op, dump);
+			luo->output_pch->dump(luo->output_pch, op, dump);
+			luo->output_fmt->dump(luo->output_fmt, op, dump);
+
+			op->del(op);
+		}
+	}
+
+	if (trace) {
+		luo->lookup->trace = 1;
+	}
+
 	/* Get details of conversion (Arguments may be NULL if info not needed) */
-	luo->spaces(luo, &ins, &inn, &outs, &outn, &alg, NULL, NULL, NULL, NULL);
+	luo->spaces(luo, &ini, &outi, &pcsi, &srctag, &rintent, &lufunc, &luord, &luop, &can_bwd);
+	luo->native_spaces(luo, &n_ini, &n_outi, &n_pcsi);
+
+	if (verb > 1) {
+		double pcs[3], white[3], black[3];
+		int asblk;
+
+		printf("Lookup details:\n");
+		printf(" ini  = %s\n",icmCSInfo2str(&ini));
+		printf(" outi = %s\n",icmCSInfo2str(&outi));
+		printf(" pcsi = %s\n",icmCSInfo2str(&pcsi));
+		printf(" n_ini  = %s\n",icmCSInfo2str(&n_ini));
+		printf(" n_outi = %s\n",icmCSInfo2str(&n_outi));
+		printf(" n_pcsi = %s\n",icmCSInfo2str(&n_pcsi));
+		printf(" src_tag = %s\n",icm2str(icmTagSig_alt, srctag));
+		printf(" intent = %s\n",icm2str(icmRenderingIntent, rintent));
+		printf(" lu func = %s\n",icm2str(icmTransformLookupFunc, lufunc));
+		printf(" lu order = %s\n",icm2str(icmTransformLookupOrder, luord));
+		printf(" lu attr.op = %s\n",icm2str(icmProcessingElementOp, luop));
+		printf(" can bwd ? = %s\n",can_bwd ? "yes" : "no");
+
+		asblk = luo->wh_bk_points(luo, pcs, white, black);
+		printf("Abs. XYZ PCS %s, white %s, black %s%s\n",
+		           icmPdv(3, pcs), icmPdv(3, white), icmPdv(3, black), asblk ? " (assumed)" : "");
+
+		asblk = luo->lu_wh_bk_points(luo, pcs, white, black);
+		printf("Rel. XYZ PCS %s, white %s, black %s%s\n",
+		           icmPdv(3, pcs), icmPdv(3, white), icmPdv(3, black), asblk ? " (assumed)" : "");
+	}
+
+	/* Show other derived attributes */
+	if (verb > 2) {
+		int maxres;
+		int chmax[MAX_CHAN];
+		
+		maxres = luo->max_in_res(luo, chmax);
+		printf("Input curve maxres = %d, chan max = %s\n\n",maxres,
+		    icmPiv(luo->lookup->inputChan, chmax));
+
+		maxres = luo->max_clut_res(luo, chmax);
+		printf("cLut maxres = %d, chan max = %s\n\n",maxres,
+		    icmPiv(luo->lookup->inputChan, chmax));
+
+		maxres = luo->max_out_res(luo, chmax);
+		printf("Ouput curve maxres = %d, chan max = %s\n\n",maxres,
+		    icmPiv(luo->lookup->outputChan, chmax));
+	}
 
 	if (repYxy) {	/* report Yxy rather than XYZ */
-		if (ins == icSigXYZData)
-			ins = icSigYxyData; 
-		if (outs == icSigXYZData)
-			outs = icSigYxyData; 
+		if (ini.sig == icSigXYZData)
+			ini.sig = icSigYxyData; 
+		if (outi.sig == icSigXYZData)
+			outi.sig = icSigYxyData; 
 	}
 		
+
 	/* Process colors to translate */
 	for (;;) {
 		int i,j;
@@ -320,8 +440,8 @@ main(int argc, char *argv[]) {
 		}
 
 		/* Do conversion */
-		if ((rv = luo->lookup(luo, out, in)) > 1)
-			error ("%d, %s",icco->e.c,icco->e.m);
+		if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
+			error("%d, %s",icco->e.c,icco->e.m);
 
 		/* Output the results */
 		if (verb > 0) {
@@ -331,8 +451,8 @@ main(int argc, char *argv[]) {
 				else
 					fprintf(stdout,"%f",oin[j]);
 			}
-			printf(" [%s] -> %s -> ", icm2str(icmColorSpaceSignature, ins),
-		                          icm2str(icmTransformLookupAlgorithm, alg));
+			printf(" [%s] -> %s -> ", icm2str(icmColorSpaceSig, ins),
+		                          icm2str(icmTransformSourceTag, srctag));
 		}
 		
 		if (repYxy && outs == icSigYxyData) {
@@ -360,10 +480,10 @@ main(int argc, char *argv[]) {
 				fprintf(stdout,"%f",out[j]);
 		}
 		if (verb > 0)
-			printf(" [%s]", icm2str(icmColorSpaceSignature, outs));
+			printf(" [%s]", icm2str(icmColorSpaceSig, outs));
 
-		if (verb > 0 && rv != 0)
-			fprintf(stdout," (clip)");
+		if (rv != icmPe_lurv_OK) 
+			printf(" (%s)",icmPe_lurv2str(rv));
 
 		fprintf(stdout,"\n");
 

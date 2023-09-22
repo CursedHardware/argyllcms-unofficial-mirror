@@ -29,7 +29,7 @@
 struct _xdevlin {
 
 	/* Private: */
-	int di;					/* Device dimentionality */
+	int di;					/* Device dimensionality */
 	rspl *curves[MXDI];		/* di Linearisation curves */
 	double clipc[MXDI];		/* center of device range */
 	double min[MXDI], max[MXDI];	/* Device chanel min/max */

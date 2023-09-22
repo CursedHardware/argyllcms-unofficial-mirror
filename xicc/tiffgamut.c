@@ -54,6 +54,7 @@
 # error "Need to #include fcntl.h!"
 #endif
 
+
 void set_fminmax(double min[3], double max[3]);
 void reset_filter();
 void add_fpixel(double val[3]);
@@ -635,6 +636,7 @@ main(int argc, char *argv[]) {
 	if (fa < (argc-1))
 		strncpy(prof_name,argv[fa++],MAXNAMEL); prof_name[MAXNAMEL] = '\000';
 
+
 	for (ffa = fa; fa < argc; fa++)
 		if (fa >= argc || argv[fa][0] == '-') usage();
 	lfa = fa-1;
@@ -872,6 +874,7 @@ main(int argc, char *argv[]) {
 		set_fminmax(pcsmin, pcsmax);
 	}
 
+
 	/* - - - - - - - - - - - - - - - */
 	/* Creat a raster gamut surface */
 	gam = new_gamut(gamres, pcsor == icxSigJabData, 1);
@@ -912,7 +915,7 @@ main(int argc, char *argv[]) {
 			if (luo != NULL) {
 				if (inn != (samplesperpixel-extrasamples))
 					error("TIFF Input file has %d input chanels and is mismatched to colorspace '%s'",
-					       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+					       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 			}
 
 			if ((tcs = TiffPhotometric2ColorSpaceSignature(&cvt, &sign_mask, photometric,
@@ -922,7 +925,7 @@ main(int argc, char *argv[]) {
 			if (tcs != ins) {
 				if (luo != NULL)
 					error("TIFF photometric '%s' doesn't match ICC input colorspace '%s' !",
-					      Photometric2str(photometric), icm2str(icmColorSpaceSignature,ins));
+					      Photometric2str(photometric), icm2str(icmColorSpaceSig,ins));
 				else
 					error("No profile provided and TIFF photometric '%s' isn't Lab !",
 					      Photometric2str(photometric));
@@ -935,7 +938,7 @@ main(int argc, char *argv[]) {
 			if (verb) {
 				printf("Input TIFF file '%s'\n",in_name);
 				printf("TIFF file photometric is %s\n",Photometric2str(photometric));
-				printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+				printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 				printf("File size %d x %d pixels\n",width,height);
 				printf("\n");
 			}
@@ -1024,16 +1027,16 @@ main(int argc, char *argv[]) {
 			if (luo != NULL) {
 				if (inn != samplesperpixel)
 					error ("JPEG Input file has %d input chanels and is mismatched to colorspace '%s'",
-					       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+					       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 			}
 
 			if (tcs != ins) {
 				if (luo != NULL)
 					error("JPEG colorspace '%s' doesn't match ICC input colorspace '%s' !",
-					      icm2str(icmColorSpaceSignature, tcs), icm2str(icmColorSpaceSignature,ins));
+					      icm2str(icmColorSpaceSig, tcs), icm2str(icmColorSpaceSig,ins));
 				else
 					error("No profile provided and JPEG colorspace '%s' isn't Lab !",
-					      icm2str(icmColorSpaceSignature, tcs));
+					      icm2str(icmColorSpaceSig, tcs));
 			}
 			jpeg_calc_output_dimensions(&rj);
 			width = rj.output_width;
@@ -1042,7 +1045,7 @@ main(int argc, char *argv[]) {
 			if (verb) {
 				printf("Input JPEG file '%s'\n",in_name);
 				printf("JPEG file original colorspace is %s\n",JPEG_cspace2str(rj.jpeg_color_space));
-				printf("JPEG file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+				printf("JPEG file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 				printf("File size %d x %d pixels\n",width,height);
 				printf("\n");
 			}
@@ -1409,3 +1412,5 @@ void del_filter() {
 
 	free(ff);
 }
+
+

@@ -125,6 +125,9 @@ void set_exe_path(char *argv0) {
 	}
 #else		/* Neither does UNIX */
 
+	/* Should use readlink("/proc/self/exe", dest, PATH_MAX) on Linux... */
+	/* Should use _NSGetExecutablePath() on OS X */
+
 	if (*exe_path != '/') {			/* Not already absolute */
 		char *p, *cp;
 		if (strchr(exe_path, '/') != 0) {	/* relative path */

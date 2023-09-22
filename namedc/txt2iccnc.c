@@ -124,10 +124,10 @@ main(int argc, char *argv[]) {
 
 	/* Add the description tag */
 	{
-		icmTextDescription *wo;
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
-			error("Failed to add icmTextDescription");
+		icmCommonTextDescription *wo;
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
+			error("Failed to add icmCommonTextDescription");
 	
 		wo->count = strlen(desc)+1; 	/* Allocated and used size of desc, inc null */
 		wo->allocate(wo);/* Allocate space */
@@ -136,18 +136,18 @@ main(int argc, char *argv[]) {
 
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt;
 
 		crt = "";
 
-		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 		wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 		wo->allocate(wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		strcpy(wo->desc, crt);		/* Copy the text in */
 	}
 
 	/* White Point Tag: */
@@ -190,10 +190,13 @@ main(int argc, char *argv[]) {
 		}
 	
 	   	wo->nDeviceCoords =	3;	/* Num of device coordinates */
-		strcpy(wo->prefix,""); /* Prefix for each color name, max 32, null terminated */
-		strcpy(wo->suffix,""); /* Suffix for each color name, max 32, null terminated */
+	   	wo->pcount = 1;
+	   	wo->scount = 1;
 	
-		wo->allocate(wo);	/* Allocate named color structures */
+		wo->allocate(wo);	/* Allocate strings and named color structures */
+
+		strcpy(wo->prefix,""); /* Prefix for each color name, null terminated */
+		strcpy(wo->suffix,""); /* Suffix for each color name, null terminated */
 	
 		if (verb)
 			printf("Counted %d colors\n",wo->count);
@@ -229,8 +232,10 @@ main(int argc, char *argv[]) {
 				if (verb)
 					printf("Got %f %f %f '%s'\n",rgb[0], rgb[1], rgb[2], s1);
 	
-				strncpy(wo->data[i].root,s1,31);
-				wo->data[i].root[31] = '\000';
+				s1[31] = '\000';			/* truncate if needed */
+				wo->data[i].rcount = strlen(s1) + 1;
+				wo->allocate(wo);		/* Allocate root name string */
+				strcpy(wo->data[i].root, s1);
 	
 				for (j = 0; j < wo->nDeviceCoords; j++)
 					wo->data[i].deviceCoords[j] = rgb[j];

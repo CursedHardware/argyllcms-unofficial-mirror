@@ -14,7 +14,6 @@
  *
  * Should reject device link profiles ?
  *
- *
  */
 
 #include <stdio.h>
@@ -79,6 +78,7 @@ void usage(void) {
 	fprintf(stderr," -a          Do all values, not just clipped ones\n");
 	fprintf(stderr," -l tlimit   set total ink limit, 0 - 400%% (estimate by default)\n");
 	fprintf(stderr," -L klimit   set black ink limit, 0 - 100%% (estimate by default)\n");
+	fprintf(stderr," [[ output is infile.wrl ]]\n");
 	exit(1);
 }
 
@@ -609,7 +609,7 @@ main(
 			}
 
 			if (verb)
-				printf("Adding differenve between inv(a2b) and b2a cliped vectors\n");
+				printf("Adding difference between inv(a2b) and b2a cliped vectors\n");
 
 			i = 0;
 			for (coa[0] = 0; coa[0] < tres; coa[0]++) {

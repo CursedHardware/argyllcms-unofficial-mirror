@@ -42,7 +42,7 @@ VERSION=`grep ARGYLL_VERSION_STR h/aconfig.h | head -1 | sed 's/# define ARGYLL_
 
 echo "About to make $PRODUCT binary distribution $VERSION"
 
-TOPDIR=$PRODUCT_V$VERSION
+TOPDIR=${PRODUCT}_V$VERSION
 
 if [ X$OS != "XWindows_NT" ] ; then
 	# Fixup issues with the .zip format
@@ -82,14 +82,14 @@ if [ X$OS = "XWindows_NT" ] ; then
 	if [ X${COMPILER/MINGW64//} != X$COMPILER	\
 	  -o X${COMPILER/MSVCPP64//} != X$COMPILER ] ; then
 		echo "We're compiling to MSWin 64 bit !"
-		PACKAGE=$PRODUCT_V${VERSION}_win64_exe.zip
+		PACKAGE=${PRODUCT}_V${VERSION}_win64_exe.zip
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
 		unset USETAR
 	else if [ X${COMPILER/MINGW//} != X$COMPILER	\
 	       -o X${COMPILER/MSVCPP//} != X$COMPILER ] ; then
 		echo "We're compiling to MSWin 32 bit !"
-		PACKAGE=$PRODUCT_V${VERSION}_win32_exe.zip
+		PACKAGE=${PRODUCT}_V${VERSION}_win32_exe.zip
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
 		unset USETAR
@@ -97,17 +97,17 @@ if [ X$OS = "XWindows_NT" ] ; then
 	fi
 else if [ X$OSTYPE = "Xdarwin7.0" ] ; then
 	echo "We're on OSX 10.3 PPC!"
-	PACKAGE=$PRODUCT_V${VERSION}_osx10.3_ppc_bin.tgz
+	PACKAGE=${PRODUCT}_V${VERSION}_osx10.3_ppc_bin.tgz
 	USBDIRS="usb"
 	USBBINFILES="binfiles.osx"
 	USETAR=true
 else if [ X$OSTYPE = "Xdarwin8.0" ] ; then
 	if [ X$MACHTYPE = "Xi386-apple-darwin8.0" ] ; then
 		echo "We're on OSX 10.4 i386!"
-		PACKAGE=$PRODUCT_V${VERSION}_osx10.4_i86_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.4_i86_bin.tgz
 	else if [ X$MACHTYPE = "Xpowerpc-apple-darwin8.0" ] ; then
 		echo "We're on OSX 10.4 PPC!"
-		PACKAGE=$PRODUCT_V${VERSION}_osx10.4_ppc_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.4_ppc_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"
@@ -126,10 +126,10 @@ else if [ X$OSTYPE = "Xdarwin10.0" \
        -o X$OSTYPE = "Xdarwin20" ] ; then
 	if [ X$HOSTTYPE = "Xx86_64" ] ; then
 		echo "We're on OSX 10.X x86_64!"
-		PACKAGE=$PRODUCT_V${VERSION}_osx10.6_x86_64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_osx10.6_x86_64_bin.tgz
 	else if [ X$HOSTTYPE = "Xarm64" ] ; then
 		echo "We're on OSX 11.X arm64!"
-		PACKAGE=$PRODUCT_V${VERSION}_macOS11_arm64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_macOS11_arm64_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"
@@ -139,10 +139,10 @@ else if [ X$OSTYPE = "Xdarwin10.0" \
 else if [ X$OSTYPE = "Xlinux-gnu" ] ; then
 	if [[ "$MACHTYPE" = x86_64-*-linux-gnu ]] ; then
 		echo "We're on Linux x86_64!"
-		PACKAGE=$PRODUCT_V${VERSION}_linux_x86_64_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_linux_x86_64_bin.tgz
 	else if [[ "$MACHTYPE" = *86-*-linux-gnu ]] ; then
 		echo "We're on Linux x86!"
-		PACKAGE=$PRODUCT_V${VERSION}_linux_x86_bin.tgz
+		PACKAGE=${PRODUCT}_V${VERSION}_linux_x86_bin.tgz
 	fi
 	fi
 	USBDIRS="usb"

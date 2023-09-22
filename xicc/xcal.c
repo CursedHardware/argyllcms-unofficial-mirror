@@ -247,11 +247,11 @@ int xcal_read_icc(xcal *p, icc *c) {
 		p->xpi.profDesc = strdup(td->desc);
 	} 
 	if ((tx = (icmText *)c->read_tag(c, icSigCopyrightTag)) != NULL) {
-		p->xpi.copyright = strdup(tx->data);
+		p->xpi.copyright = strdup(tx->desc);
 	} 
 
 	/* Decide the lut resolution */
-	if (vg->tagType == icmVideoCardGammaFormulaType)
+	if (vg->tagType == icVideoCardGammaFormula)
 		res = 2048;
 	else
 		res = vg->u.table.entryCount;
@@ -364,7 +364,7 @@ static int xcal_write_cgats(xcal *p, cgats *tcg) {
 #ifdef SALONEINSTLIB
 		sprintf(p->e.m,"Unknown device class 0x%x",p->devclass);
 #else
-		sprintf(p->e.m,"Unknown device class '%s'",icm2str(icmProfileClassSignature,p->devclass));
+		sprintf(p->e.m,"Unknown device class '%s'",icm2str(icmProfileClassSig,p->devclass));
 #endif
 		return p->e.c = 1;
 	}

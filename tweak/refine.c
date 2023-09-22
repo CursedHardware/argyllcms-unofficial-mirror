@@ -191,7 +191,7 @@ struct _callback {
 	int verb;				/* Verbosity */
 	int total, count, last;	/* Progress count information */
 	rspl *r;				/* correction transform */
-	icmLuBase *rd_luo;		/* Existing abstract profile (NULL if none) */
+	icmLuSpace *rd_luo;		/* Existing abstract profile (NULL if none) */
 	gamut *dev_gam;			/* Gamut of output device (NULL if none) */
 }; typedef struct _callback callback;
 
@@ -201,7 +201,9 @@ struct _callback {
 
 /* New CLUT table */
 /* Correct for PCS errors */
-void PCSp_PCSp(void *cntx, double *out, double *in) {
+void PCSp_PCSp(void *cntx, double *out, double *in
+, int tn
+) {
 	callback *p = (callback *)cntx;
 	co pp;
 
@@ -220,7 +222,7 @@ void PCSp_PCSp(void *cntx, double *out, double *in) {
 #ifdef COMPLOOKUP
 	/* Compound with previous correction */
 	if (p->rd_luo != NULL) {
-		p->rd_luo->lookup(p->rd_luo, out, out);			/* Previous correction */
+		p->rd_luo->lookup_fwd(p->rd_luo, out, out);			/* Previous correction */
 	}
 #endif
 
@@ -278,6 +280,8 @@ main(int argc, char *argv[]) {
 	xspect cust_illum;					/* Custom illumination spectrum */
 	icxObserverType obType = icxOT_CIE_2012_2;
 	xspect custObserver[3];		/* If obType = icxOT_custom */
+	icmTV iccver = ICMTV_DEFAULT;	/* ICC file version to create */
+	icxTransformCreateType icctype = icxTCT_V2V2;	/* ICC profile version to create */
 	callback cb;				/* Callback support stucture for setting abstract profile */
 
 	icmFile *rd_fp = NULL;		/* Existing abstract profile to modify */
@@ -306,6 +310,7 @@ main(int argc, char *argv[]) {
 
 	if (argc < 6)
 		usage("Too few arguments");
+
 
 	/* Process the arguments */
 	for(fa = 1;fa < argc;fa++) {
@@ -488,11 +493,13 @@ main(int argc, char *argv[]) {
 				}
 			}
 
+
 			else 
 				usage("Unrecognised flag -%c",argv[fa][1]);
 		} else
 			break;
 	}
+
 
 	/* Grab all the filenames: */
 
@@ -896,7 +903,7 @@ main(int argc, char *argv[]) {
 		if (rd_icc->header->deviceClass != icSigAbstractClass)
 			error("Input Profile '%s' isn't abstract type",rd_name);
 
-		if ((cb.rd_luo = rd_icc->get_luobj(rd_icc, icmFwd,
+		if ((cb.rd_luo = (icmLuSpace *)rd_icc->get_luobj(rd_icc, icmFwd,
 		        dorel ? icRelativeColorimetric : icAbsoluteColorimetric,
 		        icSigLabData, icmLuOrdNorm)) == NULL)
 				error ("%d, %s",rd_icc->e.c, rd_icc->e.m);
@@ -947,7 +954,7 @@ main(int argc, char *argv[]) {
 			/* Lookup the current correction applied to the target */
 			if (cb.rd_luo != NULL) {		/* Subsequent pass */
 				double corval[3];
-				cb.rd_luo->lookup(cb.rd_luo, corval, cg[0].pat[i].v);
+				cb.rd_luo->lookup_fwd(cb.rd_luo, corval, cg[0].pat[i].v);
 				icmSub3(ccor, corval, cg[0].pat[i].v);
 				cmag = icmNorm3(ccor);
 #ifdef DEBUG1
@@ -1160,6 +1167,9 @@ main(int argc, char *argv[]) {
 	if ((wr_icc = new_icc(&err)) == NULL)
 		error ("Creation of write ICC object failed (0x%x, '%s')",err.c,err.m);
 
+	if (wr_icc->set_version(wr_icc, iccver) != 0)
+		error("set_version %d failed: %d, %s",iccver,wr_icc->e.c,wr_icc->e.m);
+
 	/* Add all the tags required */
 
 	/* The header: */
@@ -1177,10 +1187,10 @@ main(int argc, char *argv[]) {
 	}
 	/* Profile Description Tag: */
 	{
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst = "Argyll refine output";
-		if ((wo = (icmTextDescription *)wr_icc->add_tag(
-		           wr_icc, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+		if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+		           wr_icc, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 		wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
@@ -1189,15 +1199,15 @@ main(int argc, char *argv[]) {
 	}
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt = "Copyright the user who created it";
-		if ((wo = (icmText *)wr_icc->add_tag(
-		           wr_icc, icSigCopyrightTag,	icSigTextType)) == NULL) 
+		if ((wo = (icmCommonTextDescription *)wr_icc->add_tag(
+		           wr_icc, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
 
 		wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 		wo->allocate(wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		strcpy(wo->desc, crt);		/* Copy the text in */
 	}
 	/* White Point Tag: */
 	{
@@ -1213,49 +1223,59 @@ main(int argc, char *argv[]) {
 	}
 	/* 16 bit pcs -> pcs lut: */
 	{
-		icmLut *wo;
 		int flags = ICM_CLUT_SET_EXACT;	/* Assume we're setting from RSPL's */
 
-		/* Intent 0 = default/perceptual */
-		if ((wo = (icmLut *)wr_icc->add_tag(
-		           wr_icc, icSigAToB0Tag,	icSigLut16Type)) == NULL) 
-			error("add_tag failed: %d, %s",wr_icc->e.c,wr_icc->e.m);
+		int nsigs = 1;
+		icmXformSigs sigs[2];
+		unsigned int inputEnt, outputEnt;
+		unsigned int clutPoints[MAX_CHAN];
 
-		wo->inputChan = 3;
-		wo->outputChan = 3;
-    	wo->clutPoints = clutres;
-    	wo->inputEnt = 256;				/* Not actually used */
-    	wo->outputEnt = 256;
-		wo->allocate(wo);/* Allocate space */
-
-		/* The matrix is only applicable to XYZ input space, */
-		/* so it is not used here. */
-
-		/* Use helper function to do the hard work. */
-		if (cb.verb) {
-			int extra;
-			for (cb.total = 1, i = 0; i < 3; i++, cb.total *= wo->clutPoints)
-				; 
-			/* Add in cell center points */
-			for (extra = 1, i = 0; i < wo->inputChan; i++, extra *= (wo->clutPoints-1))
-				;
-			cb.total += extra;
-			cb.count = 0;
-			cb.last = -1;
-			printf(" 0%%"), fflush(stdout);
+		switch (icctype) {
+			default:
+				sigs[0].sig = icSigAToB0Tag;
+				sigs[0].ttype = icSigLut16Type;
+				/* Default ICC Version used */
+				break;
 		}
 
 #ifdef COMPLOOKUP
 		/* Compound with previous correction */
 		if (cb.rd_luo != NULL)
-			flags = ICM_CLUT_SET_APXLS;	/* Won't be least squares, so do extra sampling */
+			flags |= ICM_CLUT_SET_APXLS;	/* Won't be least squares, so do extra sampling */
 #endif
 
-		if (wo->set_tables(wo,
+    	inputEnt = 256;
+		for (i = 0; i < 3; i++)
+	    	clutPoints[i] = clutres;
+    	outputEnt = 256;
+
+		/* Use helper function to do the hard work. */
+		if (cb.verb) {
+			int extra;
+			for (cb.total = 1, i = 0; i < 3; cb.total *= clutPoints[i], i++)
+				; 
+			if (flags & ICM_CLUT_SET_APXLS) {
+				/* Add in cell center points */
+				for (extra = 1, i = 0; i < 3; extra *= (clutPoints[i]-1), i++)
+					;
+				cb.total += extra;
+			}
+			cb.count = 0;
+			cb.last = -1;
+			printf(" 0%%"), fflush(stdout);
+		}
+
+		if (wr_icc->create_lut_xforms(
+				wr_icc,
 				flags,
-				&cb,
+				&cb,					/* Callback context */
+				nsigs,					/* Number of tables */
+				sigs,					/* signatures and tag types for each table */
+				2,						/* Bytes per value of AToB or BToA CLUT, 1 or 2 */
+				inputEnt, clutPoints, outputEnt,	/* Table resolutions */
 				icSigLabData, 			/* Input color space */
 				icSigLabData, 			/* Output color space */
+				NULL, NULL,				/* Use default input range */
 				NULL,					/* Linear input transform Lab->Lab' (NULL = default) */
 				NULL, NULL,				/* Use default Maximum range of Lab' values */
 				PCSp_PCSp,				/* Lab' -> Lab' transfer function */

@@ -31,9 +31,6 @@
 #ifdef __sun
 #include <unistd.h>
 #endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "icc.h"
 
 #endif /* !COMBINED_STD */
@@ -452,8 +449,8 @@ icmErr *e,			/* Sticky returned error, may be NULL */
 FILE *fp,
 icmAlloc *al		/* heap allocator, NULL for default */
 ) {
-	icmFileStd *p;
-	struct stat sbuf;
+	icmFileStd *p = NULL;
+	struct stat sbuf = { 0 };
 
 	if (e != NULL && e->c != ICM_ERR_OK)
 		return NULL;		/* Pre-existing error */

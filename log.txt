@@ -7,23 +7,62 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
-Version 2.3.2 beta
+Version 3.0.1 Beta
 -------------
+
+* Fix accuracy problem with xicclu -fb when using cLut type profiles
+  that use a matrix in their B2A table.
+
+Version 3.0.0 15th September 2023
+-------------
+
+* Updated ccast/axTLS to get ChromeCast working again with latest Google
+  CC operating software.
+
+* Extensive re-write/re-factor of icclib to make it more future-proof :-
+  Changed all the tag type file serialization to be more declarative in form,
+  and make it more robust against buffer overflows. Switched to a processing
+  element pipeline implementation of color transforms. 
+  The change in icclib API's necessitates changes thruout the
+  ArgyllCMS codebase. Bumped ArgyllCMS and icclib to V3 to reflect
+  this major re-factoring. 
+  Added iccdump -S flag which turns on strict ICC format checking.
+  Added iccdumo -w and -W flags which turn on ICC format warnings.
+  Added icclu -T flag which turns on detailed conversion tracing.
+  See icc/log.txt for more details.
+
+* Added ref/ColorCheckerPassport.ti2 and ref/ColorCheckerHalfPassport.ti2
+  to allow measuring ColorCheckerPassport with instrument.
+
+* Fixed bug in Munki spectro hi-res mode with some instruments.
+  Luminance matching between normal and hi-res was sometimes quite poor.
+
+* Added ARGYLL_CREATE_DISPLAY_PROFILE_WITHOUT_CHAD environment variable.
+
+* Changed colprof -U flag to -u.
+  Changed dispcal -J flag to -K
+  to accomodate a potential new flag for colprof and dispcal.
+
+* Added workaround for bug in madHcNet64.dll32/64.dll which sometimes
+  causes failure.
+
+* Added delay after USB set_config on OS X to help Spyder 3/4 on
+  Ventura OS.
+
+* Added -Y parameter to dispwin to override automatic patch delay.
 
 * Changed i1d3 driver to cope with Rev. B "0x83" error robustly.
   This should fix any issuses measuring low level Red only
-  patch values on OLED displays.
+  patch values on OLED displays, but with slower measurements
+  when this occures.
 
 * Added spotread -Y S option to save spectral sensitivity curves
-  and corresponding support in i1d3 driver.
-
-* Bumped icclib to V3 with a number of API changes.
-  See icc/log.txt for details.
-  Made corresponding changes to ArgyllCMS to work with new API.
+  and added corresponding support in i1d3 driver.
+  This alllows for comparison of different instruments factory calibrations.
 
 * Added a -h scale parameter to dispread, to allow the automatic
   instrument calibration test patch values to be scaled down from
-  their default 100% value.
+  their default 100% value. This is useful with HDR displays.
 
 * Added manifest to MSWindows executables to use
   UTF-8 code pages on Windows 1903 and later.
@@ -34,7 +73,7 @@ Version 2.3.2 beta
 
 * Fixed problem with OS X 64 bit backwards compatibility
   where it failed to locate serial instruments when the binaries
-  are run os OS X V12 or latter machines.
+  are run on OS X V12 or latter machines.
 
 * Fixed bug in i1Pro3 driver where it was not returning the correct
   measurement conditions enum.
@@ -45,7 +84,7 @@ Version 2.3.2 beta
 
 * Added hacky workaround to strange Mac M2/rosetta bug in del_i1proimp().
 
-* Added -n option to specplot
+* Added -n option to specplot to match plot levels.
 
 
 Version 2.3.1 27th June 2022

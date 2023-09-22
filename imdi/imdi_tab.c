@@ -272,7 +272,7 @@ imdi_tab(
 		printf("Allocated input table %d size %u = %u * %u\n",e, ts->it_ts * ne,ts->it_ts,ne);
 #endif /* VERBOSE */
 
-		/* Comput input adjustment factor */
+		/* Compute input adjustment factor */
         for (iaf = 0.0, i = 0; i < (sizeof(in_adj)/sizeof(double)-1); i++)
                 iaf += log(in_adj[i]);
         iaf += in_adj[i];

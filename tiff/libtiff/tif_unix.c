@@ -202,8 +202,9 @@ _tiffUnmapProc(thandle_t fd, void* base, toff_t size)
  * Open a TIFF file descriptor for read/writing.
  */
 TIFF*
-TIFFFdOpen(int fd, const char* name, const char* mode)
+TIFFFdOpen(TIFF_INT64_T lfd, const char* name, const char* mode)
 {
+	int fd = lfd; 
 	TIFF* tif;
 
 	fd_as_handle_union_t fdh;

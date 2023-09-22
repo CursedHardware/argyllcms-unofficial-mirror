@@ -70,6 +70,7 @@ void usage(char *diag) {
 	fprintf(stderr," -i intent      a = absolute, r = relative colorimetric\n");
 	fprintf(stderr,"                p = perceptual, s = saturation, A = disp. abs. measurements\n");
 //  fprintf(stderr,"                P = absolute perceptual, S = absolute saturation\n");
+    fprintf(stderr,"                E = appearance, pE = percept. appce., sE = sat. appce.\n");
 	fprintf(stderr," -o order       n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"                r = reverse (priority: monochrome > matrix > lut)\n");
 	fprintf(stderr," -p oride       x = XYZ_PCS, X = XYZ * 100, l = Lab_PCS, L = LCh, y = Yxy, u = Lu'v'\n");
@@ -377,27 +378,22 @@ main(int argc, char *argv[]) {
 				fa = nfa;
     			switch (na[0]) {
 					case 'f':
-					case 'F':
 						func = icmFwd;
 						break;
 					case 'b':
-					case 'B':
 						func = icmBwd;
 						break;
 					case 'g':
-					case 'G':
 						func = icmGamut;
 						break;
 					case 'p':
-					case 'P':
 						func = icmPreview;
 						break;
 					case 'i':
-					case 'I':
 						invert = 1;
-						if (na[1] == 'f' || na[1] == 'F')
+						if (na[1] == 'f')
 							func = icmFwd;
-						else if (na[1] == 'b' || na[1] == 'B')
+						else if (na[1] == 'b')
 							func = icmBwd;
 						else
 							usage("Unknown parameter after flag -fi");
@@ -414,13 +410,23 @@ main(int argc, char *argv[]) {
 				absmeas = 0;
     			switch (na[0]) {
 					case 'p':
-						intent = icPerceptual;
+						if (na[1] == '\000')
+							intent = icPerceptual;
+						else if (na[1] == 'E')
+							intent = icxPerceptualAppearance;
+						else
+							usage("Unknown parameter after flag -ip");
 						break;
 					case 'r':
 						intent = icRelativeColorimetric;
 						break;
 					case 's':
-						intent = icSaturation;
+						if (na[1] == '\000')
+							intent = icSaturation;
+						else if (na[1] == 'E')
+							intent = icxSaturationAppearance;
+						else
+							usage("Unknown parameter after flag -is");
 						break;
 					case 'a':
 						intent = icAbsoluteColorimetric;
@@ -437,6 +443,11 @@ main(int argc, char *argv[]) {
 					case 'S':
 						intent = icmAbsoluteSaturation;
 						break;
+
+					case 'E':
+						intent = icxAppearance;
+						break;
+
 					default:
 						usage("Unknown parameter after flag -i");
 				}
@@ -524,11 +535,9 @@ main(int argc, char *argv[]) {
 				fa = nfa;
     			switch (na[0]) {
 					case 'n':
-					case 'N':
 						order = icmLuOrdNorm;
 						break;
 					case 'r':
-					case 'R':
 						order = icmLuOrdRev;
 						break;
 					default:
@@ -978,7 +987,7 @@ main(int argc, char *argv[]) {
 			double inmin[MAX_CHAN], inmax[MAX_CHAN];
 			double outmin[MAX_CHAN], outmax[MAX_CHAN];
 
-			luo->get_native_ranges(luo, inmin, inmax, outmin,outmax);
+			luo->get_native_ranges(luo, inmin, inmax, outmin, outmax);
 			printf("Internal input value range: ");
 			for (j = 0; j < inn; j++) {
 				if (j > 0)
@@ -1230,6 +1239,8 @@ main(int argc, char *argv[]) {
 			}
 			if (i == 0)
 				break;
+			for (; i < MAX_CHAN; i++)
+				uout[i] = out[i] = in[i] = uin[i] = 0.0;
 
 			/* If device data and scale */
 			if( ins != icxSigJabData
@@ -1412,9 +1423,9 @@ main(int argc, char *argv[]) {
 						fprintf(stdout,"%f",uin[j]);
 				}
 				if (cal != NULL)
-					printf(" [%s] -> ", icx2str(icmColorSpaceSignature, ins));
+					printf(" [%s] -> ", icx2str(icmColorSpaceSig, ins));
 				else
-					printf(" [%s] -> %s -> ", icx2str(icmColorSpaceSignature, ins),
+					printf(" [%s] -> %s -> ", icx2str(icmColorSpaceSig, ins),
 					                          icm2str(icmTransformLookupAlgorithm, alg));
 			}
 
@@ -1425,7 +1436,7 @@ main(int argc, char *argv[]) {
 					fprintf(stdout,"%f",uout[j]);
 			}
 			if (verb > 0)
-				printf(" [%s]", icx2str(icmColorSpaceSignature, outs));
+				printf(" [%s]", icx2str(icmColorSpaceSig, outs));
 
 			if (verb > 0 && tlimit >= 0) {
 				double tot;	

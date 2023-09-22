@@ -53,7 +53,7 @@
 
 #undef STOCKFWA				/* [und] Use table shape else compute from flat line estimate*/
 
-#undef DEBUG				/* [und] Extra printouts + debugging messages (need to uncomment) */
+#define DEBUG				/* [und] Extra printouts + debugging messages (need to uncomment) */
 #undef DOPLOT				/* [und] Plot FWA setup */
 #undef DOPLOT_ALL_FWA		/* [und] Plot all FWA corrected conversions */
 #undef WRITE_FWA1_STIM		/* [und] Write file "fwa1_stip.sp" when FWA is setup */
@@ -3758,7 +3758,7 @@ int write_nxspect_1(cgats **pocg, inst_meas_type mt, inst_meas_cond mc, xspect *
 int write_nxspect_2(cgats *ocg, char *fname) {
 
 	if (ocg->write_name(ocg, fname)) {
-		DBGF((DBGA,"CGATS file write error : %s\n",ocg->err));
+		DBGF((DBGA,"CGATS file write error : %s\n",ocg->e.m));
 		return 1;
 	}
 
@@ -3816,7 +3816,7 @@ int read_nxspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, inst_meas_cond 
 	}
 
 	if (icg->read_name(icg, fname)) {
-		DBGF((DBGA,"CGATS file read error : %s\n",icg->err));
+		DBGF((DBGA,"CGATS file read error : %s\n",icg->e.m));
 		icg->del(icg);
 		return 1;
 	}

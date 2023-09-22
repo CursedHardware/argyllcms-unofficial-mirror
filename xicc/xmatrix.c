@@ -63,13 +63,24 @@
 /* Return 0 on success, 1 if clipping occured, 2 on other error */
 
 /* Individual components of Fwd conversion: */
+/* Because icm_lu4 sets up component conversions in the requested direction, */
+/* but icxLuMatrix expects component conversions as if the the matrix is */
+/* fwd, we have if (dir) code to reverse things here. */
 static int
 icxLuMatrixFwd_curve (
 icxLuMatrix *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMatrix *)p->plu)->fwd_curve((icmLuMatrix *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv =  p->plu->output_fmt_bwd(p->plu, out, in);	/* Should be NOP */
+		prv |= p->plu->output_pch_bwd(p->plu, out, out);
+	} else {
+		prv =  p->plu->input_fmt_fwd(p->plu, out, in);	/* Should be NOP */
+		prv |= p->plu->input_pch_fwd(p->plu, out, out);
+	}
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -78,7 +89,12 @@ icxLuMatrix *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMatrix *)p->plu)->fwd_matrix((icmLuMatrix *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir)
+		prv = p->plu->core5_bwd(p->plu, out, in);
+	else
+		prv = p->plu->core5_fwd(p->plu, out, in);
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -88,7 +104,15 @@ double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
 	int rv = 0;
-	rv |= ((icmLuMatrix *)p->plu)->fwd_abs((icmLuMatrix *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->input_pch_bwd(p->plu, out, in);		/* Should be NOP */
+		prv |= p->plu->input_fmt_bwd(p->plu, out, out);
+	} else {
+		prv = p->plu->output_pch_fwd(p->plu, out, in);		/* Should be NOP */
+		prv |= p->plu->output_fmt_fwd(p->plu, out, out);
+	}
+	rv = LUE2XLUE(prv);
 
 	if (p->pcs == icxSigJabData)
 		p->cam->XYZ_to_cam(p->cam, out, out);
@@ -97,6 +121,9 @@ double *in			/* Vector of input values */
 
 
 /* Overall Fwd conversion */
+/* Note that the overall conversion is in the requested direction, */
+/* as the setup code swaps icxLuMatrixFwd_lookup/icxLuMatrixBwd_lookup */
+/* as needed. */
 static int
 icxLuMatrixFwd_lookup (
 icxLuBase *pp,		/* This */
@@ -141,6 +168,7 @@ icxLuMatrix *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
+	icmPe_lurv prv;
 	int rv = 0;
 
 	if (p->pcs == icxSigJabData) {
@@ -153,9 +181,23 @@ double *in			/* Vector of input values */
 			out[2] *= -0.1/out[1];
 			out[1] = -0.1;
 		}
-		rv |= ((icmLuMatrix *)p->plu)->bwd_abs((icmLuMatrix *)p->plu, out, out);
+		if (p->dir) {
+			prv = p->plu->input_fmt_fwd(p->plu, out, out);
+			prv |= p->plu->input_pch_fwd(p->plu, out, out);	/* Should be NOP */
+		} else {
+			prv = p->plu->output_fmt_bwd(p->plu, out, out);
+			prv |= p->plu->output_pch_bwd(p->plu, out, out);	/* Should be NOP */
+		}
+		rv = LUE2XLUE(prv);
 	} else {
-		rv |= ((icmLuMatrix *)p->plu)->bwd_abs((icmLuMatrix *)p->plu, out, in);
+		if (p->dir) {
+			prv = p->plu->input_fmt_fwd(p->plu, out, in);
+			prv |= p->plu->input_pch_fwd(p->plu, out, out);	/* Should be NOP */
+		} else {
+			prv = p->plu->output_fmt_bwd(p->plu, out, in);
+			prv |= p->plu->output_pch_bwd(p->plu, out, out);	/* Should be NOP */
+		}
+		rv = LUE2XLUE(prv);
 	}
 	return rv;
 }
@@ -166,7 +208,12 @@ icxLuMatrix *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMatrix *)p->plu)->bwd_matrix((icmLuMatrix *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir)
+		prv = p->plu->core5_fwd(p->plu, out, in);
+	else
+		prv = p->plu->core5_bwd(p->plu, out, in);
+	return LUE2XLUE(prv);
 }
 
 static int
@@ -175,10 +222,21 @@ icxLuMatrix *p,		/* This */
 double *out,		/* Vector of output values */
 double *in			/* Vector of input values */
 ) {
-	return ((icmLuMatrix *)p->plu)->bwd_curve((icmLuMatrix *)p->plu, out, in);
+	icmPe_lurv prv;
+	if (p->dir) {
+		prv = p->plu->output_pch_fwd(p->plu, out, in);
+		prv |= p->plu->output_fmt_fwd(p->plu, out, out);	/* Should be NOP */
+	} else {
+		prv = p->plu->input_pch_bwd(p->plu, out, in);
+		prv |= p->plu->input_fmt_bwd(p->plu, out, out);	/* Should be NOP */
+	}
+	return LUE2XLUE(prv);
 }
 
 /* Overall Bwd conversion */
+/* Note that the overall conversion is in the requested direction, */
+/* as the setup code swaps icxLuMatrixFwd_lookup/icxLuMatrixBwd_lookup */
+/* as needed. */
 static int
 icxLuMatrixBwd_lookup (
 icxLuBase *pp,		/* This */
@@ -229,7 +287,7 @@ static icxCuspMap *icxLuMatrixCuspMap(icxLuBase *plu, int res) { return NULL; };
 static icxLuMatrix *
 alloc_icxLuMatrix(
 	xicc                  *xicp,
-	icmLuBase             *plu,			/* Pointer to Lu we are expanding (ours) */
+	icmLuSpace            *plu,			/* Pointer to Lu we are expanding (ours) */
 	int                   dir,			/* 0 = fwd, 1 = bwd */
 	int                   flags			/* clip, merge flags */
 ) {
@@ -238,6 +296,7 @@ alloc_icxLuMatrix(
 	if ((p = (icxLuMatrix *) calloc(1,sizeof(icxLuMatrix))) == NULL)
 		return NULL;
 
+	p->lutype            = icxLuMatrixType;
 	p->pp                = xicp;
 	p->plu               = plu;
 	p->del               = icxLuMatrix_free;
@@ -253,11 +312,10 @@ alloc_icxLuMatrix(
 
 	p->nearclip = 0;				/* Set flag defaults */
 	p->mergeclut = 0;
-	p->noisluts = 0;
-	p->noipluts = 0;
-	p->nooluts = 0;
 
 	p->intsep = 0;
+
+	p->dir = dir;
 
 	p->fwd_lookup = icxLuMatrixFwd_lookup;
 	p->fwd_curve  = icxLuMatrixFwd_curve;
@@ -279,22 +337,17 @@ alloc_icxLuMatrix(
 	/* There are no matrix specific flags */
 	p->flags = flags;
 
-	/* Get details of internal, native color space */
-	p->plu->lutspaces(p->plu, &p->natis, NULL, &p->natos, NULL, &p->natpcs);
-
-	/* Get other details of conversion */
-	p->plu->spaces(p->plu, NULL, &p->inputChan, NULL, &p->outputChan, NULL, NULL, NULL, NULL, NULL);
 
 	return p;
 }
 
-/* We setup valid fwd and bwd component conversions, */
-/* but setup only the asked for overal conversion. */
+/* We setup fwd and bwd component conversions as if this was a fwd conversion, */
+/* but setup the asked for overal conversion in the resquested direction. */
 static icxLuBase *
 new_icxLuMatrix(
 xicc                  *xicp,
 int                   flags,		/* clip, merge flags */
-icmLuBase             *plu,			/* Pointer to Lu we are expanding */
+icmLuSpace            *plu,			/* Pointer to Lu we are expanding */
 icmLookupFunc         func,			/* Functionality requested */
 icRenderingIntent     intent,		/* Rendering intent */
 icColorSpaceSignature pcsor,		/* PCS override (0 = def) */
@@ -302,6 +355,8 @@ icxViewCond           *vc,			/* Viewing Condition (NULL if pcsor is not CIECAM) 
 int                   dir			/* 0 = fwd, 1 = bwd */
 ) {
 	icxLuMatrix *p;
+
+	// ~8 should merge alloc_icxLuMatrix() into new_icxLuMatrix()
 
 	/* Do basic creation and initialisation */
 	if ((p = alloc_icxLuMatrix(xicp, plu, dir, flags)) == NULL)
@@ -326,8 +381,35 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 	/* Remember the effective intent */
 	p->intent = intent;
 
-	/* Get the effective spaces */
-	plu->spaces(plu, &p->ins, NULL, &p->outs, NULL, NULL, NULL, NULL, &p->pcs, NULL);
+	/* In general the native and effective space info of the icx will be the same as the */
+	/* underlying icm lookup object. */
+	{
+		icmCSInfo ini, outi, pcsi;
+
+		/* Get details of internal, native color space */
+		plu->native_spaces(p->plu, &ini, &outi, &pcsi);
+		p->natis = ini.sig;
+		p->natos = outi.sig;
+		p->natpcs = pcsi.sig;
+
+		icmCpyN(p->ninmin, ini.min, ini.nch);
+		icmCpyN(p->ninmax, ini.max, ini.nch);
+		icmCpyN(p->noutmin, outi.min, outi.nch);
+		icmCpyN(p->noutmax, outi.max, outi.nch);
+
+		/* Get details of external, effective color spaces */
+		plu->spaces(p->plu, &ini, &outi, &pcsi, NULL, NULL, NULL, NULL, NULL, NULL);
+		p->ins = ini.sig;
+		p->inputChan = ini.nch;
+		p->outs = outi.sig;
+		p->outputChan = outi.nch;
+		p->pcs = pcsi.sig;
+
+		icmCpyN(p->inmin, ini.min, ini.nch);
+		icmCpyN(p->inmax, ini.max, ini.nch);
+		icmCpyN(p->outmin, outi.min, outi.nch);
+		icmCpyN(p->outmax, outi.max, outi.nch);
+	}
 
 	/* Override with pcsor */
 	if (pcsor == icxSigJabData) {
@@ -337,11 +419,6 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 		if (func == icmFwd || func == icmPreview)
 			p->outs = pcsor;
 	}
-
-	/* In general the native and effective ranges of the icx will be the same as the */
-	/* underlying icm lookup object. */
-	p->plu->get_lutranges(p->plu, p->ninmin, p->ninmax, p->noutmin, p->noutmax);
-	p->plu->get_ranges(p->plu, p->inmin,  p->inmax,  p->outmin,  p->outmax);
 
 	/* If we have a Jab PCS override, reflect this in the effective icx range. */
 	/* Note that the ab ranges are nominal. They will exceed this range */
@@ -401,7 +478,7 @@ typedef struct {
 							/* 18, 19, 20 are 1st harmonics */
 							/* 21, 22, 23 are 2nd harmonics */
 							/* 24, 25, 26 etc. */
-							/* For isShTRC there is only one set of offsets & harmonics */
+							/* For isShTRC there is only one gamma or set of offsets & harmonics */
 	icmXYZNumber wp;		/* Assumed white point for Lab conversion */
 	cow *points;			/* List of test points as dev->Lab */
 	int nodp;				/* Number of data points */
@@ -1216,46 +1293,50 @@ double scale		/* Scale device values */
 	return p;
 }
 
+
+/* Callback function for create_matrix_xforms() */
+static void matrix_xforms_infunc(void *cbctx, double *out, double *in, int tn) {
+	mxopt *p = (mxopt *)cbctx;
+	int j;
+
+	for (j = 0; j < 3; j++)
+		mxmfunc1(p, j, p->v, out + j, in + j);
+}
+
+
+
 /* Create icxLuMatrix and undelying tone reproduction curves and */
-/* colorant tags, initialised from the icc, and then overwritten */
-/* by a conversion created from the supplied scattered data points. */
+/* colorant tags from the supplied scattered data points. */
 
 /* The scattered data is assumed to map Device -> native PCS (ie. dir = Fwd) */
-/* NOTE:- in theory once this icxLuMatrix is setup, it can be */
-/* called to translate color values. In practice I suspect */
-/* that the icxLuMatrix hasn't been setup completely enough to allows this. */
-/* Might be easier to close it and re-open it ? */
-static icxLuBase *
-set_icxLuMatrix(
-xicc               *xicp,
-icmLuBase          *plu,			/* Pointer to Lu we are expanding (ours) */	
+/* Set error code and message in icco on error. */
+/* Return the error code */
+int set_icxLuMatrix(
+icc               *icco,
 int                flags,			/* white/black point flags */
+icxTransformCreateType icctype,		/* Profile creation type */
 int                nodp,			/* Number of points */
 int                nodpbw,			/* Number of points to look for white  & black patches in */
 cow                *ipoints,		/* Array of input points in XYZ space */
 icxMatrixModel     *skm,    		/* Optional skeleton model (not used here) */
 double             dispLuminance,	/* > 0.0 if display luminance value and is known */
 double             wpscale,			/* > 0.0 if input white point is to be scaled */
-//double             *bpo,			/* != NULL for XYZ black point override dev & XYZ */
 int                quality,			/* Quality metric, 0..3 */
-double             smooth			/* Curve smoothing, nominally 1.0 */
+double             smooth,			/* Curve smoothing, nominally 1.0 */
+int                isShTRC,			/* Matrix - NZ if shared TRCs */
+int                isGamma,			/* Matrix - NZ if gamma rather than shaper */
+int                isLinear,		/* Matrix - NZ if pure linear, gamma = 1.0 */
+int                inputEnt,		/* Num of in-table entries */
+int                inv_inputEnt		/* Num of inverse in-table entries */
 ) {
-	icxLuMatrix *p;						/* Object being created */
-	icc *icco = xicp->pp;				/* Underlying icc object */
-	icmLuMatrix *pmlu = (icmLuMatrix *)plu;	/* icc matrix lookup object */
-	int luflags = 0;					/* icxLuMatrix alloc clip, merge flags */
-	int isLinear = 0;					/* NZ if pure linear, gamma = 1.0 */
-	int isGamma = 0;					/* NZ if gamma rather than shaper */
-	int isShTRC = 0;					/* NZ if shared TRCs */
+	icmHeader *h = icco->header;		/* Pointer to icc header */
 	int inputChan = 3;					/* Must be RGB like */
 	int outputChan = 3;					/* Must be the PCS */
-	icmHeader *h = icco->header;		/* Pointer to icc header */
 	int rsplflags = 0;					/* Flags for scattered data rspl */
 	int e, f, i, j;
 	int maxits = 200;					/* Optimisation stop params */
 	double stopon = 0.01;				/* Absolute delta E change to stop on */
 	mxopt os;							/* Optimisation information */
-	double rerr;
 						/* If ICX_SET_WHITE | ICX_SET_BLACK: */
 	double wp[3];		/* Absolute White point in XYZ */
 	double bp[3];		/* Absolute Black point in XYZ */
@@ -1275,76 +1356,11 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 	if (flags & ICX_VERBOSE)
 		rsplflags |= RSPL_VERBOSE;
 
-	luflags = flags;		/* Transfer straight though ? */
-
-	/* Check out some things about the profile */
-	{
-		icmCurve *wor, *wog, *wob;
-		wor = pmlu->redCurve;
-		wog = pmlu->greenCurve;
-		wob = pmlu->blueCurve;
-
-		if (wor == wog) {
-			if (wog != wob) {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_matrix: TRC sharing is inconsistent");
-				return NULL;
-			}
-			isShTRC = 1;
-		}
-		if (wor->flag != wog->flag || wog->flag != wob->flag) {
-			xicp->e.c = 1;
-			sprintf(xicp->e.m,"icx_set_matrix: TRC type is inconsistent");
-			return NULL;
-		}
-		if (wor->flag == icmCurveGamma) {
-			isGamma = 1;
-		}
-
-		if (flags & ICX_NO_IN_SHP_LUTS) {
-			isLinear = 1;
-		}
-	}
-
-	/* Do basic icxLu creation and initialisation */
-	if ((p = alloc_icxLuMatrix(xicp, plu, 0, luflags)) == NULL) {
-		xicp->e.c = 1;
-		sprintf(xicp->e.m,"icx_set_matrix: malloc failed");
-		return NULL;
-	}
-
-	p->func = icmFwd;		/* Assumed by caller */
-
-	/* Get the effective spaces of underlying icm, and set icx the same */
-	plu->spaces(plu, &p->ins, NULL, &p->outs, NULL, NULL, &p->intent, NULL, &p->pcs, NULL);
-
-	/* For set_icx the effective pcs has to be the same as the native pcs */
-
 	/* Sanity check for matrix */
-	if (p->pcs != icSigXYZData) {
-		p->pp->e.c = 1;
-		sprintf(p->pp->e.m,"Can't create matrix profile with PCS of Lab !");
-		p->del((icxLuBase *)p);
-		return NULL;
+	if (h->pcs != icSigXYZData) {
+		return icm_err(icco, ICX_ERR_BAD_PCS, "Can't create matrix profile with PCS of %s !",
+					               icm2str(icmColorSpaceSig, h->pcs));
 	}
-
-	/* In general the native and effective ranges of the icx will be the same as the */
-	/* underlying icm lookup object. */
-	p->plu->get_lutranges(p->plu, p->ninmin, p->ninmax, p->noutmin, p->noutmax);
-	p->plu->get_ranges(p->plu, p->inmin,  p->inmax,  p->outmin,  p->outmax);
-
-	/* If we have a Jab PCS override, reflect this in the effective icx range. */
-	/* Note that the ab ranges are nominal. They will exceed this range */
-	/* for colors representable in L*a*b* PCS */
-	if (p->ins == icxSigJabData) {
-		p->inmin[0] = 0.0;		p->inmax[0] = 100.0;
-		p->inmin[1] = -128.0;	p->inmax[1] = 128.0;
-		p->inmin[2] = -128.0;	p->inmax[2] = 128.0;
-	} else if (p->outs == icxSigJabData) {
-		p->outmin[0] = 0.0;		p->outmax[0] = 100.0;
-		p->outmin[1] = -128.0;	p->outmax[1] = 128.0;
-		p->outmin[2] = -128.0;	p->outmax[2] = 128.0;
-	} 
 
 	/* ------------------------------- */
 
@@ -1360,31 +1376,27 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 			switch (h->colorSpace) {
 	
 				case icSigCmyData:
-					for (e = 0; e < p->inputChan; e++) {
+					for (e = 0; e < inputChan; e++) {
 						dw[e] = 0.0;
 						db[e] = 1.0;
 					}
 					break;
 				case icSigRgbData:
-					for (e = 0; e < p->inputChan; e++) {
+					for (e = 0; e < inputChan; e++) {
 						dw[e] = 1.0;
 						db[e] = 0.0;
 					}
 					break;
 	
-				default: {
-					xicp->e.c = 1;
-					sprintf(xicp->e.m,"set_icxLuMatrix: can't handle color space %s",
-					                           icm2str(icmColorSpaceSignature, h->colorSpace));
-					p->del((icxLuBase *)p);
-					return NULL;
-					break;
-				}
+				default:
+					return icm_err(icco,ICX_ERR_BAD_DEV,
+					               "set_icxLuMatrix: can't handle color space %s",
+					               icm2str(icmColorSpaceSig, h->colorSpace));
 			}
 		}
 
 		/* dw is what we want for dgw[], used for XFIT_OUT_WP_REL_US */
-		for (e = 0; e < p->inputChan; e++)
+		for (e = 0; e < inputChan; e++)
 			dgw[e] = dw[e];
 
 		/* If this is actuall an input device, lookup wp & bp */
@@ -1419,7 +1431,7 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 					wp[0] = ipoints[i].v[0];
 					wp[1] = ipoints[i].v[1];
 					wp[2] = ipoints[i].v[2];
-					for (e = 0; e < p->inputChan; e++)
+					for (e = 0; e < inputChan; e++)
 						dw[e] = ipoints[i].p[e];
 					wpy = ipoints[i].v[1];
 					wix = i;
@@ -1432,7 +1444,7 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 					wp[0] = ipoints[i].v[0];
 					wp[1] = ipoints[i].v[1];
 					wp[2] = ipoints[i].v[2];
-					for (e = 0; e < p->inputChan; e++)
+					for (e = 0; e < inputChan; e++)
 						dw[e] = ipoints[i].p[e];
 					wpy = yv;
 					wix = i;
@@ -1442,7 +1454,7 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 					bp[0] = ipoints[i].v[0];
 					bp[1] = ipoints[i].v[1];
 					bp[2] = ipoints[i].v[2];
-					for (e = 0; e < p->inputChan; e++)
+					for (e = 0; e < inputChan; e++)
 						db[e] = ipoints[i].p[e];
 					bpy = ipoints[i].v[1];
 					bix = i;
@@ -1450,9 +1462,9 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 			}
 			if (flags & ICX_VERBOSE) {
 				printf("Picked white patch %d with dev = %s\n       XYZ = %s, Lab = %s\n",
-				        wix+1, icmPdv(p->inputChan, dw), icmPdv(3, wp), icmPLab(wp));
+				        wix+1, icmPdv(inputChan, dw), icmPdv(3, wp), icmPLab(wp));
 				printf("Picked black patch %d with dev = %s\n       XYZ = %s, Lab = %s\n",
-				        bix+1, icmPdv(p->inputChan, db), icmPdv(3, bp), icmPLab(bp));
+				        bix+1, icmPdv(inputChan, db), icmPdv(3, bp), icmPLab(bp));
 			}
 
 		} else {
@@ -1488,21 +1500,16 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 						}
 					}
 					break;
-	
+
 				default:
-					xicp->e.c = 1;
-					sprintf(xicp->e.m,"set_icxLuMatrix: can't handle color space %s",
-					                           icm2str(icmColorSpaceSignature, h->colorSpace));
-					p->del((icxLuBase *)p);
-					return NULL;
-					break;
+					return icm_err(icco,ICX_ERR_BAD_DEV,
+					               "set_icxLuMatrix: can't handle color space %s",
+					               icm2str(icmColorSpaceSig, h->colorSpace));
 			}
 
 			if (nw == 0) {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"set_icxLuMatrix: can't handle test points without a white patch");
-				p->del((icxLuBase *)p);
-				return NULL;
+				return icm_err(icco, ICX_ERR_NO_WP,
+				               "set_icxLuMatrix: can't handle test points without a white patch");
 			}
 			wp[0] /= (double)nw;
 			wp[1] /= (double)nw;
@@ -1540,12 +1547,9 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 
 	/* Create copy of input points with output converted to white relative */
 	/* Allow one extra point for possible bpo value */
-	if ((rpoints = (cow *)malloc((nodp+1) * sizeof(cow))) == NULL) {
-		xicp->e.c = 1;
-		sprintf(xicp->e.m,"set_icxLuMatrix: malloc failed");
-		p->del((icxLuBase *)p);
-		return NULL;
-	}
+	if ((rpoints = (cow *)malloc((nodp+1) * sizeof(cow))) == NULL)
+		return icm_err(icco, ICX_ERR_MALLOC, "set_icxLuMatrix: malloc failed");
+
 	for (i = 0; i < nodp; i++) {
 		rpoints[i].w = ipoints[i].w;
 		for (e = 0; e < inputChan; e++)
@@ -1557,54 +1561,17 @@ double             smooth			/* Curve smoothing, nominally 1.0 */
 		icmMulBy3x3(rpoints[i].v, fromAbs, rpoints[i].v);
 	}
 
-#ifdef NEVER
-	/* If black point override and shaper curves */
-	if (bpo != NULL && !isLinear && !isGamma) {
-		double tw = 0.0;		/* Total weight */
-
-printf("Got bpo\n");
-		/* Zero out any black data points, and sum up total weihting */
-		for (i = 0; i < nodp; i++) {
-			if (rpoints[i].p[0] < 0.001				/* We're assuming RGB */
-			 && rpoints[i].p[1] < 0.001
-			 && rpoints[i].p[2] < 0.001) {
-				rpoints[i].w = 0.0;
-printf("Zero'd point %d\n",i);
-			}
-			tw += rpoints[i].w;
-		}
-printf("Total weight = %f\n",tw);
-
-		/* Add our override black point */
-		/* and give it a dominant weighting */
-		for (e = 0; e < inputChan; e++)
-			rpoints[nodp].p[e] = 0.0;
-		for (f = 0; f < outputChan; f++)
-			rpoints[nodp].v[f] = bpo[f];
-printf(" set black to %f %f %f\n", bpo[0], bpo[1], bpo[2]);
-
-		/* abs out -> aprox. rel out */
-		icmMulBy3x3(rpoints[nodp].v, fromAbs, rpoints[nodp].v);
-
-		rpoints[nodp].w = 20.0 * tw;
-printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
-
-		nodp++;
-	}
-#endif // NEVER
-
 	/* ------------------------------- */
 
 	/* (Use a gamma curve as 0th order shape) */
-	if ((p->pp->e.c = createMatrix(p->pp->e.m, &os, flags & ICX_VERBOSE ? 1 : 0,  
+	if ((icco->e.c = createMatrix(icco->e.m, &os, flags & ICX_VERBOSE ? 1 : 0,  
 	                               nodp, rpoints, 0, quality,
 	                               isLinear, isGamma, isShTRC, 1,
 		                           flags & ICX_CLIP_WB ? 1 : 0,
 		                           flags & ICX_CLIP_PRIMS ? 1 : 0,
-		                           smooth, 1.0)) != 0) {   
+		                           smooth, 1.0)) != ICX_ERR_OK) {   
 		free(rpoints);
-		p->del((icxLuBase *)p);
-		return NULL;
+		return icco->e.c;
 	}
 	free(rpoints); rpoints = NULL;
 
@@ -1613,8 +1580,8 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	/* but we need to adjust the device to relative conversion */
 	/* to make device white map exactly to D50, without touching */
 	/* the overall absolute behaviour. */
-	if ((p->flags & ICX_SET_WHITE) != 0
-	 && (p->flags & ICX_SET_WHITE_ABS) != ICX_SET_WHITE_ABS) {
+	if ((flags & ICX_SET_WHITE) != 0
+	 && (flags & ICX_SET_WHITE_ABS) != ICX_SET_WHITE_ABS) {
 		double aw[3];				/* aprox rel. white */
 		icmXYZNumber _wp;			/* Uncorrected dw maps to _wp */ 
 		double cmat[3][3];			/* Model correction matrix */
@@ -1664,7 +1631,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 
 	/* If we are going to auto scale the WP to avoid clipping */
 	/* values above the WP: (not so important for matrix profiles ?) */
-	if ((p->flags & ICX_SET_WHITE_US) == ICX_SET_WHITE_US) {
+	if ((flags & ICX_SET_WHITE_US) == ICX_SET_WHITE_US) {
 		double tw[3], bw[3];
 		icmXYZNumber _wp;
 		double uswpscale = 1.0;
@@ -1709,7 +1676,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	}
 
 	/* If the scaled WP would have Y > 1.0, clip it to 1.0 */
-	if (p->flags & ICX_CLIP_WB) {
+	if (flags & ICX_CLIP_WB) {
 
 		if ((wp[1] * wpscale) > 1.0) {
 			wpscale = 1.0/wp[1];		/* Make wp Y = 1.0 */		
@@ -1740,7 +1707,7 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	}
 
 	/* Look up the actual black point */
-	if (p->flags & ICX_SET_BLACK) {
+	if (flags & ICX_SET_BLACK) {
 
 		/* Look black point up in dev->rel model */
 		mxmfunc(&os, os.v, bp, db);
@@ -1793,19 +1760,15 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 		 && h->deviceClass == icSigDisplayClass
 		 && dispLuminance > 0.0) {
 			icmXYZArray *wo;
-			if ((wo = (icmXYZArray *)icco->read_tag(
-			           icco, icSigLuminanceTag)) == NULL)  {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_luminance: couldn't find luminance tag");
-				p->del((icxLuBase *)p);
-				return NULL;
-			}
-			if (wo->ttype != icSigXYZArrayType) {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"luminance: tag has wrong type");
-				p->del((icxLuBase *)p);
-				return NULL;
-			}
+
+			/* Delete any existing tag */
+			if (icco->delete_tag_quiet(icco, icSigLuminanceTag) != ICM_ERR_OK)
+				return icco->e.c;
+
+			/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
+			if ((wo = (icmXYZArray *)icco->add_tag(
+			           icco, icSigLuminanceTag, icSigXYZArrayType)) == NULL) 
+				return icco->e.c;
 
 			wo->count = 1;
 			wo->allocate(wo);	/* Allocate space */
@@ -1817,24 +1780,20 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 				printf("Display Luminance = %f\n", wo->data[0].Y);
 		}
 
-		/* Write white and black tags */
+		/* Add the white and black tags */
 		if ((flags & ICX_WRITE_WBL)
 		 && (flags & ICX_SET_WHITE)) { /* White Point Tag: */
 			icmXYZArray *wo;
-			if ((wo = (icmXYZArray *)icco->read_tag(
-			           icco, icSigMediaWhitePointTag)) == NULL)  {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_white_black: couldn't find white tag");
-				p->del((icxLuBase *)p);
-				return NULL;
-			}
-			if (wo->ttype != icSigXYZArrayType) {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_white_black: white tag has wrong type");
-				p->del((icxLuBase *)p);
-				return NULL;
-			}
 
+			/* Delete any existing tag */
+			if (icco->delete_tag_quiet(icco, icSigMediaWhitePointTag) != ICM_ERR_OK)
+				return icco->e.c;
+
+			/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
+			if ((wo = (icmXYZArray *)icco->add_tag(
+			           icco, icSigMediaWhitePointTag, icSigXYZArrayType)) == NULL) 
+				return icco->e.c;
+	
 			wo->count = 1;
 			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = wp[0];
@@ -1847,20 +1806,16 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 		if ((flags & ICX_WRITE_WBL)
 		 && (flags & ICX_SET_BLACK)) { /* Black Point Tag: */
 			icmXYZArray *wo;
-			if ((wo = (icmXYZArray *)icco->read_tag(
-			           icco, icSigMediaBlackPointTag)) == NULL)  {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_white_black: couldn't find black tag");
-				p->del((icxLuBase *)p);
-				return NULL;
-				}
-			if (wo->ttype != icSigXYZArrayType) {
-				xicp->e.c = 1;
-				sprintf(xicp->e.m,"icx_set_white_black: black tag has wrong type");
-				p->del((icxLuBase *)p);
-				return NULL;
-			}
 
+			/* Delete any existing tag */
+			if (icco->delete_tag_quiet(icco, icSigMediaBlackPointTag) != ICM_ERR_OK)
+				return icco->e.c;
+
+			/* Note that tag types icSigXYZType and icSigXYZArrayType are identical */
+			if ((wo = (icmXYZArray *)icco->add_tag(
+			           icco, icSigMediaBlackPointTag, icSigXYZArrayType)) == NULL) 
+				return icco->e.c;
+	
 			wo->count = 1;
 			wo->allocate(wo);	/* Allocate space */
 			wo->data[0].X = bp[0];
@@ -1871,7 +1826,6 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 				printf("Black point XYZ = %f %f %f\n",bp[0],bp[1],bp[2]);
 		}
 
-		// ~~99
 		if (flags & ICX_CLIP_PRIMS) {
 			for (i = 0; i < 9; i++) {
 				if (os.v[i] < 0.0)
@@ -1883,98 +1837,54 @@ printf(" set black %d w = %f\n", nodp,rpoints[nodp].w);
 	if (flags & ICX_VERBOSE)
 		printf("Done gamma/shaper and matrix creation\n");
 
-	/* Write the gamma/shaper and matrix to the icc memory structures */
-	if (!isGamma) {		/* Creating input curves */
-		unsigned int ui;
-		icmCurve *wor, *wog, *wob;
-		wor = pmlu->redCurve;
-		wog = pmlu->greenCurve;
-		wob = pmlu->blueCurve;
-
-		for (ui = 0; ui < wor->count; ui++) {
-			double in, rgb[3];
-
-			for (j = 0; j < 3; j++) {
-
-				in = (double)ui / (wor->count - 1.0);
-	
-				mxmfunc1(&os, j, os.v, &rgb[j], &in);
-
-				if (rgb[j] < 0.0)
-					rgb[j] = 0.0;
-				else if (rgb[j] > 1.0)
-					rgb[j] = 1.0;
-			}
-			wor->data[ui] = rgb[0];	/* Curve values 0.0 - 1.0 */
-			if (!isShTRC) {
-				wog->data[ui] = rgb[1];
-				wob->data[ui] = rgb[2];
-			}
-		}
-#ifdef DEBUG_PLOT
-		/* Display the result fit */
-		for (j = 0; j < 3; j++) {
-			for (i = 0; i < XRES; i++) {
-				double x, y;
-				xx[i] = x = i/(double)(XRES-1);
-				mxmfunc1(&os, j, os.v, &y, &x);
-				if (y < 0.0)
-					y = 0.0;
-				else if (y > 1.0)
-					y = 1.0;
-				y1[i] = y;
-			}
-			do_plot(xx,y1,NULL,NULL,XRES);
-		}
-#endif /* DEBUG_PLOT */
-
-
-	} else {			/* Gamma */
-		icmCurve *wor, *wog, *wob;
-		wor = pmlu->redCurve;
-		wog = pmlu->greenCurve;
-		wob = pmlu->blueCurve;
-		wor->data[0] = os.v[9];	/* Gamma values */
-		if (!isShTRC) {
-			wog->data[0] = os.v[10];
-			wob->data[0] = os.v[11];
-		}
-	}
-
-	/* Matrix values */
 	{
-		icmXYZArray *wor, *wog, *wob;
-		double mat[3][3];
-		wor = pmlu->redColrnt;
-		wog = pmlu->greenColrnt;
-		wob = pmlu->blueColrnt;
+		int nsigs = 1;
+		icmXformSigs sigs[2];
+		double mx[3][3];			/* [outn][inn] Matrix values */
+		double *gamma = NULL;		/* Gamma values if isGamma */
 
-		/* Copy to mat[RGB][XYZ] */
-		mat[0][0] = os.v[0];
-		mat[0][1] = os.v[3];
-		mat[0][2] = os.v[6];
-		mat[1][0] = os.v[1];
-		mat[1][1] = os.v[4];
-		mat[1][2] = os.v[7];
-		mat[2][0] = os.v[2];
-		mat[2][1] = os.v[5];
-		mat[2][2] = os.v[8];
+		switch (icctype) {
+			default:
+				sigs[0].sig = icmSigShaperMatrix;
+				sigs[0].ttype = icmSigShaperMatrixType;
+				/* Default ICC Version used */
+				break;
+		}
 
-		/* Make sure rounding doesn't wreck white point */
-		quantizeRGBprimsS15Fixed16(mat);
+		for (j = e = 0; j < 3; j++) {
+			for (i = 0; i < 3; i++, e++) {
+				mx[j][i] = os.v[e];
+			}
+		}
 
-		wor->data[0].X = mat[0][0]; wor->data[0].Y = mat[0][1]; wor->data[0].Z = mat[0][2];
-		wog->data[0].X = mat[1][0]; wog->data[0].Y = mat[1][1]; wog->data[0].Z = mat[1][2];
-		wob->data[0].X = mat[2][0]; wob->data[0].Y = mat[2][1]; wob->data[0].Z = mat[2][2];
+		if (isGamma)
+			gamma = &os.v[9];	/* Gamma values */
 
-		/* Load into pmlu matrix and inverse ??? */
+		/* Use icclib helper function to create tags and set their values */
+		/* Returns ec */
+		if (icco->create_matrix_xforms(
+			icco, ICM_CREATE_FLAG_NONE,
+			(void *)&os,					/* Opaque callback context pointer value */
+			nsigs, sigs,					/* Signatures and tag types for each table */
+			(unsigned int)inputEnt, (unsigned int)inv_inputEnt,   /* fwd & rev Table resolutions */
+			h->colorSpace, h->pcs,			/* ina & out color spaces */
+			matrix_xforms_infunc,			/* Callback function */
+			mx,								/* [outn][inn] Matrix values */
+			NULL,							/* Constants if any */
+			isShTRC, gamma, isLinear		/* curve flags */
+		) != 0) {
+			if (flags & ICX_VERBOSE)
+				printf("Matrix profile creation failed\n");
+			return icco->e.c;
+		}
 	}
 
 	if (flags & ICX_VERBOSE)
 		printf("Profile done\n");
 
-	return (icxLuBase *)p;
+	return ICX_ERR_OK;
 }
+
 
 /* ========================================================= */
 

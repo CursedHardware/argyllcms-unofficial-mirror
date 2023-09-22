@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	icmErr err = { 0, { '\000'} };
 	icRenderingIntent intent = icAbsoluteColorimetric;
 	icc *rd_icco;
-	icmLuBase *luo;
+	icmLuSpace *luo;
 	char out_name[MAXNAMEL+1], *xl;		/* VRML/X3D name */
 	vrml *wrl = NULL;
 
@@ -956,7 +956,7 @@ int main(int argc, char *argv[])
 		error("Read: %d, %s",rv,rd_icco->e.m);
 
 	/* Get the Fwd table, absolute with Lab override */
-	if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent,
+	if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent,
 	                              icSigLabData, icmLuOrdNorm)) == NULL) {
 		error("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	}
@@ -964,7 +964,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < npat; i++) {
 
 		/* Lookup the patch value in the profile */
-		if (luo->lookup(luo, tpat[i].pv, tpat[i].p) > 1)
+		if (luo->lookup_fwd(luo, tpat[i].pv, tpat[i].p) & icmPe_lurv_err)
 			error("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 		if (cie2k)
@@ -1158,7 +1158,13 @@ int main(int argc, char *argv[])
 		}
 
 		/* Get details of conversion (Arguments may be NULL if info not needed) */
-		luo->spaces(luo, NULL, &inn, NULL, &outn, NULL, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+			luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			inn = ini.nch;
+			outn = outi.nch;
+
+		}
 
 		for (i = 0; i < npat; i++) {
 			double de, *out;
@@ -1251,7 +1257,7 @@ int main(int argc, char *argv[])
 			double cieval[3];
 
 			/* Lookup the CIE value of the target */
-			if (luo->lookup(luo, cieval, devval) > 1)
+			if (luo->lookup_fwd(luo, cieval, devval) & icmPe_lurv_err)
 				error("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 			/* Compute deltas to target value. */

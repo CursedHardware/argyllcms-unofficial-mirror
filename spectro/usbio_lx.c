@@ -496,6 +496,8 @@ char **pnames		/* List of process names to try and kill before opening */
 				}
 				p->cconfig = config;
 				a1logd(p->log, 6, "usb_open_port: set config %d OK\n",config);
+
+				msec_sleep(50);		/* Allow device some time to configure */
 			}
 
 			/* We're done */

@@ -82,3 +82,5 @@ example.sp
 example121.sp
 CRT.ccss
 StandardObs2deg.cmf
+oled.cmf
+oled_pos.cmf

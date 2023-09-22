@@ -16,6 +16,7 @@
  */
 
 
+
 /* Gamut mapping object */
 struct _gammap {
 

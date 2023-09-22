@@ -65,6 +65,7 @@ void usage(void) {
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: fbtest [-v] infile\n");
 	fprintf(stderr," -v        verbose\n");
+	fprintf(stderr," [[ output is infile.wrl ]]\n");
 	exit(1);
 }
 
@@ -149,28 +150,33 @@ main(
 		double merr = 0.0;
 		double aerr = 0.0;
 		double nsamps = 0.0;
-		icmLuBase *luo1, *luo2;
+		icmLuSpace *luo1, *luo2;
 		int doaxes = 1;
 		vrml *wrl;
 		int i, j;
 	
 
 		/* Get a Device to PCS conversion object */
-		if ((luo1 = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo1 = rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
+		if ((luo1 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric, icSigLabData, icmLuOrdNorm)) == NULL) {
+			if ((luo1 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icmDefaultIntent, icSigLabData, icmLuOrdNorm)) == NULL)
 				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
 		/* Get details of conversion */
-		luo1->spaces(luo1, &ins, NULL, &outs, NULL, NULL, NULL, NULL, NULL, NULL);
+		{
+			icmCSInfo ini, outi;
+			luo1->spaces(luo1, &ini, NULL, &outi, NULL, NULL, NULL, NULL, NULL, NULL);
+			ins = ini.sig;
+			outs = outi.sig;
+		}
 
 		if (ins != icSigCmykData) {
 			error("Expecting CMYK device");
 		}
 		
 		/* Get a PCS to Device conversion object */
-		if ((luo2 = rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric,
+		if ((luo2 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icAbsoluteColorimetric,
 		                               icSigLabData, icmLuOrdNorm)) == NULL) {
-			if ((luo2 = rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent,
+			if ((luo2 = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, icmDefaultIntent,
 			                               icSigLabData, icmLuOrdNorm)) == NULL)
 				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 		}
@@ -199,11 +205,11 @@ main(
 
 
 					/* PCS -> Device */
-					if ((rv2 = luo2->lookup(luo2, out, in)) > 1)
+					if ((rv2 = luo2->lookup_fwd(luo2, out, in)) & icmPe_lurv_err)
 						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 	
 					/* Device -> PCS */
-					if ((rv1 = luo1->lookup(luo1, check, out)) > 1)
+					if ((rv1 = luo1->lookup_fwd(luo1, check, out)) & icmPe_lurv_err)
 						error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 	
 					if (verb) {

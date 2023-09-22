@@ -28,6 +28,7 @@
 
 void error(char *fmt, ...), warning(char *fmt, ...);
 
+
 void usage(void) {
 	fprintf(stderr,"Dump an ICC file in human readable form, V%s\n",ICCLIB_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill\n");
@@ -96,13 +97,13 @@ main(int argc, char *argv[]) {
 				usage();
 
 			/* Verbosity */
-			else if (argv[fa][1] == 'v' || argv[fa][1] == 'V') {
+			else if (argv[fa][1] == 'v') {
 				fa = nfa;
 				if (na == NULL) usage();
 				verb = atoi(na);
 			}
 			/* Tag name */
-			else if (argv[fa][1] == 't' || argv[fa][1] == 'T') {
+			else if (argv[fa][1] == 't') {
 				fa = nfa;
 				if (na == NULL) usage();
 				if (ntag_names >= MXTGNMS)
@@ -111,11 +112,11 @@ main(int argc, char *argv[]) {
 				tag_names[ntag_names++][4] = '\000';
 			}
 			/* Search */
-			else if (argv[fa][1] == 's' || argv[fa][1] == 'S') {
+			else if (argv[fa][1] == 's') {
 				search = 1;
 			}
 			/* Check ID */
-			else if (argv[fa][1] == 'i' || argv[fa][1] == 'I') {
+			else if (argv[fa][1] == 'i') {
 				chid = 1;
 			}
 			/* Warnings */
@@ -143,6 +144,7 @@ main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(in_name,argv[fa]);
 
+
 	/* Open up the file for reading */
 	if ((fp = new_icmFileStd_name(&err, in_name,"r")) == NULL)
 		error ("Can't open file '%s' failed with 0x%x, '%s'",in_name, err.c, err.m);
@@ -153,7 +155,7 @@ main(int argc, char *argv[]) {
 	if (strict)
 		icco->unset_cflag(icco, icmCFlagRdFormatWarn
 		                      | icmCFlagRdVersionWarn
-		                      | icmCFlagAllowUnknown
+		                      | icmCFlagRdAllowUnknown
 		                      | icmCFlagAllowExtensions);
 
 	/* Install warning message handler */
@@ -163,6 +165,7 @@ main(int argc, char *argv[]) {
 	/* open output stream */
 	if ((op = new_icmFileStd_fp(&err, stdout)) == NULL)
 		error ("Can't open stdout stream, failed with 0x%x, '%s'",err.c, err.m);
+
 
 	do {
 		found = 0;
@@ -250,21 +253,36 @@ main(int argc, char *argv[]) {
 				if (chid && icco->header->vers.majv >= 4) {
 					unsigned char id[16];
 					rv = icco->check_id(icco, id);
-					if (rv == 0)
-						printf("Id checks\n");
-					else if (rv == 1)
-						printf("Id can't be checked because it's not set\n");
-					else if (rv == 2) {
+					if (rv == 0) {
 						icmHeader *p = icco->header;
-						printf("Id check fails:\n");
-						op->printf(op," ID is       = %02X%02X%02X%02X%02X%02X%02X%02X"
-						                              "%02X%02X%02X%02X%02X%02X%02X%02X\n",
+						printf("Id check suceeds\n");
+						op->printf(op," ID is        = %02x%02x%02x%02x%02x%02x%02x%02x"
+						                              "%02x%02x%02x%02x%02x%02x%02x%02x\n",
 							p->id[0], p->id[1], p->id[2], p->id[3],
 							p->id[4], p->id[5], p->id[6], p->id[7],
 							p->id[8], p->id[9], p->id[10], p->id[11],
 							p->id[12], p->id[13], p->id[14], p->id[15]);
-						op->printf(op," ID should be = %02X%02X%02X%02X%02X%02X%02X%02X"
-						                               "%02X%02X%02X%02X%02X%02X%02X%02X\n",
+						op->printf(op," ID should be = %02x%02x%02x%02x%02x%02x%02x%02x"
+						                               "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+							id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
+							id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
+					} else if (rv == 1) {
+						printf("Id can't be checked because it's not set\n");
+						op->printf(op," ID should be = %02x%02x%02x%02x%02x%02x%02x%02x"
+						                               "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+							id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
+							id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
+					} else if (rv == 2) {
+						icmHeader *p = icco->header;
+						printf("Id check fails:\n");
+						op->printf(op," ID is        = %02x%02x%02x%02x%02x%02x%02x%02x"
+						                              "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+							p->id[0], p->id[1], p->id[2], p->id[3],
+							p->id[4], p->id[5], p->id[6], p->id[7],
+							p->id[8], p->id[9], p->id[10], p->id[11],
+							p->id[12], p->id[13], p->id[14], p->id[15]);
+						op->printf(op," ID should be = %02x%02x%02x%02x%02x%02x%02x%02x"
+						                               "%02x%02x%02x%02x%02x%02x%02x%02x\n",
 							id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
 							id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
 					} else
@@ -309,3 +327,5 @@ warning(char *fmt, ...)
 	va_end(args);
 	fprintf(stderr, "\n");
 }
+
+

@@ -154,7 +154,8 @@ static ccpacket_err connect_ccpacket_imp(
 	server.sin_port = htons((short)p->dport);
 
 #ifdef USING_AXTLS
-	if ((p->ctx = ssl_ctx_new(SSL_SERVER_VERIFY_LATER, 1)) == NULL)
+//	if ((p->ctx = ssl_ctx_new(SSL_SERVER_VERIFY_LATER, 1)) == NULL)
+	if ((p->ctx = ssl_ctx_new(0, 1)) == NULL)
 
 	// Want to use TLS_client_method(), but older OpenSSL doesn't have it...
 #elif OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -249,14 +250,14 @@ static ccpacket_err connect_ccpacket_imp(
 	/* Return nz if we can send PNG directly as base64 + bg RGB, */
 	/* else have to setup webserver and send URL */
 #ifdef USING_AXTLS
-	if ((p->ssl = ssl_client_new(p->ctx, p->sock, sesid, 32)) == NULL)
+	if ((p->ssl = ssl_client_new(p->ctx, p->sock, sesid, 32, NULL)) == NULL)
 #else
 	if ((p->ssl = SSL_new(p->ctx)) == NULL
 	 || SSL_set_fd(p->ssl, p->sock) != 1
 	 || SSL_connect(p->ssl) != 1)
 #endif
 	{
-		DBG((g_log,0, "connect IP '%s' port %d ssl_ctx_new failed\n",p->dip, p->dport))
+		DBG((g_log,0, "TLS connect IP '%s' port %d ssl_ctx_new failed\n",p->dip, p->dport))
 		return ccpacket_ssl;
 	} 	
 	DBG((g_log,0, "TLS connect IP '%s' port %d success\n",p->dip, p->dport))

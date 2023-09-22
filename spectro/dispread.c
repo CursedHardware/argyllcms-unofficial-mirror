@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
 	int dim = 0;						/* Dimensionality - 1, 3, or 4 */
 	int npat;							/* Number of patches/colors */
 	int xpat = 0;						/* Set to number of extra patches */
-	int wpat;							/* Set to index of white patch */
+	int wpat = -1;						/* Set to index of white patch */
 	int si;								/* Sample id index */
 	int ti;								/* Temp index */
 	int fi;								/* Colorspace index */
@@ -860,20 +860,22 @@ int main(int argc, char *argv[]) {
 	} else
 		error ("Input file '%s' keyword COLOR_REP has illegal value (RGB colorspace expected)",inname);
 
-	/* Check that there is a white patch, and if not, add one, */
-	/* so that we can normalize the values to white. */
-	for (wpat = 0; wpat < npat; wpat++) {
-		if (cols[wpat].r > 0.9999999 && 
-		    cols[wpat].g > 0.9999999 && 
-		    cols[wpat].b > 0.9999999) {
-			break;
+	if (donorm) {
+		/* Check that there is a white patch, and if not, add one, */
+		/* so that we can normalize the values to white. */
+		for (wpat = 0; wpat < npat; wpat++) {
+			if (cols[wpat].r > 0.9999999 && 
+			    cols[wpat].g > 0.9999999 && 
+			    cols[wpat].b > 0.9999999) {
+				break;
+			}
 		}
-	}
-	if (wpat >= npat) {	/* Create a white patch */
-		if (verb)
-			printf("Adding one white patch\n");
-		xpat = 1;
-		cols[wpat].r = cols[wpat].g = cols[wpat].b = 1.0;
+		if (wpat >= npat) {	/* Create a white patch */
+			if (verb)
+				printf("Adding one white patch\n");
+			xpat = 1;
+			cols[wpat].r = cols[wpat].g = cols[wpat].b = 1.0;
+		}
 	}
 
 	/* Setup a display calibration set if we are given one */
@@ -974,7 +976,7 @@ int main(int argc, char *argv[]) {
 	if (ccs != NULL)
 		ccs->del(ccs);
 
-	/* Test the CRT with all of the test points */
+	/* Test the display with all of the test points */
 	if ((rv = dr->read(dr, cols, npat + xpat, 1, npat + xpat, 1, 0, instNoClamp)) != 0) {
 		dr->del(dr);
 		error("dispd->read returned error code %d\n",rv);
@@ -1018,7 +1020,7 @@ int main(int argc, char *argv[]) {
 
 		/* Make sure there is a copy of the white patch beyond npat, */
 		/* so that it can be left absolute. */
-		if (wpat != npat) {
+		if (wpat >= 0 && wpat != npat) {
 			cols[npat].r = cols[npat].g = cols[npat].b = 1.0;
 			cols[npat].XYZ[0] = cols[wpat].XYZ[0];
 			cols[npat].XYZ[1] = cols[wpat].XYZ[1];
@@ -1111,7 +1113,7 @@ int main(int argc, char *argv[]) {
 	free(setel);
 
 	/* If we have the absolute brightness of the display, record it */
-	if (cols[wpat].XYZ_v != 0) {
+	if (wpat >= 0 && cols[wpat].XYZ_v != 0) {
 		char buf[100];
 
 		sprintf(buf,"%f %f %f", cols[wpat].XYZ[0], cols[wpat].XYZ[1], cols[wpat].XYZ[2]);

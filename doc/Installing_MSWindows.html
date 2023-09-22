@@ -9,7 +9,7 @@
       [Netscape]">
     <title>Argyll Installation on Microsoft Windows</title>
   </head>
-  <body style="color: rgb(0, 0, 0);" link="#0000ee" vlink="#551a8b"
+  <body style="color: rgb(0, 0, 0);" vlink="#551a8b" link="#0000ee"
     alink="#ee0000">
     <h1> <u>Installing the software on Microsoft Windows<br>
       </u></h1>
@@ -103,8 +103,8 @@
     calibration loader programs.<br>
     <br>
     There are other programs that will interfere with calibration
-    loading, such as igfxpers.exe that gets installed with nVidia
-    "Optimus" technology.<br>
+    loading, such as igfxpers.exe that gets installed with <b>nVidia
+      "Optimus"</b> technology.<br>
     You may have to disable both the igfx tray module
     (c:\windows\system32\igfxtray.exe) and the igfxpph Module
     (c:\windows\system32\igfxpph.dll) in addition to the persistence
@@ -114,6 +114,10 @@
       href="http://technet.microsoft.com/en-us/sysinternals/bb963902">AutoRuns</a>.
     Note that the igfxpph module may exist in several locations and you
     have to disable all of them. Reboot after changing settings.<br>
+    <br>
+    Another program that is reported to interfere with USB instrument
+    access is <b>Gigabyte RGBFusion</b>. You may have to disable or
+    uninstall this to access your instrument. <br>
     <br>
     <hr style="width: 100%; height: 2px;">
     <h3><u><font color="#009900">Serial Instruments:</font></u><br>
@@ -145,9 +149,17 @@
 
 
 
+
+
+
+
       Virtual COM Port Drivers</a> (VCP), if they are not already on
     your system. You may have to update to the latest FTDI driver to
     work with the FTDI FT231XS chip that the <b>JETI</b> specbos <b>1511,
+
+
+
+
 
 
 
@@ -158,15 +170,16 @@
     <br>
     Jump to your operating system version:<br>
     <br>
-    <a href="#WIN8">Windows 8, 8.1 &amp; 10</a><br>
+    <a href="#WIN8">Windows 8, 8.1, 10 &amp; 11</a><br>
     <a href="#WINV7">Windows 7</a><br>
     <a href="#WINV7">Windows Vista</a><br>
     <a href="#WINXP">Windows XP</a><br>
     <a href="#WIN2K">Windows 2000</a><br>
     <br>
     <hr style="width: 100%; height: 2px;"><a name="WIN8"></a><font
-      size="+1"><span style="font-weight: bold;">Windows 8, 8.1 &amp; 10</span></font><font
-      size="+1"><span style="font-weight: bold;"></span></font><br>
+      size="+1"><span style="font-weight: bold;">Windows 8, 8.1, 10
+        &amp; 11</span></font><font size="+1"><span style="font-weight:
+        bold;"></span></font><br>
     <br>
     <span style="color: rgb(51, 153, 153);"><span style="color: rgb(0,
         0, 0); text-decoration: underline;"><span style="font-weight:
@@ -176,20 +189,23 @@
     your instrument using USB, then it is relatively simple to use the
     drivers provided with Argyll, since you don't have to deal with the
     instrument already having an assigned driver.<br>
+    Note that if you attempt to install the Argyll drivers and are
+    unable to because you get the message "the best driver is already
+    installed", then you have an existing driver installed and should
+    use the "<span style="color: rgb(51, 153, 153); font-weight: bold;"><span
+        style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+        Argyll drivers with existing OEM drivers"</span></span> below.<br>
     <br>
-    Windows 8/8.1/10 does not automatically pop up a "New Hardware"
+    Windows 8/8.1/10/11 does not automatically pop up a "New Hardware"
     dialog, so you will have to open the Device Manager manually, and
     you will also have to temporarily disable UBS driver .inf signature
     enforcement.<br>
     <br>
-    Please <b>NOTE</b> that on some versions of Windows 10, you may
-    have to temporarily <b>disable secure boot</b> in your UEFI BIOS to
-    be able to Disable Driver Signature Enforcement.<br>
-    <br>
-    If you <u>often</u> want to switch between using ArgyllCMS and the
-    OEM driver, you can try using a different physical USB port for each
-    installation, as this reportedly avoids the need to manually switch
-    drivers.<br>
+    Please <b>NOTE</b> that on Windows 10 &amp; 11, you will have to
+    temporarily <b>disable secure boot</b> in your UEFI BIOS to be able
+    to Disable Driver Signature Enforcement when you first install the
+    driver.<br>
+    The instructions below will take you through how to do this.<br>
     <br>
     <span style="text-decoration: underline;">To install the Argyll
       driver for the first instrument:</span><br>
@@ -222,7 +238,12 @@
     If you currently have applications other than Argyll accessing your
     USB connected instrument, then you will have to manually install the
     Argyll driver, and then switch back and forth between the Argyll and
-    other drivers if you want to switch between applications. <br>
+    other drivers if you want to switch between applications.<br>
+    <br>
+    If you <u>often</u> want to switch between using ArgyllCMS and the
+    OEM driver, you can try using a different physical USB port for each
+    installation, as this reportedly avoids the need to manually switch
+    drivers.<br>
     <br>
     <span style="text-decoration: underline;">To install the Argyll
       Driver:</span><br>
@@ -323,6 +344,10 @@
         style="color: rgb(0, 0, 0); text-decoration: underline;"><span
           style="color: rgb(51, 153, 153); font-weight: bold;"><span
             style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+
+
+
 
 
 
@@ -431,6 +456,10 @@
         style="color: rgb(0, 0, 0); text-decoration: underline;"><span
           style="color: rgb(51, 153, 153); font-weight: bold;"><span
             style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+
+
+
 
 
 
@@ -556,6 +585,10 @@
         style="color: rgb(0, 0, 0); text-decoration: underline;"><span
           style="color: rgb(51, 153, 153); font-weight: bold;"><span
             style="color: rgb(0, 0, 0); text-decoration: underline;">Using
+
+
+
+
 
 
 

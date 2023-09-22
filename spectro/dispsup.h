@@ -113,7 +113,7 @@ struct _disprd {
 						/* 1X = disable color management cLUT (MadVR) */
 	double cal[3][MAX_CAL_ENT];	/* Calibration being worked through (cal[0][0] < 0.0 or NULL if not used) */
 	int ncal;			/* Number of entries used in cal[] */
-	icmLuBase *fake_lu;
+	icmLuSpace *fake_lu;
 	char *mcallout;		/* fake instrument shell callout */
 //	char *scallout;		/* measurement XYZ value callout */
 	int xtern;			/* Use external (user supplied) values rather than instument read */

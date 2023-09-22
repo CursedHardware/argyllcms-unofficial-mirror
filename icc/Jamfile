@@ -12,7 +12,7 @@ PREF_LINKFLAGS	= $(LINKDEBUGFLAG) ;	# Link debugging flags
 #Products
 Libraries = libicc ;
 Executables = iccdump icclu ;
-Headers = icc.h icc_util.h ;
+Headers = icc.h ;
 Samples = sRGB.icm ClayRGB1998.icm EBU3213_PAL.icm SMPTE_RP145_NTSC.icm Rec709.icm
           Rec2020.icm SMPTE431_P3.icm ACES_P3.icm DisplayP3.icm ProPhoto.icm ProPhotoLin.icm lab2lab.icm ;
 # Remember to add samples to ref/afiles !
@@ -24,7 +24,7 @@ InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
 InstallFile $(DESTDIR)$(PREFIX)/$(REFSUBDIR) : $(Samples) ;
 
 # ICC library
-Library libicc : icc.c icc_util.c ;
+Library libicc : icc.c ;
 
 # Executable support if SEPARATED_STD
 if SEPARATE_STD in $(DEFINES) {
@@ -38,10 +38,14 @@ LINKLIBS = libicc ;
 # All utils are made from a single source file 
 MainsFromSources icctest.c lutest.c iccdump.c icclu.c iccrw.c ;
 
+if [ GLOB [ NormPaths . ] : petest.c ] {
+	MainsFromSources petest.c ;
+}
+
 # This is an example program for making a matrix display profile
 MainsFromSources mkDispProf.c ;
 
-#MainsFromSources t2.c ;
+#MainsFromSources t.c ;
 
 if $(BUILD_JUNK) {
 

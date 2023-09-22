@@ -757,7 +757,7 @@ int main(int argc, char *argv[])
 			icmFile *rd_fp = NULL;	/* Image to CIE lookup */
 	icmErr err = { 0, { '\000'} };
 			icc *rd_icco = NULL;
-			icmLuBase *luo;
+			icmLuSpace *luo;
 			mpp *mlu = NULL;
 			time_t clk = time(0);
 			struct tm *tsp = localtime(&clk);
@@ -1020,15 +1020,20 @@ int main(int argc, char *argv[])
 		
 				/* Read the header and tag list */
 				if ((rv = rd_icco->read(rd_icco,rd_fp,0)) == 0) {
+					icmCSInfo ini, outi;
 		
 					/* Get the Fwd table, absolute with XYZ override */
-					if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric,
+					if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, icAbsoluteColorimetric,
 					                              icSigXYZData, icmLuOrdNorm)) == NULL) {
 						error("%d, %s",rd_icco->e.c, rd_icco->e.m);
 					}
 
 					/* Get details of conversion */
-					luo->spaces(luo, &ins, &inn, &outs, &outn, NULL, NULL, NULL, NULL, NULL);
+					luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+					ins = ini.sig;
+					inn = ini.nch;
+					outs = outi.sig;
+					outn = outi.nch;
 
 					/* Check that it matches what we expect */
 
@@ -1103,7 +1108,7 @@ int main(int argc, char *argv[])
 
 								/* Convert to XYZ */
 								if (luo != NULL)
-									luo->lookup(luo, xyz, P);
+									luo->lookup_fwd(luo, xyz, P);
 								else
 									mlu->lookup(mlu, xyz, P);
 

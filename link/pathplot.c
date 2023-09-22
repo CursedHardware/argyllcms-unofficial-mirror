@@ -107,7 +107,7 @@ main(
 	icmErr err = { 0, { '\000'} };
 	icc *in_icco, *link_icco, *out_icco;
 	xicc *in_xicco, *out_xicco;
-	icmLuBase *link_lu;
+	icmLuSpace *link_lu;
 	icxLuBase *in_lu, *out_lu;
 	icColorSpaceSignature pcsor;	/* PCS to use */
 	icxViewCond ivc[1], ovc[1];
@@ -214,7 +214,7 @@ main(
 	}
 
 	/* Get a Device to Device conversion object */
-	if ((link_lu = link_icco->get_luobj(link_icco, icmFwd, icmDefaultIntent, pcsor, icmLuOrdNorm)) == NULL)
+	if ((link_lu = (icmLuSpace *)link_icco->get_luobj(link_icco, icmFwd, icmDefaultIntent, pcsor, icmLuOrdNorm)) == NULL)
 		error ("%d, %s",link_icco->e.c, link_icco->e.m);
 
 	/* Get a Device to PCS conversion object */
@@ -247,7 +247,8 @@ main(
 				xx[i] = tt2[0];		/* L value */
 
 				/* input device space to output device space */
-				if ((rv = link_lu->lookup(link_lu, tt, tt)) > 1)
+
+				if ((rv = link_lu->lookup_fwd(link_lu, tt, tt)) & icmPe_lurv_err)
 					error ("%d, %s",link_icco->e.c,link_icco->e.m);
 
 				/* output device space to PCS */

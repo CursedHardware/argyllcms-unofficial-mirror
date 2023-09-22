@@ -2,6 +2,7 @@
 
 /*
  * Some system dependent convenience functions.
+ * (Some of this should be moved to numlib/numsup  - i.e. threading support ?)
  * Implemented in unixio.c and ntio.c
  */
 

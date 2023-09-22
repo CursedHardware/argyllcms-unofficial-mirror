@@ -133,34 +133,29 @@ char *argv[]
 	}
 	/* Profile Description Tag: */
 	{
-		icmTextDescription *wo;
+		icmCommonTextDescription *wo;
 		char *dst;
 
 		dst = "sRGB like Matrix Display profile";
-		if ((wo = (icmTextDescription *)wr_icco->add_tag(
-		           wr_icco, icSigProfileDescriptionTag,	icSigTextDescriptionType)) == NULL) 
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigProfileDescriptionTag,	icmSigCommonTextDescriptionType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 		wo->count = strlen(dst)+1; 	/* Allocated and used size of desc, inc null */
-		wo->scCode = 0;
-		wo->scCount = strlen(dst)+1;
-		if (wo->scCount > 67)
-			error("Description scriptCode string longer than 67");
 		wo->allocate(wo);/* Allocate space */
 		strcpy(wo->desc, dst);		/* Copy the string in */
-		strcpy((char *)wo->scDesc, dst);	/* Copy the string in */
 	}
 	/* Copyright Tag: */
 	{
-		icmText *wo;
+		icmCommonTextDescription *wo;
 		char *crt = "Copyright tag goes here";
-		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icSigCopyrightTag,	icSigTextType)) == NULL) 
+		if ((wo = (icmCommonTextDescription *)wr_icco->add_tag(
+		           wr_icco, icSigCopyrightTag,	icmSigCommonTextDescriptionType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 		wo->count = strlen(crt)+1; 	/* Allocated and used size of text, inc null */
 		wo->allocate(wo);/* Allocate space */
-		strcpy(wo->data, crt);		/* Copy the text in */
+		strcpy(wo->desc, crt);		/* Copy the text in */
 	}
 
 	/* Could add other relevant tags here, such as:
@@ -305,7 +300,7 @@ char *argv[]
 		if ((wor = (icmCurve *)wr_icco->add_tag(
 		           wr_icco, icSigRedTRCTag, icSigCurveType)) == NULL) 
 			error("add_tag failed: %d, %s",rv,wr_icco->e.m);
-		wor->flag = icmCurveSpec;
+		wor->ctype = icmCurveSpec;
 		wor->count = 1024;
 		wor->allocate(wor);	/* Allocate space */
 		for (i = 0; i < wor->count; i++)

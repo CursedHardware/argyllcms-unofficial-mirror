@@ -663,7 +663,7 @@ main(int argc, char *argv[]) {
 
 	if (inn != (samplesperpixel-extrasamples))
 		error ("TIFF Input file has %d input chanels mismatched to colorspace '%s'",
-		       samplesperpixel, icm2str(icmColorSpaceSignature, ins));
+		       samplesperpixel, icm2str(icmColorSpaceSig, ins));
 
 	if ((tcs = TiffPhotometric2ColorSpaceSignature(&cvt, &sign_mask, photometric,
 	                                     bitspersample, samplesperpixel, extrasamples)) == 0)
@@ -672,7 +672,7 @@ main(int argc, char *argv[]) {
 	if (tcs != ins) {
 		if (luo != NULL)
 			error("TIFF photometric '%s' doesn't match ICC input colorspace '%s' !",
-			      Photometric2str(photometric), icm2str(icmColorSpaceSignature,ins));
+			      Photometric2str(photometric), icm2str(icmColorSpaceSig,ins));
 		else
 			error("No profile provided and TIFF photometric '%s' isn't Lab !",
 			      Photometric2str(photometric));
@@ -688,7 +688,7 @@ main(int argc, char *argv[]) {
 
 	if (verb) {
 		printf("Input TIFF file '%s'\n",in_name);
-		printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSignature,tcs));
+		printf("TIFF file colorspace is %s\n",icm2str(icmColorSpaceSig,tcs));
 		printf("TIFF file photometric is %s\n",Photometric2str(photometric));
 		printf("\n");
 	}

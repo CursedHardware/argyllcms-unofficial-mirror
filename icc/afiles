@@ -10,9 +10,13 @@ Makefile.UNIX
 Makefile.OSX
 afiles
 iccV44.h
+iccstd.c
 icc.h
 icc.c
-iccstd.c
+icc_pe.h
+icc_pe.c
+icc_xf.h
+icc_xf.c
 icc_util.h
 icc_util.c
 iccdump.c

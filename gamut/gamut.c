@@ -4635,7 +4635,6 @@ double *gawp,		/* Gamut */
 double *gabp,
 double *gakp
 ) {
-//printf("~1 getwb() called\n");
 	if (s->cswbset == 0) {
 		return 1;
 	}
@@ -4657,10 +4656,8 @@ double *gakp
 		cskp[1] = s->cs_kp[1];
 		cskp[2] = s->cs_kp[2];
 	}
-//printf("~1 colorspace white %f %f %f, black %f %f %f, kblack %f %f %f\n", s->cs_wp[0], s->cs_wp[1], s->cs_wp[2], s->cs_bp[0], s->cs_bp[1], s->cs_bp[2], s->cs_kp[0],s->cs_kp[1],s->cs_kp[2]);
 	
 	if (gawp != NULL || gabp != NULL || gakp != NULL) {
-//printf("~1 computing gamut white & black\n");
 		if (s->nv == 0)
 			return 1;
 		compgawb(s);		/* make sure we have gamut white/black available */
@@ -4683,7 +4680,6 @@ double *gakp
 		gakp[1] = s->ga_kp[1];
 		gakp[2] = s->ga_kp[2];
 	}
-//printf("~1 gamut white %f %f %f, black %f %f %f, kblack %f %f %f\n", s->ga_wp[0], s->ga_wp[1], s->ga_wp[2], s->ga_bp[0], s->ga_bp[1], s->ga_bp[2], s->ga_kp[0],s->ga_kp[1],s->ga_kp[2]);
 
 	return 0;
 }

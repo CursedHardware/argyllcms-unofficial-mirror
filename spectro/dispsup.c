@@ -60,9 +60,9 @@
 #undef SIMPLE_MODEL		/* Make fake device well behaved */
 						/* else has offsets, quantization, noise etc. */
 
-#define DRIFT_IPERIOD	40	/* Number of samples between drift interpolation measurements */
-#define DRIFT_EPERIOD	20	/* Number of samples between drift extrapolation measurements */
-#define DRIFT_MAXSECS	60	/* Number of seconds to time out previous drift value */
+#define DRIFT_IPERIOD	40	/* [40] Number of samples between drift interpolation measurements */
+#define DRIFT_EPERIOD	20	/* [20] Number of samples between drift extrapolation measurements */
+#define DRIFT_MAXSECS	200	/* [200] Number of seconds to time out previous drift value */
 //#define DRIFT_IPERIOD	6	/* Test values */
 //#define DRIFT_EPERIOD	3
 
@@ -1743,7 +1743,7 @@ static int disprd_fake_read_lu(
 			}
 		}
 
-		p->fake_lu->lookup(p->fake_lu, cols[patch].XYZ, rgb); 
+		p->fake_lu->lookup_fwd(p->fake_lu, cols[patch].XYZ, rgb); 
 		for (j = 0; j < 3; j++) 
 			cols[patch].XYZ[j] *= br;
 #ifdef FAKE_NOISE
@@ -2561,11 +2561,11 @@ a1log *log      	/* Verb, debug & error log */
 		 && (p->fake_fp = new_icmFileStd_name(&err, p->fake_name,"r")) != NULL) {
 			if ((p->fake_icc = new_icc(&err)) != NULL) {
 				if (p->fake_icc->read(p->fake_icc,p->fake_fp,0) == 0) {
-					icColorSpaceSignature ins;
-					p->fake_lu = p->fake_icc->get_luobj(p->fake_icc, icmFwd, icAbsoluteColorimetric,
+					icmCSInfo ini;
+					p->fake_lu = (icmLuSpace *)p->fake_icc->get_luobj(p->fake_icc, icmFwd, icAbsoluteColorimetric,
 					                            icSigXYZData, icmLuOrdNorm);
-					p->fake_lu->spaces(p->fake_lu, &ins, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-					if (ins != icSigRgbData) {
+					p->fake_lu->spaces(p->fake_lu, &ini, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+					if (ini.sig != icSigRgbData) {
 						p->fake_lu->del(p->fake_lu);
 						p->fake_lu = NULL;
 					}

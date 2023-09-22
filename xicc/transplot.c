@@ -68,11 +68,9 @@ main(
 	icmLookupOrder    order  = icmLuOrdNorm;		/* Default */
 
 	/* Check variables */
-	icmLuBase *luo;
-	icmLuLut *luluto;	/* Lookup xLut type object */
+	icmLuSpace *luo;
 	icColorSpaceSignature ins, outs;	/* Type of input and output spaces */
 	int inn;							/* Number of input chanels */
-	icmLuAlgType alg;
 	int labin = 0;		/* Flag */
 	int rgbin = 0;		/* Flag */
 	int labout = 0;		/* Flag */
@@ -140,11 +138,9 @@ main(
 				if (na == NULL) usage();
     			switch (na[0]) {
 					case 'n':
-					case 'N':
 						order = icmLuOrdNorm;
 						break;
 					case 'r':
-					case 'R':
 						order = icmLuOrdRev;
 						break;
 					default:
@@ -211,19 +207,26 @@ main(
 
 	if (labin) {
 		/* Get a Device to PCS conversion object */
-		if ((luo = rd_icco->get_luobj(rd_icco, icmBwd, intent, icSigLabData, order)) == NULL)
+		if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmBwd, intent, icSigLabData, order)) == NULL)
 			error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 	} else {
 		/* Get a PCS to Device conversion object */
-		if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent, icSigLabData, order)) == NULL) {
-			if ((luo = rd_icco->get_luobj(rd_icco, icmFwd, intent, icmSigDefaultData, order)) == NULL) {
+		if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent, icSigLabData, order)) == NULL) {
+			if ((luo = (icmLuSpace *)rd_icco->get_luobj(rd_icco, icmFwd, intent, icmSigDefaultData, order)) == NULL) {
 				error ("%d, %s",rd_icco->e.c, rd_icco->e.m);
 			}
 		}
 	}
 
 	/* Get details of conversion */
-	luo->spaces(luo, &ins, &inn, &outs, NULL, &alg, NULL, NULL, NULL, NULL);
+	{
+		icmCSInfo ini, outi;
+
+		luo->spaces(luo, &ini, &outi, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		ins = ini.sig;
+		inn = ini.nch;
+		outs = outi.sig;
+	}
 
 	if (labin) {
 		chans[3] = 0;
@@ -254,8 +257,6 @@ main(
 			labout = 1;
 	}
 
-
-	luluto = (icmLuLut *)luo;	/* Lookup xLut type object */
 
 	{
 		int i, j;
@@ -295,7 +296,7 @@ main(
 			}
 
 			/* Do the conversion */
-			if ((rv = luo->lookup(luo, out, in)) > 1)
+			if ((rv = luo->lookup_fwd(luo, out, in)) & icmPe_lurv_err)
 				error ("%d, %s",rd_icco->e.c,rd_icco->e.m);
 
 			if (labout) {

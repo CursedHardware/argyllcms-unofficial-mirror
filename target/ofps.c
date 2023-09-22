@@ -48,7 +48,7 @@
 	and perceptual function curvature.	
 
 	We then initially add sampling points at the largest estimated error
-	verticies of the veronoi natural neighbourhood.
+	verticies of the voronoi natural neighbourhood.
 	This gives us an optimal distribution measuring in estimated position
 	error within a tollerance of 2:1
 	
@@ -117,7 +117,7 @@
 	might also be unecessary if per channel calibration
 	has been applied.
 
-	For CMY this would need a 3D shadow veronoi.
+	For CMY this would need a 3D shadow voronoi.
 
  */
 
@@ -283,7 +283,7 @@
 #undef SANITY_CHECK_CONSISTENCY		/* Check internal consistency at each itteration */
 #undef SANITY_CHECK_CONSISTENCY_FATAL	/* Throw a fatal if it wasn't */
 
-#undef SANITY_RESEED_AFTER_FIXUPS	/* Re-create veronoi from scratch after incremental update. */
+#undef SANITY_RESEED_AFTER_FIXUPS	/* Re-create voronoi from scratch after incremental update. */
 #undef SANITY_CHECK_EXAUSTIVE_SEARCH_FOR_VERTEXES	/* Do very, vert slow search for all vertexes */
 
 #define ALWAYS
@@ -4131,7 +4131,7 @@ int abortonfail	/* 0 = ignore position failures, 1 = abort add if there are any 
 #endif
 
 	if (poi < 0)
-		error("Attempt to add fake point to veronoi surface");
+		error("Attempt to add fake point to voronoi surface");
 
 	if (nn->nvv > 0)
 		error("ofps: assert, node vertex info should be empty on add_node2voronoi() entry");
@@ -4819,7 +4819,7 @@ static void ofps_binit(ofps *s) {
 	}
 
 #ifdef DEBUG
-	printf("Number of boundary planes = %d\nDiscovering all valid veronoi sub-surfaces\n",s->nbp);
+	printf("Number of boundary planes = %d\nDiscovering all valid voronoi sub-surfaces\n",s->nbp);
 #endif
 
 	discover_subsuf(s);
@@ -6136,7 +6136,7 @@ ofps *s
 		/* Set number of points in voronoi to zero */
 		s->np = 0;
 
-		/* Initialse the empty veronoi etc. */ 
+		/* Initialse the empty voronoi etc. */ 
 		ofps_binit(s);
 
 		s->posfailstp = 0;
@@ -6184,7 +6184,7 @@ ofps *s
 		/* Retry the whole thing */
 	}
 	if (k >= NINSERTTRIES)
-		error("Failed to re-seed the veronoi after %d tries - too many node insertion failures ?",NINSERTTRIES);
+		error("Failed to re-seed the voronoi after %d tries - too many node insertion failures ?",NINSERTTRIES);
 }
 
 /* ----------------------------------------------------------- */
@@ -7031,7 +7031,7 @@ static vtx *ofps_findhit_vtx(ofps *s, double *ceperr, node *nn) {
 /* ----------------------------------------------------------- */
 
 /* Re-position the vertexes given the current point positions, */
-/* and fixup the veronoi. */
+/* and fixup the voronoi. */
 static void
 ofps_repos_and_fix_voronoi(
 ofps *s
@@ -7336,7 +7336,7 @@ ofps *s
 			/* Number of nodes that would be checked by exaustive search */
 			s->vvpchecks += s->nv;
 			
-			/* Now re-add the node to the veronoi */
+			/* Now re-add the node to the voronoi */
 			if (add_to_vsurf(s, nn, 1, 0) > 0) {
 				s->add_hit++;
 #ifdef DUMP_PLOT_EACHFIXUP
@@ -7940,16 +7940,16 @@ ofps *s
 		doinc = 1;
 # endif
 #endif
-		/* Incrementally update veronoi */
+		/* Incrementally update voronoi */
 		if (doinc) {
 
 			if (s->verb)
-				printf("Fixing up veronoi\n");
+				printf("Fixing up voronoi\n");
 
-			/* Re-position the vertexes, and fixup the veronoi */
+			/* Re-position the vertexes, and fixup the voronoi */
 			ofps_repos_and_fix_voronoi(s);
 
-		/* Reseed the veronoi */
+		/* Reseed the voronoi */
 		} else {
 
 			if (s->verb)
@@ -7961,7 +7961,7 @@ ofps *s
 				ofps_rem_nacc(s, pp);			/* Remove from spatial accelleration grid */
 			}
 	
-			/* And recompute veronoi, and add to spatial accelleration grid. */
+			/* And recompute voronoi, and add to spatial accelleration grid. */
 			ofps_redo_voronoi(s);
 		}
 		ofps_re_create_node_node_vtx_lists(s);
@@ -7989,7 +7989,7 @@ ofps *s
 #endif /* DUMP_PLOT */
 
 #ifdef SANITY_RESEED_AFTER_FIXUPS
-		/* For debugging, replace the incremental fixed up veronoi with */
+		/* For debugging, replace the incremental fixed up voronoi with */
 		/* a from scratch one.  */
 
 		if (s->verb)
@@ -8319,7 +8319,7 @@ int nopstop				/* Debug - number of optimizations until diagnostic stop, -1 = no
 	/* Setup spatial acceleration grid */
 	ofps_init_acc1(s);
 
-	/* Initialse the empty veronoi etc. */ 
+	/* Initialse the empty voronoi etc. */ 
 	ofps_binit(s);
 
 	/* Setup spatial acceleration grid (2) */
@@ -9018,7 +9018,7 @@ dump_image(
 #endif /* DUMP_EPERR */
 	}
 	
-	/* Show veronoi planes by plotting the vertex network */
+	/* Show voronoi planes by plotting the vertex network */
 	if (dpla) {
 		vtx *vx1, *vx2;
 
@@ -9279,7 +9279,7 @@ static int check_vertexes(ofps *s) {
 	For every possible combination of di+1 nodes,
 	locate the corresponding vertex. If it is 
 	locatable, check that no other node is closer to it.
-	If it meets these conditions, then check that it is in the veronoi surface.
+	If it meets these conditions, then check that it is in the voronoi surface.
  */
 static void check_for_missing_vertexes(ofps *s) {
 	int e, di = s->di;
@@ -9405,7 +9405,7 @@ static void check_for_missing_vertexes(ofps *s) {
 }
 
 /* ------------------------------------------------------------------- */
-/* Check the veronoi to check that no node other than the parent */
+/* Check the voronoi to check that no node other than the parent */
 /* node is closer to any vertex. */
 /* return nz if there is a problem */
 static int check_vertex_closest_node(ofps *s) {

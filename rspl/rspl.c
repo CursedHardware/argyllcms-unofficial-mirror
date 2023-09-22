@@ -46,6 +46,9 @@
 
 #ifdef DEBUGLU
 # define DEBLU(xxxx) printf xxxx
+char *icmPiv(int di, int *p);
+char *icmPdv(int di, double *p);
+char *icmPfv(int di, float *p);
 #else
 # define DEBLU(xxxx)
 #endif
@@ -482,7 +485,7 @@ co *p			/* Input value and returned function value */
 			we[e] = t - (double)mi;		/* 1.0 - weight */
 //if (rspldb && di == 3) printf("~1 e = %d, ix = %d, we = %f\n", e, mi, we[e]);
 		}
-		DEBLU(("ix %d, we %s\n", (gp - s->g.a)/s->g.pss, icmPdv(di, p->p)));
+		DEBLU(("ix %d, we %s\n", (int)(gp - s->g.a)/s->g.pss, icmPdv(di, p->p)));
 	}
 
 	/* Do selection sort on coordinates */
@@ -513,21 +516,21 @@ co *p			/* Input value and returned function value */
 		for (f = 0; f < fdi; f++)
 			p->v[f] = w * gp[f];
 
-		DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 
 		for (e = di-1; e > 0; e--) {		/* Middle verticies */
 			w = we[si[e]] - we[si[e-1]];
 			gp += s->g.fci[si[e]];			/* Move to top of cell in next largest dimension */
 			for (f = 0; f < fdi; f++)
 				p->v[f] += w * gp[f];
-			DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+			DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 		}
 
 		w = we[si[0]];
 		gp += s->g.fci[si[0]];		/* Far corner from base of cell */
 		for (f = 0; f < fdi; f++)
 			p->v[f] += w * gp[f];
-		DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 		DEBLU(("Outval  %s\n", icmPdv(fdi, p->v)));
 	}
 	return rv;
@@ -1295,7 +1298,7 @@ co *p							/* Target value */
 			we[e] = t - (double)mi;		/* 1.0 - weight */
 //if (rspldb && di == 3) printf("~1 e = %d, ix = %d, we = %f\n", e, mi, we[e]);
 		}
-		DEBLU(("ix %d, we %s\n", (gp - s->g.a)/s->g.pss, icmPdv(di, p->p)));
+		DEBLU(("ix %d, we %s\n", (int)(gp - s->g.a)/s->g.pss, icmPdv(di, p->p)));
 	}
 
 	/* Do selection sort on coordinates */
@@ -1329,7 +1332,7 @@ co *p							/* Target value */
 		for (f = 0; f < fdi; f++)
 			cout[f] = w * gp[f];
 
-		DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 
 		for (e = di-1; e > 0; e--) {		/* Middle verticies */
 			w = we[si[e]] - we[si[e-1]];
@@ -1337,7 +1340,7 @@ co *p							/* Target value */
 			gp += s->g.fci[si[e]];			/* Move to top of cell in next largest dimension */
 			for (f = 0; f < fdi; f++)
 				cout[f] += w * gp[f];
-			DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+			DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 		}
 
 		w = we[si[0]];
@@ -1345,7 +1348,7 @@ co *p							/* Target value */
 		gp += s->g.fci[si[0]];			/* Far corner from base of cell */
 		for (f = 0; f < fdi; f++)
 			cout[f] += w * gp[f];
-		DEBLU(("ix %d: w %f * val %s\n", (gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
+		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 		DEBLU(("cout  %s\n", icmPdv(fdi, cout)));
 
 		/* We distribute the correction needed in proportion to the */
