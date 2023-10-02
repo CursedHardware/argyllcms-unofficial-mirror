@@ -32,6 +32,7 @@ jobs:
       - name: Get version
         run: echo "version=v$(grep -m1 ARGYLL_VERSION_STR h/aconfig.h | cut -d '"' -f2)" >> $GITHUB_OUTPUT
         id: version
+      - run: git tag -d ${{ needs.follow-latest.outputs.version }}
       - uses: stefanzweifel/git-auto-commit-action@v4
         id: auto-commit
         with:
