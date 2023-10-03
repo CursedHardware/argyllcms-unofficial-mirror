@@ -53,8 +53,6 @@ void usb_init_cancel(usb_cancelt *p) {
 	
 	amutex_init(p->cmtx);
 	amutex_init(p->condx);
-
-	p->hcancel = NULL;
 }
 
 void usb_uninit_cancel(usb_cancelt *p) {
@@ -68,7 +66,6 @@ void usb_reinit_cancel(usb_cancelt *cancelt) {
 	
 	amutex_lock(cancelt->cmtx);
 
-	cancelt->hcancel = NULL;
 	cancelt->state = 0;
 	amutex_lock(cancelt->condx);		/* Block until IO is started */
 
@@ -88,19 +85,23 @@ static int icoms_usb_wait_io(
 /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 /* Include the USB implementation dependent function implementations */
-# ifdef NT
-#  include "usbio_nt.c"
+#ifdef NT
+# ifdef EN_USBDK
+#  include "usbio_dk.c"		/* UsbDk based */
+# else
+#  include "usbio_nt.c"		/* libusb0.sys based */
 # endif
-# if defined(UNIX_APPLE)
-#  include "usbio_ox.c"
+#endif
+#if defined(UNIX_APPLE)
+# include "usbio_ox.c"
+#endif
+#if defined(UNIX_X11)
+# if defined(__FreeBSD__) || defined(__OpenBSD__)
+#  include "usbio_bsd.c"
+# else
+#  include "usbio_lx.c"
 # endif
-# if defined(UNIX_X11)
-#  if defined(__FreeBSD__) || defined(__OpenBSD__)
-#   include "usbio_bsd.c"
-#  else
-#   include "usbio_lx.c"
-#  endif
-# endif
+#endif
 
 /*  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* I/O routines supported by icoms - uses platform independent */
@@ -656,7 +657,6 @@ char **pnames			/* List of process names to try and kill before opening */
 		return ICOM_NOTS;
 	}
 	a1logd(p->log, 6, "icoms_set_usb_port: usb port characteristics set ok\n");
-
 
 	return ICOM_OK;
 }

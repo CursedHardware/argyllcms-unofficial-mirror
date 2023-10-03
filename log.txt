@@ -7,11 +7,13 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
-Version 3.0.1 Beta
+Version 3.0.1 26 September 2023
 -------------
 
 * Fix accuracy problem with xicclu -fb when using cLut type profiles
   that use a matrix in their B2A table.
+
+* Fix crash in xicclu with device link profiles.
 
 Version 3.0.0 15th September 2023
 -------------

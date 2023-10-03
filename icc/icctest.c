@@ -433,26 +433,26 @@ int unicode_test() {
 		in8 = rand_utf8_string(1, 237);
 		len = strlen(in8) + 1;
 
-		blen = icmUTF8toUTF16BE(&illegal, NULL, in8, len);
+		blen = icmUTF8toUTF16Sn(&illegal, NULL, in8, len, 0);
 		if (illegal != 0) {
-			printf("icmUTF8toUTF16BE returned error 0x%x\n",illegal);
+			printf("icmUTF8toUTF16Sn returned error 0x%x\n",illegal);
 			return 1;
 		}
 		if ((out16BE = malloc(blen)) == NULL)
 			error("malloc of out16BE failed\n");
-		icmUTF8toUTF16BE(NULL, out16BE, in8, len);
+		icmUTF8toUTF16Sn(NULL, out16BE, in8, len, 0);
 
 		len = blen/2;
 
 		/* Now convert back */
-		blen = icmUTF16BEtoUTF8(&illegal, NULL, out16BE, len);
+		blen = icmUTF16SntoUTF8(&illegal, NULL, out16BE, len, 0);
 		if (illegal != 0) {
-			printf("icmUTF16BEtoUTF8 returned error 0x%x\n",illegal);
+			printf("icmUTF16SntoUTF8 returned error 0x%x\n",illegal);
 			return 1;
 		}
 		if ((check8 = malloc(blen)) == NULL)
 			error("malloc of check8 failed\n");
-		icmUTF16BEtoUTF8(NULL, check8, out16BE, len);
+		icmUTF16SntoUTF8(NULL, check8, out16BE, len, 0);
 
 		if (strcmp(in8, check8) != 0) {
 			printf("utf-8 BE string didn't verify\n");

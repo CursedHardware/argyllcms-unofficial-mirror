@@ -56,9 +56,6 @@ USE_PRINTER = false ;
 # enable CMF Measurement device and accessory support (if present)
 USE_CMFM = true ;	
 
-# Use ArgyllCMS version of libusb (deprecated - don't use)
-USE_LIBUSB = false ;	# [false]
-
 # Compile in graph plotting code (Not fully implemented)
 USE_PLOT = true ;		# [true] 
 
@@ -66,22 +63,8 @@ USE_PLOT = true ;		# [true]
 # to make executable language handling consistent across MSWin/OS X/Linux
 WIN_UTF8 = true ;		# [true]
 
-if $(USE_LIBUSB) = true {
-
-	# Use libusb1 rather than libusb0 & libusb0-win32 (deprecated)
-	USE_LIBUSB1 = true ;
-
-	# Make the USB V1 library static
-	LIBUSB_IS_DLL = false ;
-
-	# Always use DLL for MSWin, because driver install expects it (.inf)
-	if $(NT) {
-		LIBUSB_IS_DLL = true ;
-	}
-
-	# Set the libubs1 library name.
-	LIBUSB1NAME = libusb-1.0A ;
-}
+# Use UsbDk rather than libusb0.sys	
+USE_USBDK = true ;	# [false]
 
 # For testing CCast
 #DEFINES += CCTEST_PATTERN ;

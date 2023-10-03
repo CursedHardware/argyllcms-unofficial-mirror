@@ -4473,16 +4473,17 @@ if $(NT)
 
 	actions UTF8APP
 	{
-	echo ^<?xml version="1.0" encoding="UTF-8" standalone="yes"?^>>$(<).tmp
-	echo ^<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1"^>>>$(<).tmp
-  	echo ^<assemblyIdentity type="win32" name="..." version="6.0.0.0"/^>>>$(<).tmp
-  	echo ^<application xmlns="urn:schemas-microsoft-com:asm.v3"^>>>$(<).tmp
-    	echo ^<windowsSettings^>>>$(<).tmp
-      	echo ^<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings"^>UTF-8^</activeCodePage^>>>$(<).tmp
-    	echo ^</windowsSettings^>>>$(<).tmp
-  	echo ^</application^>>>$(<).tmp
-	echo ^</assembly^>>>$(<).tmp
+		(echo ^<?xml version="1.0" encoding="UTF-8" standalone="yes"?^>
+		echo ^<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1"^>
+  		echo ^<assemblyIdentity type="win32" name="..." version="6.0.0.0"/^>
+  		echo ^<application xmlns="urn:schemas-microsoft-com:asm.v3"^>
+   		echo ^<windowsSettings^>
+   		echo ^<activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings"^>UTF-8^</activeCodePage^>
+  		echo ^</windowsSettings^>
+  		echo ^</application^>
+		echo ^</assembly^>)>$(<).tmp
 		mt.exe -nologo -manifest $(<).tmp -outputresource:$(<);#1
+		del $(<).tmp
 	}
 }
 

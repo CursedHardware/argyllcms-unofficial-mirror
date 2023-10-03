@@ -1636,7 +1636,7 @@ double *wp			/* Provide XYZ white point if xicc is NULL or no White point tag */
 				p->e.c = 2;
 				return -999;
 			}  
-			if (!wpassumed) {
+			if (!wpassumed || wp == NULL) {
 				vc->Wxyz[0] = twp.X;
 				vc->Wxyz[1] = twp.Y;
 				vc->Wxyz[2] = twp.Z;

@@ -59,22 +59,9 @@ if ! $(HAVE_PNG) {
 	SubInclude png ;
 }
 
-if $(USE_LIBUSB) = true {
-
-	if $(USE_LIBUSB1) = true {
-		SubInclude libusb1 ;
-	} else {
-		if $(NT) {
-			SubInclude libusbw ;
-		}
-		if $(UNIX) {
-			SubInclude libusb ;
-		}
-	}
-} else {
-	if $(NT) {
-		SubInclude usb ;
-	}
+if $(NT) && $(USE_USBDK) != true {
+echo "#### subincluding usb ####"
+	SubInclude usb ;
 }
 
 if $(UNIX) && $(OS) != MACOSX {

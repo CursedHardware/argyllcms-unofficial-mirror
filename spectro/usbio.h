@@ -30,16 +30,36 @@
 
 # ifdef NT
 
+
+#ifdef EN_USBDK
+/* A record of an outstanding overlap object, to allow cleanup. */
+struct usbdk_olr {
+	struct usbdk_olr **last;
+	struct usbdk_olr *next;
+	OVERLAPPED olaps;
+};
+#endif
+
 /* MSWin native USB context */
 struct usb_idevice {
 	/* icompath stuff: */
+#ifdef EN_USBDK
+	USB_DK_DEVICE_ID ID;
+#else
 	char *dpath;			/* Device path */
+#endif
 	int nconfig;			/* Number of configurations */
 	int config;				/* This config (always 1) */
-	int nifce;				/* Number of interfaces */
+	int nifce;				/* Number of interfaces in this config */
 	usb_ep ep[32];			/* Information about each end point for general usb i/o */
+
 	/* Stuff setup when device is open: */
-	HANDLE handle;
+	HANDLE handle;			/* Device handle */
+#ifdef EN_USBDK
+	HANDLE syshandle;		/* System handle */
+	CRITICAL_SECTION lock;	/* protect olr manipulation */
+	struct usbdk_olr *olr;
+#endif
 };
 
 # endif	/* NT */

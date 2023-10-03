@@ -3106,6 +3106,7 @@ static icmLu4Base *icc_get_lu4obj (
 		return NULL;
 	}
 
+	/* -------------------------- */
 	/* Create the overall lookup: */
 	/* Add any PCS format conversions to the tagtype transform */
 
@@ -3129,6 +3130,7 @@ static icmLu4Base *icc_get_lu4obj (
 
 	p->lookup->init(p->lookup);
 
+	/* -------------------------- */
 	/* Split the overall up into the 3 component lookup: */
 
 	/* Setup components based on scanning the contents of lookup transform. */
@@ -3265,6 +3267,7 @@ static icmLu4Base *icc_get_lu4obj (
 	p->core3->init(p->core3);
 	p->output->init(p->output);
 
+	/* -------------------------- */
 	/* Split the overall up into the 5 component lookup: */
 	/* This is similar to above except we split the transform before adding */
 	/* format conversion. */ 

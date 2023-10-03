@@ -88,7 +88,6 @@ typedef enum {
 	i1d3_nec_ssp        = 3, 	/* NEC SpectraSensor Pro */
 	i1d3_quato_sh3      = 4, 	/* Quato Silver Haze 3 */
 	i1d3_hp_dreamc      = 5, 	/* HP DreameColor */
- /* In private and ColorMeter releases only */
 	i1d3_wacom_dc       = 7, 	/* Wacom DC */
 	i1d3_tpa_1          = 8, 	/* Toshiba TPA-1 */
 	i1d3_barco          = 9, 	/* Barco */

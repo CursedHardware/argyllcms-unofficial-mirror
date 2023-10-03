@@ -20,14 +20,25 @@
 
 /* Some MSWin specific stuff is in icoms, and used by usbio & hidio */
 #if defined (NT)
-#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
-# if defined(_WIN32_WINNT) 
-#  undef _WIN32_WINNT
+# if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
+#  if defined(_WIN32_WINNT) 
+#   undef _WIN32_WINNT
+#  endif
+#  define _WIN32_WINNT 0x0501
 # endif
-# define _WIN32_WINNT 0x0501
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# ifdef EN_USBDK 
+#  ifndef _USING_V110_SDK71_
+#   include <cfgmgr32.h>
+#   include <usbspec.h>
+#   include <Usbiodef.h>
+#  else
+#   //define TARGET_OS_WIN_XP (1)
+#   include "UsbDkHlprCompat.h"
+#  endif
+# include "UsbDkHelper.h"
+# endif
 #endif
 
 #if defined(UNIX_APPLE)
@@ -234,6 +245,9 @@ struct _icompaths {
 #endif /* ENABLE_SERIAL */
 
 #ifdef ENABLE_USB
+	/* Check a usb vid/pid against combined list and return nz if already on it. */
+	int (*check_usb)(struct _icompaths *p, unsigned int vid, unsigned int pid);
+
 	/* Add a usb path to combined. usbd is taken, others are copied. Return icom error */
 	int (*add_usb)(struct _icompaths *p, char *name, unsigned int vid, unsigned int pid,
 	               int nep, struct usb_idevice *usbd, devType dtype);

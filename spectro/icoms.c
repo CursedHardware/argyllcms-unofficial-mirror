@@ -189,7 +189,7 @@ static void icompaths_clear_all(icompaths *p) {
 }
 
 /* Add the give path to the given list. */
-/* If the path is NULL, allocat an empty */
+/* If the path is NULL, allocate an empty */
 /* one and add it to the combined list */
 /* Return icom error */
 static int icompaths_add_path(icompaths *p, int ix, icompath *xp) {
@@ -355,6 +355,23 @@ int icompath_set_usb(a1log *log, icompath *p, char *name, unsigned int vid, unsi
 	a1logd(g_log, 8, "icompath_set_usb '%s' returning dctype 0x%x\n",p->name,p->dctype);
 
 	return ICOM_OK;
+}
+
+/* Check a usb vid/pid against combined list. */
+/* return nz if on the list */
+static int icompaths_check_usb(icompaths *p, unsigned int vid, unsigned int pid) {
+	icom_dtix ix = dtix_combined;
+	int i;
+
+	if (p->dpaths[ix] == NULL)
+		return 0;
+
+	for (i = 0; i < p->ndpaths[ix]; i++) {
+		if (p->dpaths[ix][i]->vid == vid
+		 && p->dpaths[ix][i]->pid == pid)
+			return 1;
+	}
+	return 0;
 }
 
 /* Add a usb path. usbd is taken, others are copied. */
@@ -633,6 +650,7 @@ icompaths *new_icompaths_sel(a1log *log, icom_type mask) {
 	p->add_serial    = icompaths_add_serial;
 #endif /* ENABLE_SERIAL */
 #ifdef ENABLE_USB
+	p->check_usb     = icompaths_check_usb;
 	p->add_usb       = icompaths_add_usb;
 	p->add_hid       = icompaths_add_hid;
 #endif /* ENABLE_USB */
