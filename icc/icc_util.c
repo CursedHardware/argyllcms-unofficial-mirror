@@ -4462,6 +4462,7 @@ size_t icmUTF8toASCIIZSn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t
 /* Convert ICC buffer of ScriptCode to UTF8 using icmSn serialisation. */
 /* Input is expected to be nul terminated on the last character. */
 /* len is number of ASCIIZ bytes including nul. */
+/* len may be 0, in which case there is no ScriptCode */
 /* Output will be nul terminated. */
 /* Return resulting size in bytes. */
 /* out pointer can be NULL. */
@@ -4482,7 +4483,8 @@ size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t
 	for (;;) {
 
 		if (len < 1) {
-			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			if (ilen > 0)
+				illegal |= icmUTF_no_nul;		/* No nul terminator before end */
 			break;
 		}
 
@@ -4501,8 +4503,10 @@ size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t
 		out++;
 	}
 
-	/* Use up the rest of the ScriptCode length */
+	/* Use up the rest of the fixed ScriptCode buffer length */
 	while (remin > 0) {
+		/* Note this won't pick up an un-padded script code when it is */
+		/* simply concatenated within a larger tag such as ProfileSequenceDescType */
 		if (bin->get_space(bin) == 0) {			/* Wasn't padded */
 			illegal |= icmUTF_sc_tooshort;
 			break;
@@ -4511,10 +4515,12 @@ size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t
 		remin--;
 	}
 
-	/* Add nul */
-	if (iout != NULL)
-		*out = 0;
-	out++;
+	if (ilen > 0) {
+		/* Add nul */
+		if (iout != NULL)
+			*out = 0;
+		out++;
+	}
 
 	if (pillegal != NULL)
 		*pillegal = illegal;
@@ -4525,7 +4531,8 @@ size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t
 /* Convert ScriptCode to ICC buffer of ScriptCode using icmSn serialisation. */
 /* Input must be nul terminated, and so will output. */
 /* len is number of UTF8 characters including nul. */
-/* Output will be nul terminated and always 67 bytes */
+/* Input may be NULL and len == 0 in which case there is no ScriptCode */
+/* Buffer output will be nul terminated and always 67 bytes */
 /* If buffer is NULL or len is 0, the output will be 67 bytes of 0 */ 
 /* Return resulting string size in bytes. (file may be larger with padding) */
 /* bout may be NULL. */
@@ -4542,7 +4549,8 @@ size_t icmScriptCodetoSn(icmUTFerr *pillegal, icmFBuf *bout, ORD8 *in, size_t le
 	for (;;) {
 
 		if (len == 0) {
-			illegal |= icmUTF_no_nul;		/* No nul terminator before end */
+			if (in != NULL)
+				illegal |= icmUTF_no_nul;		/* No nul terminator before end */
 			break;
 		}
 
@@ -4564,13 +4572,15 @@ size_t icmScriptCodetoSn(icmUTFerr *pillegal, icmFBuf *bout, ORD8 *in, size_t le
 		remout--;
 	}
 
-	/* nul terminator */
-	if (bout != NULL) {
-		ch = 0;
-		icmSn_uc_UInt8(bout, &ch);
+	if (in != NULL) {
+		/* nul terminator */
+		if (bout != NULL) {
+			ch = 0;
+			icmSn_uc_UInt8(bout, &ch);
+		}
+		osize++;
+		remout--;
 	}
-	osize++;
-	remout--;
 
 	/* pad until remout== 0 */
 	while (remout > 0) {

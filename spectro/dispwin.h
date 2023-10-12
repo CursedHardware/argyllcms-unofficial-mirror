@@ -29,47 +29,53 @@
 #define DISPLAY_SETTLE_AIM 0.1		/* Aim for 0.2 Delta E */
 
 #ifdef NT
-#define OEMRESOURCE
-#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
-#define _WIN32_WINNT 0x0501
-#endif
-#if !defined(WINVER) || WINVER < 0x0501
-#if defined(WINVER)
-# undef WINVER
-#endif
-#define WINVER 0x0501
-#endif
-#include <windows.h>
-#include <icm.h>
+# define OEMRESOURCE
 
-#if(WINVER < 0x0500)
-#error Require WINVER >= 0x500 to compile (multi-monitor API needed)
-#endif
+/* Set minimum OS target as XP */
+# if !defined(WINVER) || WINVER < 0x0501
+#  if defined(WINVER) 
+#   undef WINVER
+#  endif
+#  define WINVER 0x0501
+# endif
+# if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
+#  if defined(_WIN32_WINNT) 
+#   undef _WIN32_WINNT
+#  endif
+#  define _WIN32_WINNT 0x0501
+# endif
 
-#ifndef COLORMGMTCAPS	/* In case SDK is out of date */
+# include <windows.h>
+# include <icm.h>
 
-#define COLORMGMTCAPS   121
+# if(WINVER < 0x0500)
+#  error Require WINVER >= 0x500 to compile (multi-monitor API needed)
+# endif
 
-#define CM_NONE             0x00000000
-#define CM_DEVICE_ICM       0x00000001
-#define CM_GAMMA_RAMP       0x00000002
-#define CM_CMYK_COLOR       0x00000004
+# ifndef COLORMGMTCAPS	/* In case SDK is out of date */
 
-#endif	/* !COLORMGMTCAPS */
+# define COLORMGMTCAPS   121
+
+# define CM_NONE             0x00000000
+# define CM_DEVICE_ICM       0x00000001
+# define CM_GAMMA_RAMP       0x00000002
+# define CM_CMYK_COLOR       0x00000004
+
+# endif	/* !COLORMGMTCAPS */
 
 /* Avoid shlwapi.h - there are problems in using it in latter SDKs */
-#ifndef WINSHLWAPI
-#define WINSHLWAPI DECLSPEC_IMPORT
-#endif
+# ifndef WINSHLWAPI
+#  define WINSHLWAPI DECLSPEC_IMPORT
+# endif
 
 WINSHLWAPI LPSTR WINAPI PathFindFileNameA(LPCSTR);
 WINSHLWAPI LPWSTR WINAPI PathFindFileNameW(LPCWSTR);
 
-#ifdef UNICODE
-#define PathFindFileNameX PathFindFileNameW
-#else
-#define PathFindFileNameX PathFindFileNameA
-#endif
+# ifdef UNICODE
+#  define PathFindFileNameX PathFindFileNameW
+# else
+#  define PathFindFileNameX PathFindFileNameA
+# endif
 
 #endif /* NT */
 

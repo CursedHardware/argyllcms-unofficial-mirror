@@ -7,13 +7,25 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
-Version 3.0.1 26 September 2023
+Version 3.0.1 beta 12 October 2023
 -------------
 
 * Fix accuracy problem with xicclu -fb when using cLut type profiles
   that use a matrix in their B2A table.
 
 * Fix crash in xicclu with device link profiles.
+
+* Fix error when creating profiles with
+  ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD or
+  ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD.
+
+* Make re-writing an ICC profile more forgiving of
+  tags that are incorrect for the profile version. 
+
+* Fixed problem with writing textDescriptionType
+  ScriptCode that was not padded to 67 characters.
+
+* Fixed bug in CGATS output. This showed up in oeminst.
 
 Version 3.0.0 15th September 2023
 -------------

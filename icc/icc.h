@@ -33,8 +33,14 @@
 #include <sys/types.h>
 
 #if defined (NT)
+# if !defined(WINVER) || WINVER < 0x0501
+#  if defined(WINVER) 
+#   undef WINVER
+#  endif
+#  define WINVER 0x0501
+# endif
 # if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
-#  if defined _WIN32_WINNT
+#  if defined(_WIN32_WINNT) 
 #   undef _WIN32_WINNT
 #  endif
 #  define _WIN32_WINNT 0x0501
@@ -953,19 +959,22 @@ typedef unsigned int icmCompatFlags;
 #define icmCFlagWrAllowUnknown ((icmCompatFlags)0x0020)
 					/* Allow writing unknown tags without warning or error. */
 
-#define icmCFlagAllowExtensions ((icmCompatFlags)0x0040)
+#define icmCFlagWrFileRdWarn ((icmCompatFlags)0x0040)
+					/* Warn if tags read from a file are not strictly complient rather than error */
+
+#define icmCFlagAllowExtensions ((icmCompatFlags)0x0080)
 					/* Allow ICCLIB extensions without warning or error. */
 
-#define icmCFlagAllowQuirks ((icmCompatFlags)0x0080)
+#define icmCFlagAllowQuirks ((icmCompatFlags)0x0100)
 					/* Permit non-fatal deviations from spec., and allow for profile quirks */
 					/* and emit warnings. */
 
-#define icmCFlagAllowWrVersion ((icmCompatFlags)0x0100)
+#define icmCFlagAllowWrVersion ((icmCompatFlags)0x0200)
 					/* Allow out of version Tags & TagTypes on write without warnings */
 					/* over tag & tagtype version range defined by vcrange */
 					/* (Use icp->set_vcrange() to set/unset) */
 
-#define icmCFlagNoRequiredCheck ((icmCompatFlags)0x0200)
+#define icmCFlagNoRequiredCheck ((icmCompatFlags)0x0400)
 					/* Don't check for required tags on write */
 					/* (This is intended only for testing) */
 
@@ -1240,6 +1249,7 @@ int icmMatrixRdAllocResize(
 									/* (shared tagtypes will have been linked to others) */	\
 	int	           touched;			/* Flag for write bookeeping */							\
     int            refcount;		/* Reference count for sharing tag instances */			\
+	int            rdfile;			/* Was read from file */								\
 	int            dp;				/* dump() padding (if implemented) */					\
 	int			   emb;				/* nz if embedded-tag */								\
 																							\
@@ -1289,6 +1299,7 @@ int icmMatrixRdAllocResize(
 	p->ttype     = TSIG;																\
 	p->icp       = icp;																	\
 	p->refcount  = 1;																	\
+	p->rdfile    = icp->rdfile;															\
 	p->serialise = TCLASS##_serialise;													\
 	p->get_size  = (unsigned int (*)(TCLASS *p))	icmGeneric_get_size;				\
 	p->read      = (int (*)(TCLASS *p, unsigned int size, unsigned int of))				\
@@ -2156,10 +2167,9 @@ typedef enum {
     icmCSMF_XYZ = 2, 		/* icSigXYZData is a match */
     icmCSMF_Lab = 3, 		/* icSigLabData is a match */
     icmCSMF_PCS = 4, 		/* icSigXYZData or icSigLabData is a match */
-    icmCSMF_DEV = 5, 		/* Device colorspace */
+    icmCSMF_DEV = 5, 		/* Device colorspace (not PCS or Luv/Yxy) */
     icmCSMF_NCOL = 6, 		/* Device N-color space */
-    icmCSMF_NOT_NCOL = 7,	/* Not a device N-color space */
-    icmCSMF_DEV_NOT_NCOL = 8 /* Device colorspace but not device N-color space */
+    icmCSMF_NOT_NCOL = 7	/* Any but a device N-color space */
 } icmCSMF;
 
 /* Colorspace matching requirements - true if matches all. */
@@ -2169,15 +2179,15 @@ typedef struct {
 							/* Ignored if either is 0 */
 } icmCSMR;
 
-#define ICMCSMR_ANY 			{ icmCSMF_ANY,          0, 0 } 
+#define ICMCSMR_ANYN 			{ icmCSMF_ANY,          0, 0 } 
+#define ICMCSMR_ANY(NN) 		{ icmCSMF_ANY,          NN, NN } 
 #define ICMCSMR_XYZ 			{ icmCSMF_XYZ,          0, 0 } 
 #define ICMCSMR_LAB 			{ icmCSMF_LAB,          0, 0 } 
 #define ICMCSMR_PCS 			{ icmCSMF_PCS,          0, 0 } 
 #define ICMCSMR_NCOL 			{ icmCSMF_NCOL,         0, 0 } 
 #define ICMCSMR_NOT_NCOL		{ icmCSMF_NOT_NCOL,     0, 0 } 
-#define ICMCSMR_DEV_NOT_NCOL	{ icmCSMF_DEV_NOT_NCOL, 0, 0 } 
-#define ICMCSMR_DEVN			{ icmCSMF_DEV,          1, 15 } 
-#define ICMCSMR_DEV(NN)			{ icmCSMF_DEV,         NN, NN } 
+//#define ICMCSMR_DEVN			{ icmCSMF_DEV,          1, 15 } 	// Not used because profile
+//#define ICMCSMR_DEV(NN)		{ icmCSMF_DEV,         NN, NN } 	// "device" space can be any
 
 /* [Table] Class signature instance tag requirements */
 typedef struct {
@@ -2517,6 +2527,7 @@ struct _icc {
 	icmCompatFlags cflags;          /* Compatibility flags */
 	icmTVRange     vcrange;			/* icmCFlagAllowWrVersion range */
 	icmSnOp        op;				/* tag->check() icmSnRead or icmSnWrite */
+	int            rdfile;			/* Currently reading tags from a file */
 
 	icmTagTypeVersConstrRec *tagtypetable;	/* Table of Tag Types valid version range and */
 											/* constructor. Last has ttype icMaxEnumTagType */

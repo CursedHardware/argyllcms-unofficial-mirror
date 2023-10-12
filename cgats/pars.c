@@ -265,35 +265,33 @@ const char *format,
 	int rv;
 	va_list args;
 	cgatsFileMem *p = (cgatsFileMem *)pp;
-	int len;
+	int alen, len;
 
 	va_start(args, format);
 
 	rv = 1;
-	len = 100;					/* Initial allocation for printf */
-	cgatsFileMem_filemem_resize(p, p->cur + len);
+	alen = 100;					/* Initial allocation for printf */
+	cgatsFileMem_filemem_resize(p, p->cur + alen);
 
 	/* We have to use the available printf functions to resize the buffer if needed. */
 	for (;rv != 0;) {
-		int nlen;
-
 		/* vsnprintf() either returns -1 if it doesn't fit, or */
 		/* returns the size-1 needed in order to fit. */
-		nlen = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
+		len = vsnprintf((char *)p->cur, (p->aend - p->cur), format, args);
 
-		if (nlen > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
+		if (len > -1 && ((p->cur + len +1) <= p->aend))	/* Fitted in current allocation */
 			break;
 
-		if (nlen > -1)				/* vsnprintf returned needed size-1 */
-			len = nlen+2;			/* (In case vsnprintf returned 1 less than it needs) */
+		if (len > -1)				/* vsnprintf returned needed size-1 */
+			alen = len+2;			/* (In case vsnprintf returned 1 less than it needs) */
 		else
-			len *= 2;				/* We just have to guess */
+			alen *= 2;				/* We just have to guess */
 
 		/* Attempt to resize */
-		cgatsFileMem_filemem_resize(p, p->cur + len);
+		cgatsFileMem_filemem_resize(p, p->cur + alen);
 
 		/* If resize failed */
-		if ((p->aend - p->cur) < len) {
+		if ((p->aend - p->cur) < alen) {
 			rv = 0;
 			break;			
 		}

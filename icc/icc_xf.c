@@ -10,8 +10,6 @@
 /* ---------------------------------------------------------- */
 /* icmPe: A base object. (Not really usable as is) */
 
-static icmPe *icc_new_pe(icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
-
 
 /* ---------------------------------------------------------- */
 /* icmPeSeq: A sequence of icmPe's. */

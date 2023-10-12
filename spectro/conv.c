@@ -24,7 +24,17 @@
 #include <time.h>
 
 #ifdef NT
+/* Set minimum OS target as XP */
+# if !defined(WINVER) || WINVER < 0x0501
+#  if defined(WINVER) 
+#   undef WINVER
+#  endif
+#  define WINVER 0x0501
+# endif
 # if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
+#  if defined(_WIN32_WINNT) 
+#   undef _WIN32_WINNT
+#  endif
 #  define _WIN32_WINNT 0x0501
 # endif
 # define WIN32_LEAN_AND_MEAN

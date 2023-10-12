@@ -452,7 +452,6 @@ if $(NT)
 		AR				?= $(TPFX2)ar rusc ;
 		AS				?= $(TPFX2)as ;
 		CC				?= $(TPFX1)gcc ;
-echo "CC = " $(CC) ;
 		CCFLAGS			?= -DNT -mwin32 -pipe ;			# -fwrapv ??
 		C++				?= $(CC) ;
 		C++FLAGS		?= $(CCFLAGS) ;
@@ -598,7 +597,8 @@ echo "CC = " $(CC) ;
 		# We assume VC++ Express + XP32 SDK has been setup
 
 		if $(VCINSTALLDIR) {
-			MSVCNT		?= $(VCINSTALLDIR) ;		
+#			MSVCNT		?= $(VCINSTALLDIR) ;		
+			MSVCNT		?= $(VCINSTALLDIR:J=" ") ; # VCINSTALLDIR may have spaces...
 		} else if $(MSVCDir) {
 			MSVCNT		?= $(MSVCDir) ;		
 		} else {			# Visual C++ 6.0 uses MSVCDIR
@@ -638,13 +638,13 @@ echo "CC = " $(CC) ;
 			MSVCVER     = 10 ;
 		} else if [ MATCH (.*)VC\\+\\+9(.*) : $(MSVCNT) ] {
 			ECHO "Compiler is VC++9 32 bit" ;
-			MSVCVER     = 9 ;
+			MSVCVER     = 09 ;
 		} else if [ MATCH (.*)VC\\+\\+8(.*) : $(MSVCNT) ] {
 			ECHO "Compiler is VC++8 32 bit" ;
-			MSVCVER     = 8 ;
+			MSVCVER     = 08 ;
 		} else {
 			ECHO "Compiler is VC++6 32 bit" ;
-			MSVCVER     = 6 ;
+			MSVCVER     = 06 ;
 		}
 
 		# Add the SDK include and lib if it is present
@@ -665,7 +665,7 @@ echo "CC = " $(CC) ;
 		AS				?= masm386 ;
 		CC				?= cl /nologo ;
 		CCFLAGS			?= /DNT /MD ;		# DLL compatible build by default
-		if $(MSVCVER) >= 8 {
+		if $(MSVCVER) >= 08 {
 			CCFLAGS		+= /D_CRT_SECURE_NO_DEPRECATE=1
                            /D_CRT_NONSTDC_NO_DEPRECATE=1 ;
 		}
@@ -673,7 +673,8 @@ echo "CC = " $(CC) ;
 		C++FLAGS		?= $(CCFLAGS) /GX ;		# GX enables syncronous exception handling
 		LINK			?= link /nologo ;
 		LINKOUTFLAG		?= /out: ;
-		LINKFLAGS		?= /STACK:16000000 /INCREMENTAL:NO /LIBPATH:$(MSNTSDK)\\lib\\$(I) ;
+		LINKFLAGS		?= /STACK:16000000 /INCREMENTAL:NO ;
+#       LINKFLAGS		+= /LIBPATH:$(MSNTSDK)\lib\$(I) ;	# Not needed ? Problems if spaces..
 		SHLINKFLAGS		?= ;
 
 		STDLIBS			?= 
@@ -694,17 +695,17 @@ echo "CC = " $(CC) ;
 						Version.lib
 #						Winmm.lib
 						;
-		if $(MSVCVER) >= 8 {
+		if $(MSVCVER) >= 08 {
 			STDLIBS += psapi.lib ;
 		}
 
 		SHSTDLIBS		?= $(STDLIBS) ;
 		LINKFLAG		?= ;						
-		STDHDRS			?= $(MSNTSDK)\\Include ;
+#		STDHDRS			?= \"$(MSNTSDK)\Include\" ;		# Not needed ?
 		DEFFLAG		 	?= /D ;				
 		UNDEFFLAG		?= /U ;
 		CCOPTFLAG		?= /O2 ;		# MSVC9 doesn't understamd GB, G6 ?
-		if $(MSVCVER) = 6 {
+		if $(MSVCVER) = 06 {
 			CCDEBUGFLAG		?= /Od /Z7 ;		# Include debugging into in each object		
 			CCPROFFLAG		?= /Od /Z7 ;
 			LINKDEBUGFLAG	?= /DEBUGTYPE:BOTH /DEBUG /PDB:NONE ;		

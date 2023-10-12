@@ -64,7 +64,7 @@ USE_PLOT = true ;		# [true]
 WIN_UTF8 = true ;		# [true]
 
 # Use UsbDk rather than libusb0.sys	
-USE_USBDK = true ;	# [false]
+USE_USBDK = false ;	# [false]
 
 # For testing CCast
 #DEFINES += CCTEST_PATTERN ;

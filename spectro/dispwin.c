@@ -270,7 +270,7 @@ static BOOL CALLBACK MonitorEnumProc(
 
 /* It appears that windows is rather dumb in the way it declares new API's - */
 /* it only declares them if the code says it wants them by defining WINVER etc., */
-/* but if WINVER is declaed to be bigger than the SDK, the build will fail. */
+/* but if WINVER is declared to be bigger than the SDK, the build will fail ? */
 /* So there seems no way that code can automatically take advantage of new */
 /* API declarations to dynamically link them, while still compiling on */
 /* SDK's that don't know about them. Instead we have to assume the minimum */
@@ -280,7 +280,7 @@ static BOOL CALLBACK MonitorEnumProc(
 
 /* Dynamically linked function support */
 
-#if !defined(WINAPI_FAMILY_PARTITION) && (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
+#if !defined(NTDDI_VERSION) || NTDDI_VERSION < 0x06000000
 # define DECLARE_WCS_SCOPE
 #endif
 

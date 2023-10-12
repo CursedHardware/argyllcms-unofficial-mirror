@@ -21,8 +21,14 @@
  */
 
 #if defined (NT)
+# if !defined(WINVER) || WINVER < 0x0501
+#  if defined(WINVER) 
+#   undef WINVER
+#  endif
+#  define WINVER 0x0501
+# endif
 # if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0501
-#  if defined _WIN32_WINNT
+#  if defined(_WIN32_WINNT) 
 #   undef _WIN32_WINNT
 #  endif
 #  define _WIN32_WINNT 0x0501

@@ -374,6 +374,34 @@ static int icompaths_check_usb(icompaths *p, unsigned int vid, unsigned int pid)
 	return 0;
 }
 
+/* Return the current combined path count */
+/* (Used to set upto value for check_usb_upto() */ 
+static int icompaths_get_cur_count(icompaths *p) {
+	return p->ndpaths[dtix_combined];
+}
+
+/* Check a usb vid/pid against combined list up to given index. */
+/* return nz if on the list */
+static int icompaths_check_usb_upto(icompaths *p, int upto, unsigned int vid, unsigned int pid) {
+	icom_dtix ix = dtix_combined;
+	int i;
+
+	if (p->dpaths[ix] == NULL)
+		return 0;
+
+	if (upto < 0)
+		upto = 0;
+	if (upto > p->ndpaths[ix])
+		upto = p->ndpaths[ix];
+
+	for (i = 0; i < upto; i++) {
+		if (p->dpaths[ix][i]->vid == vid
+		 && p->dpaths[ix][i]->pid == pid)
+			return 1;
+	}
+	return 0;
+}
+
 /* Add a usb path. usbd is taken, others are copied. */
 /* return icom error */
 static int icompaths_add_usb(icompaths *p, char *name, unsigned int vid, unsigned int pid,
@@ -650,12 +678,14 @@ icompaths *new_icompaths_sel(a1log *log, icom_type mask) {
 	p->add_serial    = icompaths_add_serial;
 #endif /* ENABLE_SERIAL */
 #ifdef ENABLE_USB
-	p->check_usb     = icompaths_check_usb;
-	p->add_usb       = icompaths_add_usb;
-	p->add_hid       = icompaths_add_hid;
+	p->check_usb      = icompaths_check_usb;
+	p->get_cur_count  = icompaths_get_cur_count;
+	p->check_usb_upto = icompaths_check_usb_upto;
+	p->add_usb        = icompaths_add_usb;
+	p->add_hid        = icompaths_add_hid;
 #endif /* ENABLE_USB */
-	p->del_last_path = icompaths_del_last_path;
-	p->get_last_path = icompaths_get_last_path;
+	p->del_last_path  = icompaths_del_last_path;
+	p->get_last_path  = icompaths_get_last_path;
 	/* ====================================== */
 
 	/* Get list of fast scan exclusion devices */

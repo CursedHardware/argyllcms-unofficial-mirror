@@ -53,7 +53,7 @@
 
 #undef STOCKFWA				/* [und] Use table shape else compute from flat line estimate*/
 
-#define DEBUG				/* [und] Extra printouts + debugging messages (need to uncomment) */
+#undef DEBUG				/* [und] Extra printouts + debugging messages (need to uncomment) */
 #undef DOPLOT				/* [und] Plot FWA setup */
 #undef DOPLOT_ALL_FWA		/* [und] Plot all FWA corrected conversions */
 #undef WRITE_FWA1_STIM		/* [und] Write file "fwa1_stip.sp" when FWA is setup */

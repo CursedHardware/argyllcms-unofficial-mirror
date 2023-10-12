@@ -1054,6 +1054,7 @@ main(
 			wo->data[0].Y = 0.02 * ABS_Y;
 			wo->data[0].Z = 0.02 * ABS_Z;
 		}
+		/* Gray Tone Reproduction Curve Tags: */
 		{
 			/* Intent 1 = relative colorimetric */
 			int nsigs = 1;
@@ -1374,6 +1375,7 @@ main(
 			wo->data[0].Y = 0.04;
 			wo->data[0].Z = 0.03;
 		}
+		/* Gray Tone Reproduction Curve Tags: */
 		{
 			/* Intent 1 = relative colorimetric */
 			int nsigs = 1;
@@ -1800,6 +1802,7 @@ main(
 			wo->data[0].Y = 0.04;
 			wo->data[0].Z = 0.03;
 		}
+		/* Red, Green and Blue Colorant Tags: */
 		{
 			/* Intent 1 = relative colorimetric */
 			int nsigs = 1;
