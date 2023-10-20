@@ -4,8 +4,8 @@
 # Overall optization state and configuration. Overrides sub-Jamfiles
 # See Jamtop and Jambase for other details.
 
-#PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
-PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
+PREF_CCFLAGS 	+= $(CCOPTFLAG) ;		# Turn optimisation on
+#PREF_CCFLAGS	+= $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS	+= $(CCHEAPDEBUG) ;		# Heap Debugging & Debugging flags
 #PREF_LINKFLAGS	+= $(LINKOPTFLAG) ;		# Link optimization flags
 PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
@@ -59,22 +59,9 @@ if ! $(HAVE_PNG) {
 	SubInclude png ;
 }
 
-if $(USE_LIBUSB) = true {
-
-	if $(USE_LIBUSB1) = true {
-		SubInclude libusb1 ;
-	} else {
-		if $(NT) {
-			SubInclude libusbw ;
-		}
-		if $(UNIX) {
-			SubInclude libusb ;
-		}
-	}
-} else {
-	if $(NT) {
-		SubInclude usb ;
-	}
+if $(NT) && $(USE_USBDK) != true {
+echo "#### subincluding usb ####"
+	SubInclude usb ;
 }
 
 if $(UNIX) && $(OS) != MACOSX {

@@ -122,9 +122,10 @@ EXP_FUNC void STDCALL RNG_initialize()
     }
 #else
     /* start of with a stack to copy across */
-    int i = rand();
-    memcpy(entropy_pool, &i, ENTROPY_POOL_SIZE);
 //    rand_r((unsigned int *)entropy_pool); 	// GWG
+    int i = rand();
+    memset(entropy_pool, 0, ENTROPY_POOL_SIZE);
+    memcpy(entropy_pool, &i, sizeof(int));
 #endif
 }
 

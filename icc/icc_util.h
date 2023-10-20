@@ -95,7 +95,7 @@ void icmPow3(double out[3], double in[3], double p);
 /* Square values */
 void icmSqr3(double out[3], double in[3]);
 
-/* Suqare root of values */
+/* Square root of values */
 void icmSqrt3(double out[3], double in[3]);
 
 /* Take absolute of a 3 vector */
@@ -728,8 +728,8 @@ double icmDICOM_bwd(double L);
 void icmRad2RGB(double rgb[3], double ang);
 
 /* ---------------------------------------------------------- */
-/* UTF conversion functions. */
-/* Derived from Unicode, Inc. code, Author: Mark E. Davis, 1994. */
+/* UTF conversion functions with checking. */
+/* Heavily modified from Unicode, Inc. code, Author: Mark E. Davis, 1994. */
 /* see corresponding icc.c for full credits and copyright */
 
 /* Error and warning codes from conversions */
@@ -763,11 +763,7 @@ typedef enum {
 } icmUTFerr;
 
 
-/* LEGACY serialisation */
-size_t icmUTF16BEtoUTF8(icmUTFerr *pillegal, icmUTF8 *out, ORD8 *in, size_t len);
-size_t icmUTF8toUTF16BE(icmUTFerr *pillegal, ORD8 *out, icmUTF8 *in, size_t len);
-
-/* NEW serialisation */
+/* Serialisation */
 size_t icmUTF16SntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len, int nonul);
 size_t icmUTF8toUTF16Sn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t len, int nonul);
 
@@ -777,7 +773,7 @@ size_t icmUTF8toASCIIZSn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t
 size_t icmSntoScriptCode(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t len);
 size_t icmScriptCodetoSn(icmUTFerr *pillegal, icmFBuf *bout, ORD8 *in, size_t len);
 
-/* General use */
+/* General use. Use NULL out to size buffer. */
 size_t icmUTF16toUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmUTF16 *in);
 size_t icmUTF8toUTF16(icmUTFerr *pillegal, icmUTF16 *out, icmUTF8 *in);
 

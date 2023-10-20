@@ -654,7 +654,6 @@ static struct {
 	i1d3_dtype btype;						/* Base type enumerator */
 	i1d3_dtype stype;						/* Sub type enumerator */
 } i1d3_codes[] = {
-	{ "i1Display3",         { 0xe9622e9f, 0x8d63e133 }, i1d3_disppro,  i1d3_disppro },
 	{ "Colormunki Display", { 0xe01e6e0a, 0x257462de }, i1d3_munkdisp, i1d3_munkdisp },
 	{ "i1Display3",         { 0xcaa62b2c, 0x30815b61 }, i1d3_disppro,  i1d3_dpp_oem },
 	{ "i1Display3",         { 0xa9119479, 0x5b168761 }, i1d3_disppro,  i1d3_nec_ssp },
@@ -2949,7 +2948,6 @@ i1d3_init_inst(inst *pp) {
 	if ((ev = i1d3_get_firmdate(p, p->firm_date)) != inst_ok)
 		return ev;
 
-
 #ifdef USE_AIO_MODE
 	/* Should we use AIO mode ? */
 	if (p->firmv >= 0x21a
@@ -2959,7 +2957,7 @@ i1d3_init_inst(inst *pp) {
 	}
 #endif /* USE_AIO_MODE */
 
-	/* Unlock instrument */
+	/* Unlock instrument if needed */
 	if ((ev = i1d3_lock_status(p,&stat)) != inst_ok)
 		return ev;
 
@@ -2985,6 +2983,7 @@ i1d3_init_inst(inst *pp) {
 		a1logd(p->log, 8, "Internal EEPROM:\n"); 
 		adump_bytes(p->log, "  ", buf, 0, 256);
 	}
+
 	/* Decode the Internal EEPRom */
 	if ((ev = i1d3_decode_intEE(p, buf)) != inst_ok)
 		return ev;
@@ -4043,7 +4042,7 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 	i1d3 *p = (i1d3 *)pp;
 	inst_code rv = inst_ok;
 
-	a1loge(p->log, 4, "i1d3_get_disptypesel: called recreate = %d\n",recreate);
+	a1logd(p->log, 4, "i1d3_get_disptypesel: called recreate = %d\n",recreate);
 
 	/* Create/Re-create a current list of available display types */
 	if (p->dtlist == NULL || recreate) {
@@ -4062,7 +4061,7 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 		if (psels != NULL)
 			*psels = NULL;
 
-		a1loge(p->log, 4, "i1d3_get_disptypesel: ambient so no dtype\n");
+		a1logd(p->log, 4, "i1d3_get_disptypesel: ambient so no dtype\n");
 		return inst_ok;
 	}
 
@@ -4072,7 +4071,7 @@ int recreate				/* nz to re-check for new ccmx & ccss files */
 	if (psels != NULL)
 		*psels = p->dtlist;
 
-	a1loge(p->log, 1, "i1d3_get_disptypesel: returing %d dtypes\n",p->ndtlist);
+	a1logd(p->log, 1, "i1d3_get_disptypesel: returning %d dtypes\n",p->ndtlist);
 
 	return inst_ok;
 }

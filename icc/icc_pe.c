@@ -17,7 +17,8 @@
 /* icmPe transform implementation */
 /* This is #included in icc.c */
 
-static icmPe *icc_new_pe(icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
+static icmPe *icc_new_pe_imp(icc *p, icTagTypeSignature ttype,
+                             icTagTypeSignature pttype, int rdff);
 
 /* ---------------------------------------------------------- */
 
@@ -128,7 +129,7 @@ static void icmPeCurveSet_LUT816_serialise(icmPeCurveSet *p, icmFBuf *b) {
 	unsigned int n;
 
 	for (n = 0; n < p->inputChan; n++) {
-		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->dp);  
+		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdff, p->dp);  
 	}
 	// Can't ICMRDCHECKCONSUMED(icmPeCurveSet) because there is no directory above us
 }
@@ -240,7 +241,7 @@ static int icmPeCurveSet_cpy(icmPeCurveSet *dst, icmBase *isrc) {
 	 	dst->outputChan = src->outputChan;
 
 		for (i = 0; i < dst->inputChan; i++) {
-			if ((dst->pe[i] = icc_new_pe(p, src->pe[i]->ttype, dst->ttype)) == NULL)
+			if ((dst->pe[i] = icc_new_pe_imp(p, src->pe[i]->ttype, dst->ttype, dst->rdff)) == NULL)
 				return p->e.c;  
 		 	dst->pe[i]->cpy(dst->pe[i], (icmBase *)src->pe[i]);
 		}
@@ -990,7 +991,7 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 			icTagTypeSignature tsig;
 
 			if (p->pe[n] == NULL
-			 && (p->pe[n] = icc_new_pe(icp, pettypes[n], p->ttype)) == NULL) {
+			 && (p->pe[n] = icc_new_pe_imp(icp, pettypes[n], p->ttype, p->rdff)) == NULL) {
 				return;
 			}
 
@@ -1014,8 +1015,9 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 				for (m = 0; m < pe->inputChan; m++) {
 					icmPeCurve *cpe;
 					if (pe->pe[m] == NULL
-					 && (pe->pe[m] = icc_new_pe(icp, icmSig816Curve, pe->ttype)) == NULL) {
-						icm_err(icp, ICM_ERR_NEW_PE_FAILED,"icmLut1_serialise: icc_new_pe()"
+					 && (pe->pe[m] = icc_new_pe_imp(icp, icmSig816Curve, pe->ttype, p->rdff))
+						                                                           == NULL) {
+						icm_err(icp, ICM_ERR_NEW_PE_FAILED,"icmLut1_serialise: icc_new_pe_imp()"
 						                       " for %s failed",icmtag2str(icSigCurveType));
 						return;
 					}
@@ -1060,7 +1062,7 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 		}
 
 		/* Serialize a sub-tag */
-		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->dp);  
+		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdff, p->dp);  
 	}
 	ICMSNFREEARRAY(b, p->_count, p->pe)
 	ICMRDCHECKCONSUMED(icmLut1)
@@ -2271,6 +2273,7 @@ static void icmPeContainer_dump(icmPeContainer *p, icmFile *op, int verb) {
 	unsigned int i;
 
 	op->printf(op,PAD("PeContainer:\n"));
+	op->printf(op,PAD("  Attributes = %s\n"),icmPe_Attr2Str(&p->attr));
 	op->printf(op,PAD("  Input Channels = %u\n"),p->inputChan);
 	op->printf(op,PAD("  Output Channels = %u\n"),p->outputChan);
 	op->printf(op,PAD("  No. elements = %u\n"),p->count);

@@ -36,9 +36,9 @@
  *		conversions	from device to PCS.
  *
  *		For the input the aim would be to distribute cLut index points
- *		perceptually evenly. For Lab in this is a NOP, for XYZ in
- *		this would be an XYZ to L* curve, and for device in this
- *		would be a dev->L* curve. Possibly:
+ *		perceptually evenly - i.e. like the print calibrate code.
+ *		For Lab in this is a NOP, for XYZ in this would be an XYZ to L* curve,
+ *		and for device in this would be a dev->delta E curve. Possibly:
  *		Run set of device input values through ->Lab, and then create
  *		smart non-mon curve fit. Make it smart by first fitting
  *		power curve from black end vs. normal curve, picking best

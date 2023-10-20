@@ -194,7 +194,7 @@ typedef struct {
 struct _icxClip {
 	int     nearclip;				/* Flag - use near clipping not vector */
 	int     LabLike;				/* Flag It's an Lab like colorspace */
-	int     fdi;					/* Dimentionality of clip vector */
+	int     fdi;					/* Dimensionality of clip vector */
 	struct  _icxCuspMap *cm;		/* Cusp map for computing vector (if !NULL) */
 	double  ocent[MXDO];			/* Default center of clut output gamut used if cm == NULL */
 }; typedef struct _icxClip icxClip;
@@ -568,8 +568,8 @@ struct _icxLuLut {
 	XLU_BASE_MEMBERS
 
 	/* private: */
-	rspl	        *clutTable;				/* The multi dimention lookup */
-	rspl	        *cclutTable;			/* Alternate multi dimention lookup in CAM space */
+	rspl	        *clutTable;				/* The multi dimension lookup */
+	rspl	        *cclutTable;			/* Alternate multi dimension lookup in CAM space */
 	/* Inverted RSPLs used to speed ink limit calculation */
 	/* input' -> input */
 	rspl *revinputTable[MXDI];

@@ -76,7 +76,6 @@ typedef enum {				/* Dominant operation type */
 char *icmPe_Op2str(icmPeOp op);
 
 /* icmPe attributes. */
-/* [ Note that not-limited range is assumed to be >= 0.0 in many situations... ] */
 typedef struct {
 	char comp;			/* nz if Compound element contains other Pe's (for trace) */
 	char inv;			/* nz if element was created with inverted function (for trace) */
@@ -85,6 +84,8 @@ typedef struct {
 	char fwd;			/* nz if fwd transform is implemented */
 	char bwd;			/* nz if bwd transform is implemented */
 } icmPeAttr;
+
+char *icmPe_Attr2Str(icmPeAttr *attr);
 
 #define ICM_PE_SETATTR(ATTR, COMP, INV, NORM, OP, FWD, BWD) \
 	ATTR.comp = COMP;							\

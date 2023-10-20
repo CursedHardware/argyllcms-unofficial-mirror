@@ -121,7 +121,7 @@ cgatsAlloc *al			/* memory allocator */
 ) {
 	cgats *p;
 
-	if ((p = (cgats *) al->calloc(al, sizeof(cgats), 1)) == NULL) {
+	if ((p = (cgats *) al->calloc(al, 1, sizeof(cgats))) == NULL) {
 		return NULL;
 	}
 	p->al = al;				/* Heap allocator */
@@ -451,8 +451,8 @@ cgats_read(cgats *p, cgatsFile *fp) {
 					tt = cgats_X;
 					if (p->cgats_type != NULL)
 						p->al->free(p->al, p->cgats_type);
-					if ((p->cgats_type = (char *)p->al->malloc(p->al,
-					                     (strlen(tp)+1) * sizeof(char))) == NULL) {
+					if ((p->cgats_type = (char *)p->al->calloc(p->al,
+					                     (strlen(tp)+1), sizeof(char))) == NULL) {
 						err(p,-1,"Failed to malloc space for CGATS.X keyword");
 						pp->del(pp);
 						return p->e.c;
@@ -798,7 +798,7 @@ set_cgats_type(cgats *p, const char *osym) {
 	p->e.m[0] = '\000';
 	if (p->cgats_type != NULL)
 		al->free(al, p->cgats_type);
-	if ((p->cgats_type = (char *)al->malloc(al, (strlen(osym)+1) * sizeof(char))) == NULL)
+	if ((p->cgats_type = (char *)al->calloc(al, (strlen(osym)+1), sizeof(char))) == NULL)
 		return err(p,-2,"cgats.add_cgats_type(), malloc failed!");
 	strcpy(p->cgats_type,osym);
 	return 0;
@@ -817,7 +817,7 @@ add_other(cgats *p, const char *osym) {
 	if ((p->others = (char **)al->realloc(al, p->others, p->nothers * sizeof(char *))) == NULL)
 		return err(p,-2, "cgats.add_other(), realloc failed!");
 	if ((p->others[p->nothers-1] =
-	                      (char *)al->malloc(al, (strlen(osym)+1) * sizeof(char))) == NULL)
+	                      (char *)al->calloc(al, (strlen(osym)+1), sizeof(char))) == NULL)
 		return err(p,-2,"cgats.add_other(), malloc failed!");
 	strcpy(p->others[p->nothers-1],osym);
 	return p->nothers-1;
@@ -1117,7 +1117,7 @@ add_set(cgats *p, int table, ...) {
 			return err(p,-2,"cgats.add_set(), realloc failed!");
 	}
 	/* Allocate set pointer to data element values */
-	if ((t->fdata[t->nsets-1] = (void **)al->malloc(al, t->nfields * sizeof(void *))) == NULL)
+	if ((t->fdata[t->nsets-1] = (void **)al->calloc(al, t->nfields, sizeof(void *))) == NULL)
 		return err(p,-2,"cgats.add_set(), malloc failed!");
 
 	/* Allocate and copy data to new set */
@@ -1182,7 +1182,7 @@ add_setarr(cgats *p, int table, cgats_set_elem *args) {
 			return err(p,-2,"cgats.add_set(), realloc failed!");
 	}
 	/* Allocate set pointer to data element values */
-	if ((t->fdata[t->nsets-1] = (void **)al->malloc(al,t->nfields * sizeof(void *))) == NULL)
+	if ((t->fdata[t->nsets-1] = (void **)al->calloc(al, t->nfields, sizeof(void *))) == NULL)
 		return err(p,-2,"cgats.add_set(), malloc failed!");
 
 	/* Allocate and copy data to new set */
@@ -1284,9 +1284,9 @@ add_data_item(cgats *p, int table, void *data) {
 				return err(p,-2,"cgats.add_item(), realloc failed!");
 		}
 		/* Allocate set pointer to data element values */
-		if ((t->rfdata[t->nsets-1] = (char **)al->malloc(al, t->nfields * sizeof(void *))) == NULL)
+		if ((t->rfdata[t->nsets-1] = (char **)al->calloc(al, t->nfields, sizeof(void *))) == NULL)
 			return err(p,-2,"cgats.add_item(), malloc failed!");
-		if ((t->fdata[t->nsets-1] = (void **)al->malloc(al, t->nfields * sizeof(void *))) == NULL)
+		if ((t->fdata[t->nsets-1] = (void **)al->calloc(al, t->nfields, sizeof(void *))) == NULL)
 			return err(p,-2,"cgats.add_item(), malloc failed!");
 	}
 
@@ -1319,7 +1319,7 @@ cgats_write(cgats *p, cgatsFile *fp) {
 
 		/* Figure out the standard and non-standard fields */
 		if (t->nfields > 0)
-			if ((sfield = (int *)al->malloc(al, t->nfields * sizeof(int))) == NULL)
+			if ((sfield = (int *)al->calloc(al, t->nfields, sizeof(int))) == NULL)
 				return err(p,-2,"cgats.write(), malloc failed!");
 		for (field = 0; field < t->nfields; field++) {
 				if (standard_field(t->fsym[field]) != none_t)
@@ -1622,14 +1622,14 @@ alloc_copy_data_type(cgatsAlloc *al, data_type dtype, void *dpoint) {
 	switch(dtype) {
 		case r_t: {	/* Real value */
 			double *p;
-			if ((p = (double *)al->malloc(al, sizeof(double))) == NULL)
+			if ((p = (double *)al->calloc(al, 1, sizeof(double))) == NULL)
 				return NULL;
 			*p = *((double *)dpoint);
 			return (void *)p;
 		}
 		case i_t: {	/* Integer value */
 			int *p;
-			if ((p = (int *)al->malloc(al, sizeof(int))) == NULL)
+			if ((p = (int *)al->calloc(al, 1, sizeof(int))) == NULL)
 				return NULL;
 			*p = *((int *)dpoint);
 			return (void *)p;
@@ -1637,7 +1637,7 @@ alloc_copy_data_type(cgatsAlloc *al, data_type dtype, void *dpoint) {
 		case cs_t:	/* Character string */
 		case nqcs_t: {	/* Character string */
 			char *p;
-			if ((p = (char *)al->malloc(al, (strlen(((char *)dpoint))+1) * sizeof(char))) == NULL)
+			if ((p = (char *)al->calloc(al, (strlen(((char *)dpoint))+1), sizeof(char))) == NULL)
 				return NULL;
 			strcpy(p, (char *)dpoint);
 			return (void *)p;
@@ -1844,7 +1844,7 @@ quote_cs(cgatsAlloc *al, const char *cs) {
 	for (i = 0, j = 3; cs[i] != '\000'; i++, j++)
 		if (cs[i] == '"')
 			j++;
-	if ((rs = (char *)al->malloc(al, j * sizeof(char))) == NULL) {
+	if ((rs = (char *)al->calloc(al, j, sizeof(char))) == NULL) {
 		return NULL;
 	}
 

@@ -1013,29 +1013,29 @@ static char *icmVideoCardGammaFormatData2str(unsigned int flags) {
 static const char *icmTagSig2str_imp(icTagSignature sig, int alt) {
 	switch ((icmSig) sig) {
 		case icSigAToB0Tag:
-			return "AToB0 (Perceptual) Multidimentional Transform";
+			return "AToB0 (Perceptual) Multidimensional Transform";
 		case icSigAToB1Tag:
-			return "AToB1 (Colorimetric) Multidimentional Transform";
+			return "AToB1 (Colorimetric) Multidimensional Transform";
 		case icSigAToB2Tag:
-			return "AToB2 (Saturation) Multidimentional Transform";
+			return "AToB2 (Saturation) Multidimensional Transform";
 		case icSigBlueMatrixColumnTag:		/* AKA icSigBlueColorantTag */
 			return "Blue Matrix Column";	/* AKA "Blue Colorant" */
 		case icSigBlueTRCTag:
 			return "Blue Tone Reproduction Curve";
 		case icSigBToA0Tag:
-			return "BToA0 (Perceptual) Multidimentional Transform";
+			return "BToA0 (Perceptual) Multidimensional Transform";
 		case icSigBToA1Tag:
-			return "BToA1 (Colorimetric) Multidimentional Transform";
+			return "BToA1 (Colorimetric) Multidimensional Transform";
 		case icSigBToA2Tag:
-			return "BToA2 (Saturation) Multidimentional Transform";
+			return "BToA2 (Saturation) Multidimensional Transform";
 		case icSigBToD0Tag:
-			return "BToD0 (Perceptual) Multidimentional Transform";
+			return "BToD0 (Perceptual) Multidimensional Transform";
 		case icSigBToD1Tag:
-			return "BToD1 (Colorimetric) Multidimentional Transform";
+			return "BToD1 (Colorimetric) Multidimensional Transform";
 		case icSigBToD2Tag:
-			return "BToD2 (Saturation) Multidimentional Transform";
+			return "BToD2 (Saturation) Multidimensional Transform";
 		case icSigBToD3Tag:
-			return "BToD3 (Absolute Colorimetric) Multidimentional Transform";
+			return "BToD3 (Absolute Colorimetric) Multidimensional Transform";
 		case icSigCalibrationDateTimeTag:
 			return "Calibration Date & Time";
 		case icSigCharTargetTag:
@@ -1069,13 +1069,13 @@ static const char *icmTagSig2str_imp(icTagSignature sig, int alt) {
 		case icSigDeviceSettingsTag:
 			return "Device Settings";
 		case icSigDToB0Tag:
-			return "DToB0 (Perceptual) Multidimentional Transform";
+			return "DToB0 (Perceptual) Multidimensional Transform";
 		case icSigDToB1Tag:
-			return "DToB1 (Colorimetric) Multidimentional Transform";
+			return "DToB1 (Colorimetric) Multidimensional Transform";
 		case icSigDToB2Tag:
-			return "DToB2 (Saturation) Multidimentional Transform";
+			return "DToB2 (Saturation) Multidimensional Transform";
 		case icSigDToB3Tag:
-			return "DToB3 (Absolute Colorimetric) Multidimentional Transform";
+			return "DToB3 (Absolute Colorimetric) Multidimensional Transform";
 		case icSigGamutTag:
 			return "Gamut";
 		case icSigGrayTRCTag:
@@ -2255,6 +2255,14 @@ char *icmPe_Op2str(icmPeOp op) {
 			return buf;
 		}
 	}
+}
+
+char *icmPe_Attr2Str(icmPeAttr *attr) {
+	static char buf[100];
+
+	sprintf(buf, "comp %d, inv %d, norm %d, op %s, fwd %d, bwd %d",
+	attr->comp, attr->inv, attr->norm, icmPe_Op2str(attr->op), attr->fwd, attr->bwd);
+	return buf;
 }
 
 char *icmCSInfo2str(icmCSInfo *p)  {
@@ -3670,15 +3678,17 @@ static int icmFmtWarn(icmFBuf *b, int sub, const char *format, ...) {
 /* Sets error code if Version errors are fatal. */
 /* Sets the warning cflags if set to warn. */
 /* (Caller must set icp->op to icmSnRead or icmSnWrite) */
+/* If warn nz then force warning rather than error */
 /* Return the current error code. */
-static int icmVVersionWarning(icc *icp, int sub, const char *format, va_list vp) {
+static int icmVVersionWarning(icc *icp, int sub, int warn, const char *format, va_list vp) {
 	int err;
 
 	err = (icp->op == icmSnWrite) ? ICM_ERR_WR_FORMAT : ICM_ERR_RD_FORMAT;
 	err |= ICM_FMT_MASK & sub;
 
-	if ((icp->op == icmSnRead && !(icp->cflags & icmCFlagRdVersionWarn))
-	 || (icp->op == icmSnWrite && !(icp->cflags & icmCFlagWrVersionWarn))) {
+	if (!warn &&
+	 ((icp->op == icmSnRead && !(icp->cflags & icmCFlagRdVersionWarn))
+	  || (icp->op == icmSnWrite && !(icp->cflags & icmCFlagWrVersionWarn)))) {
 		icm_verr(icp, err, format, vp);
 
 	} else {
@@ -3690,11 +3700,11 @@ static int icmVVersionWarning(icc *icp, int sub, const char *format, va_list vp)
 }
 
 /* Same as above with varargs */
-int icmVersionWarning(icc *icp, int sub, const char *format, ...) {
+int icmVersionWarning(icc *icp, int sub, int warn, const char *format, ...) {
 	int rv;
 	va_list vp;
 	va_start(vp, format);
-	rv = icmVVersionWarning(icp, sub, format, vp);
+	rv = icmVVersionWarning(icp, sub, warn, format, vp);
 	va_end(vp);
 	return rv;
 }
@@ -5023,11 +5033,7 @@ static void icmSn_ScriptCode(
 	icmUTFerr utferr = icmUTF_ok;
 
 	if (b->op == icmSnSize || b->op == icmSnWrite) {
-
-		if (*pdesc == NULL || *pcount == 0)
-			*pocount = 0;
-		else
-			*pocount = icmScriptCodetoSn(&utferr, b, (icmUTF8 *)*pdesc, *pcount);
+		*pocount = icmScriptCodetoSn(&utferr, b, (icmUTF8 *)*pdesc, *pcount);
 
 		if (utferr != icmUTF_ok) {
 			icm_err(b->icp, 1,"%s write: ScriptCode translate returned error '%s'",id,icmUTFerr2str(utferr));
@@ -5038,16 +5044,11 @@ static void icmSn_ScriptCode(
 
 		/* Figure length needed for reading ScriptCode */
 		if (b->op == icmSnRead) {
+			ORD32 off;
 
-			if (*pocount == 0)
-				*pcount = 0;
-			else {
-				ORD32 off;
-
-				off = b->get_off(b);
-				*pcount = icmSntoScriptCode(NULL, NULL, b, *pocount);
-				b->aoff(b, off);
-			}
+			off = b->get_off(b);
+			*pcount = icmSntoScriptCode(NULL, NULL, b, *pocount);
+			b->aoff(b, off);
 		}
 
 		/* Allocate ScriptCode string on read or for API client */
@@ -5056,7 +5057,7 @@ static void icmSn_ScriptCode(
 			return;
 
 		/* Read ScriptCode and (possibly) repair it */
-		if (b->op == icmSnRead && *pocount > 0) {
+		if (b->op == icmSnRead) {
 			icmSntoScriptCode(&utferr, (icmUTF8 *)*pdesc, b, *pocount);
 
 			if (utferr != icmUTF_ok) {
@@ -5074,7 +5075,8 @@ static void icmSn_ScriptCode(
 /* ---------------------------------------------------------------- */
 /* Higher level sub-tagtype serialization support code */
 
-static icmBase *icc_new_ttype(icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
+static icmBase *icc_new_ttype_imp(icc *p, icTagTypeSignature ttype,
+                              icTagTypeSignature pttype, int rdff);
 static int icc_compare_ttype(icc *p, icmBase *idst, icmBase *isrc);
 
 /* Serialize a sub-tagtype */
@@ -5082,7 +5084,7 @@ static void icmSn_SubTagType(
 	icmFBuf *b,
 	unsigned int *off,			/* If not NULL, return/seek to this offset */
 	unsigned int *count,		/* If not NULL, return size of sub-tag */
-	icmBase **psub,			/* pointer to sub-structure */
+	icmBase **psub,				/* pointer to sub-structure */
 	icTagTypeSignature ttype,	/* Sub Tag Type to create if not optional and not client supplied */
 	icTagTypeSignature pttype,	/* Parent TagType */
 	int opt,					/* If 0, sub-tag will be created on ->allocate() */
@@ -5091,6 +5093,7 @@ static void icmSn_SubTagType(
 								/* If 2, sub-tag is always created by client, */
 								/* and always expected to be read. */
 	void (*init)(icmFBuf *b, icmBase *p), /* If not NULL, initialise a new sub-struct on create */
+	int rdff,					/* Was read from file */
 	int xpad					/* Extra dump padding */
 ) {
 	if (b->op == icmSnFree) {
@@ -5127,7 +5130,7 @@ static void icmSn_SubTagType(
 				b->aoff(b, coff);
 			}
 
-			if ((*psub = icc_new_ttype(b->icp, ttype, pttype)) == NULL) {
+			if ((*psub = icc_new_ttype_imp(b->icp, ttype, pttype, rdff)) == NULL) {
 				icmFmtWarn(b, ICM_FMT_SUB_TYPE_UNKN, "Sub-TagType %s not created()",
 				                                 icmTypeSig2str(ttype));
 				*psub = NULL;
@@ -5196,13 +5199,14 @@ static void icmSn_PeSubTag(
 	unsigned int *count,		/* If not NULL, return size of sub-tag */
 	icmPe **psub,				/* pointer to sub-structure */
 	icTagTypeSignature pttype,	/* Parent TagType */
+	int rdff,					/* Was read from file */
 	int xpad					/* Extra dump padding */
 ) {
 	icTagTypeSignature ttype = icmSigUnknownType;
 	if (*psub != NULL)
 		pttype = (*psub)->ttype;
 
-	icmSn_SubTagType(b, off, count, (icmBase **)psub, ttype, pttype, 2, NULL, xpad);
+	icmSn_SubTagType(b, off, count, (icmBase **)psub, ttype, pttype, 2, NULL, rdff, xpad);
 
 	if (b->op == icmSnRead && *psub == NULL) {
 		icmFmtWarn(b, ICM_FMT_SUB_MISSING,
@@ -5607,7 +5611,8 @@ static void icmGeneric_del(icmBase *p);
 static int icmGeneric_allocate(icmBase *p);
 
 static int icc_check_sig(icc *p, unsigned int *ttix, int rd,
-		icTagSignature sig, icTagTypeSignature ttype, icTagTypeSignature uttype);
+		icTagSignature sig, icTagTypeSignature ttype, icTagTypeSignature uttype,
+        int rdff);
 
 /* ---------------------------------------------------------- */
 /* icmUnknown object */
@@ -6884,6 +6889,7 @@ static void icmTextDescription_serialise(icmTextDescription *p, icmFBuf *b) {
 	/* ScriptCode */
 	icmSn_us_UInt16(b, &p->scCode);			/* ScriptCode language code */
 	icmSn_ui_UInt8(b, &p->scFcount);		/* ScriptCode character count */
+
 	icmSn_ScriptCode(b, &p->_scCount, &p->scCount, &p->scDesc,
 	                &p->scFcount, "icmTextDescription");
 
@@ -7078,9 +7084,9 @@ static void icmProfileSequenceDesc_serialise(icmProfileSequenceDesc *p, icmFBuf 
 
 		/* Deal with sub-tags */
 		icmSn_SubTagType(b, NULL, NULL, (icmBase **)(&pp->mfgDesc), icmSigCommonTextDescriptionType,
-		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, 4);
+		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdff, 4);
 		icmSn_SubTagType(b, NULL, NULL, (icmBase **)&pp->modelDesc, icmSigCommonTextDescriptionType,
-		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, 4);
+		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdff, 4);
 	}
 
 	ICMSNFREEARRAY(b, p->_count, p->data)
@@ -7108,13 +7114,12 @@ static void icmProfileSequenceDesc_dump(
 			op->printf(op,"  Dev. Model        = %s\n",icmDeviceModelSig2str(pp->deviceModel));
 			op->printf(op,"  Dev. Attrbts      = %s\n", icmDeviceAttributes2str(pp->attributes.l));
 			op->printf(op,"  Dev. Technology   = %s\n", icmTechnologySig2str(pp->technology));
-			if (verb >= 3) {
+			if (verb >= 2) {
 				op->printf(op,"  Dev. Manufacturer Description:\n");
 				pp->mfgDesc->dump(pp->mfgDesc, op, verb-1);
 				op->printf(op,"  Dev. Model Description:\n");
 				pp->modelDesc->dump(pp->modelDesc, op, verb-1);
 			}
-			op->printf(op,"\n");
 		}
 	}
 }
@@ -7129,12 +7134,12 @@ static int icmProfileSequenceDesc_check(icmProfileSequenceDesc *p, icTagSignatur
 		icTagTypeSignature ttype;
 
 		ttype = pp->mfgDesc->ttype;
-		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype) != ICM_ERR_OK) {
+		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdff) != ICM_ERR_OK) {
 			return p->icp->e.c;
 		}
 
 		ttype = pp->modelDesc->ttype;
-		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype) != ICM_ERR_OK) {
+		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdff) != ICM_ERR_OK) {
 			return p->icp->e.c;
 		}
 	}
@@ -8572,7 +8577,7 @@ static icmTagSigVersTypesRec icmTagSigTable[] = {
 /* need to be checked. Order is specific to general, so that any error/warning */
 /* is the most general one. */
 static icmRequiredTagType icmClassTagTable[] = {
-    {icSigInputClass,			ICMCSMR_DEV(1),	ICMCSMR_PCS,	ICMTVRANGE_ALL, 
+    {icSigInputClass,			ICMCSMR_ANY(1),	ICMCSMR_PCS,	ICMTVRANGE_ALL, 
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigGrayTRCTag,					ICMTVRANGE_ALL },
@@ -8592,7 +8597,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigInputClass,			ICMCSMR_DEV(3),	ICMCSMR_XYZ,	ICMTVRANGE_ALL, 
+    {icSigInputClass,			ICMCSMR_ANY(3),	ICMCSMR_XYZ,	ICMTVRANGE_ALL, 
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigRedColorantTag,				ICMTVRANGE_ALL },
@@ -8618,7 +8623,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigInputClass,     		ICMCSMR_DEVN,	ICMCSMR_PCS,	ICMTVRANGE_ALL,
+    {icSigInputClass,     		ICMCSMR_ANYN,	ICMCSMR_PCS,	ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigAToB0Tag,					ICMTVRANGE_ALL },
@@ -8639,7 +8644,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 	},
 
 
-    {icSigDisplayClass,			ICMCSMR_DEV(1),	ICMCSMR_PCS,	ICMTVRANGE_ALL,
+    {icSigDisplayClass,			ICMCSMR_ANY(1),	ICMCSMR_PCS,	ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigGrayTRCTag,					ICMTVRANGE_ALL },
@@ -8659,7 +8664,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigDisplayClass,     	ICMCSMR_DEV(3),	ICMCSMR_XYZ,    ICMTVRANGE_ALL,
+    {icSigDisplayClass,     	ICMCSMR_ANY(3),	ICMCSMR_XYZ,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigRedColorantTag,				ICMTVRANGE_ALL },
@@ -8685,7 +8690,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigDisplayClass,     	ICMCSMR_DEVN, 	ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigDisplayClass,     	ICMCSMR_ANYN, 	ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigAToB0Tag,					ICMTVRANGE_ALL },
@@ -8706,7 +8711,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 	},
 
 
-    {icSigOutputClass,			ICMCSMR_DEV(1),    ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigOutputClass,			ICMCSMR_ANY(1),    ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigGrayTRCTag,					ICMTVRANGE_ALL },
@@ -8726,7 +8731,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigOutputClass,			ICMCSMR_DEV_NOT_NCOL,	ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigOutputClass,			ICMCSMR_NOT_NCOL,	ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigAToB0Tag,					ICMTVRANGE_ALL },
@@ -8824,7 +8829,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigColorSpaceClass,		ICMCSMR_ANY,	ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigColorSpaceClass,		ICMCSMR_ANYN,	ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigBToA0Tag,					ICMTVRANGE_ALL },
@@ -8856,7 +8861,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigNamedColorClass,		ICMCSMR_ANY,    ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigNamedColorClass,		ICMCSMR_ANYN,    ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigNamedColorTag,				ICMTVRANGE_ALL },
@@ -8869,7 +8874,7 @@ static icmRequiredTagType icmClassTagTable[] = {
 		}
 	},
 
-    {icSigNamedColorClass,		ICMCSMR_ANY,    ICMCSMR_PCS,    ICMTVRANGE_ALL,
+    {icSigNamedColorClass,		ICMCSMR_ANYN,    ICMCSMR_PCS,    ICMTVRANGE_ALL,
 		/* Required: */
 	 	{{ icSigProfileDescriptionTag,		ICMTVRANGE_ALL },
 		 { icSigNamedColor2Tag,				ICMTVRANGE_ALL },
@@ -9118,7 +9123,7 @@ static icmFile *icc_get_rfp(icc *p) {
 /* Return file version in icmTV format, 0 on error */
 icmTV icc_get_version(icc *p) {
 	if (p->header == NULL) {
-		icm_err(p, ICM_ERR_INTERNAL, "icc_set_version: No Header available");
+		icm_err(p, ICM_ERR_INTERNAL, "icc_get_version: No Header available");
 		return ICMTV_MIN;
 	}
 
@@ -9263,9 +9268,6 @@ static int icmCSMR_match(icmCSMR *p, icColorSpaceSignature sig, int nchans) {
 				
     		case icmCSMF_NOT_NCOL:
 				return !(mask & CSSigType_NCOL);
-				
-    		case icmCSMF_DEV_NOT_NCOL:
-				return (mask & CSSigType_DEV) && !(mask & CSSigType_NCOL);
 		}
 	}
 
@@ -9313,7 +9315,8 @@ static int icc_write_check(
 		ttype = p->data[i].objp->ttype;		/* Actual or icmSigUnknownType */ 
 
 		/* Do tag & tagtype check */
-		if (icc_check_sig(p, NULL, 0, p->data[i].sig, ttype, uttype) != ICM_ERR_OK)
+		if (icc_check_sig(p, NULL, 0, p->data[i].sig, ttype, uttype, p->data[i].objp->rdff)
+			                                                                   != ICM_ERR_OK)
 			return p->e.c;
 
 		/* If there are shared tagtypes, check compatibility */
@@ -9354,8 +9357,8 @@ static int icc_write_check(
 //	printf("dchans %d, pchans %d\n",dchans,pchans);
 
 		/* Find a matching class entry. A profile may match more than one entry, */
-		/* so we go through all matching entries looking for one it */
-		/* is complient with, and noting any warnings for those it doesn't. */
+		/* so we go through all matching entries looking for one */
+		/* it is complient with, and noting any warnings for those it doesn't. */
 		for (i = 0; p->classtagtable[i].clsig != icMaxEnumTagType; i++) {
 			if (p->classtagtable[i].clsig == clsig
 			 && icmCSMR_match(&p->classtagtable[i].colsig, colsig, dchans)
@@ -9445,7 +9448,7 @@ static int icc_write_check(
 		
 		/* Didn't find matching class entry */
 		return icmFormatWarning(p, ICM_FMT_UNKNOWN_CLASS,
-		          "icc_write_check: deviceClass %s PCS %s dev %s is not known\n",
+		          "icc_write_check: deviceClass %s for PCS '%s' Dev '%s' is not known\n",
 		               icmtag2str(clsig), icmColorSpaceSig2str(pcssig),
 						                icmColorSpaceSig2str(colsig));
 	}	/* End of checking required tags */
@@ -9547,7 +9550,7 @@ static void icc_read_arts_chad(icc *p) {
 	/* which cannot be exactly decomposed into a cone space matrix + Von Kries scaling. */ 
 }
 
-static icmBase *icc_add_tag_imp(icc *p, icTagSignature sig, icTagTypeSignature ttype);
+static icmBase *icc_add_tag_imp(icc *p, icTagSignature sig, icTagTypeSignature ttype, int rdff);
 
 /* Add any automatically created tags. */
 /* If this is called from icc_get_size() then wr = z, */
@@ -9582,7 +9585,7 @@ static int icc_add_auto_tags(icc *p, int wr) {
 				}
 			}
 			if ((artsTag = (icmS15Fixed16Array *)icc_add_tag_imp(p, icmSigAbsToRelTransSpace,
-			                                     icSigS15Fixed16ArrayType)) == NULL) {
+			                                     icSigS15Fixed16ArrayType, 0)) == NULL) {
 				return icm_err(p, 1,"icc_write: Adding 'arts' tag failed");
 			}
 		} else {
@@ -9643,7 +9646,7 @@ static int icc_add_auto_tags(icc *p, int wr) {
 	
 			/* Add one */
 			if ((chadTag = (icmS15Fixed16Array *)icc_add_tag_imp(p, icSigChromaticAdaptationTag,
-				                                     icSigS15Fixed16ArrayType)) == NULL) {
+				                                     icSigS15Fixed16ArrayType, 0)) == NULL) {
 				return icm_err(p, 1,"icc_write: Adding 'chad' tag failed");
 			}
 			chadTag->count = 9;
@@ -9710,7 +9713,7 @@ static int icc_add_auto_tags(icc *p, int wr) {
 	
 			/* Add one */
 			if ((chadTag = (icmS15Fixed16Array *)icc_add_tag_imp(p, icSigChromaticAdaptationTag,
-				                                     icSigS15Fixed16ArrayType)) == NULL) {
+				                                     icSigS15Fixed16ArrayType, 0)) == NULL) {
 				return icm_err(p, 1,"icc_write: Adding 'chad' tag failed");
 			}
 			chadTag->count = 9;
@@ -10231,7 +10234,8 @@ static int icc_check_sig(
 	int rd,						/* Flag, NZ if reading, else writing */
     icTagSignature sig,			/* Tag signature, possibly icmSigUnknown */
 	icTagTypeSignature ttype,	/* Tag type, possibly icmSigUnknownType */
-	icTagTypeSignature uttype	/* Actual tag type if Unknown */
+	icTagTypeSignature uttype,	/* Actual tag type if Unknown */
+	int rdff					/* Tag was read from file */
 ) {
 	unsigned int i, j;
 
@@ -10255,15 +10259,24 @@ static int icc_check_sig(
 		 && (  p->op != icmSnWrite											/* Not write */
 		    || (p->cflags & icmCFlagAllowWrVersion) == 0					/* Not allow */
 			|| !icmVersOverlap(&p->tagtypetable[j].vrange, &p->vcrange))) {	/* Not o'lap range */
+			int warn = 0;		/* Force warning rather than error */
+
+			/* Warn rather than error if icmCFlagWrFileRdWarn and tag was read from file */
+			if (p->op == icmSnWrite
+			 && (p->cflags & icmCFlagWrFileRdWarn)
+			 && rdff)
+				warn = 1;
 
 			/* Special case for backwards compatibility */
 			if (ttype != icSigColorantTableType
-			 || getenv("ARGYLL_CREATE_V2COLORANT_TABLE") == NULL)
-			if (icmVersionWarning(p, ICM_VER_TYPEVERS, 
-				  "Tag Type '%s' is not valid for file version %s (valid %s)\n",
-				  icmTypeSig2str(ttype), icmProfileVers2str(p),
-				  icmTVersRange2str(&p->tagtypetable[j].vrange)) != ICM_ERR_OK) {
-				return p->e.c;
+			 || p->op != icmSnWrite || getenv("ARGYLL_CREATE_V2COLORANT_TABLE") == NULL) {
+
+				if (icmVersionWarning(p, ICM_VER_TYPEVERS, warn,
+					  "Tag Type '%s' is not valid for file version %s (valid %s)\n",
+					  icmTypeSig2str(ttype), icmProfileVers2str(p),
+					  icmTVersRange2str(&p->tagtypetable[j].vrange)) != ICM_ERR_OK) {
+					return p->e.c;
+				}
 			}
 		}
 
@@ -10303,7 +10316,15 @@ static int icc_check_sig(
 				  icmTVersRange2str(&p->tagsigtable[i].vrange));
 
 			} else {
-				if (icmVersionWarning(p, ICM_VER_SIGVERS, 
+				int warn = 0;		/* Force warning rather than error */
+	
+				/* Warn rather than error if icmCFlagWrFileRdWarn and tag was read from file */
+				if (p->op == icmSnWrite
+				 && (p->cflags & icmCFlagWrFileRdWarn)
+				 && rdff)
+					warn = 1;
+
+				if (icmVersionWarning(p, ICM_VER_SIGVERS, warn, 
 					  "Tag Sig '%s' is not valid for file version %s (valid %s)\n",
 					  icmTagSig2str(sig), icmProfileVers2str(p),
 					  icmTVersRange2str(&p->tagsigtable[i].vrange)) != ICM_ERR_OK)
@@ -10339,7 +10360,7 @@ static int icc_check_sig(
 			    || (p->cflags & icmCFlagAllowWrVersion) == 0
 				|| !icmVersOverlap(&p->tagsigtable[i].ttypes[j].vrange, &p->vcrange))) {
 
-				if (icmVersionWarning(p, ICM_VER_SIG2TYPEVERS, 
+				if (icmVersionWarning(p, ICM_VER_SIG2TYPEVERS, 0, 
 					  "Tag Sig '%s' can't use Tag Type '%s' in file version %s (valid %s)",
 			          icmTagSig2str(sig), icmTypeSig2str(uttype), icmProfileVers2str(p),
 					  icmTVersRange2str(&p->tagsigtable[i].ttypes[j].vrange)) != ICM_ERR_OK)
@@ -10469,7 +10490,8 @@ static icmBase *icc_read_tag_ix(
 	if (k < p->count) {		/* Mark it as a link */
 
 		/* Check that the tag signature and tag type are compatible */
-		if (icc_check_sig(p, NULL, 1, p->data[i].sig, ttype, uttype) != ICM_ERR_OK) {
+		if (icc_check_sig(p, NULL, 1, p->data[i].sig, ttype, uttype, p->data[k].objp->rdff)
+			                                                                   != ICM_ERR_OK) {
 			return NULL;
 		}
 
@@ -10496,8 +10518,10 @@ static icmBase *icc_read_tag_ix(
 		return nob;			/* Done */
 	}
 
+	p->rdff = 1;		/* Objects being created during reading a file */
+
 	/* See if we can handle this type */
-	if (icc_check_sig(p, &j, 1, p->data[i].sig, ttype, uttype) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &j, 1, p->data[i].sig, ttype, uttype, p->rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -10508,6 +10532,7 @@ static icmBase *icc_read_tag_ix(
 		nob = p->tagtypetable[j].new_obj(p, ttype);
 
 	if (nob == NULL) {
+		p->rdff = 0;
 		return NULL;
 	}
 
@@ -10515,8 +10540,11 @@ static icmBase *icc_read_tag_ix(
 
 	if ((nob->read(nob, p->data[i].size, p->of + p->data[i].offset)) != 0) {
 		nob->del(nob);		/* Failed, so destroy it */
+		p->rdff = 0;
 		return NULL;
 	}
+	p->rdff = 0;
+
 	/* Check this tags validity */
 	if (nob->check != NULL) {
 		if (nob->check(nob, p->data[i].sig, 1) != ICM_ERR_OK) {
@@ -10596,7 +10624,8 @@ static icmBase *icc_read_tag_any(
 static icmBase *icc_add_tag_imp(
 	icc *p,
     icTagSignature sig,			/* Tag signature - may be unknown */
-	icTagTypeSignature ttype	/* Tag type - may be icmSigUnknownType */
+	icTagTypeSignature ttype,	/* Tag type - may be icmSigUnknownType */
+	int rdff					/* Is read from file */
 ) {
 	icmTagRec *tp;
 	icmBase *nob;
@@ -10607,7 +10636,7 @@ static icmBase *icc_add_tag_imp(
 
 	/* Check that the tag signature and tag type are reasonable */
 	/* (Handles icmSigUnknownType appropriately) */
-	if (icc_check_sig(p, &j, 0, sig, ttype, ttype) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &j, 0, sig, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -10668,7 +10697,7 @@ static icmBase *icc_add_tag(
 ) {
 	p->op = icmSnWrite;			/* Let check know assumed direction */
 
-	return icc_add_tag_imp(p, sig, ttype);
+	return icc_add_tag_imp(p, sig, ttype, 0);
 }
 
 /* Rename a tag signature */
@@ -10679,6 +10708,7 @@ static int icc_rename_tag(
     icTagSignature sigNew		/* New Tag signature - may be unknown */
 ) {
 	unsigned int k;
+	int rdff = 0;
 
 	p->op = icmSnWrite;			/* Let check know direction */
 
@@ -10692,8 +10722,12 @@ static int icc_rename_tag(
 		                                                         icmTagSig2str(sig));
 	}
 
+	/* Get rdff flag if known */
+	if (p->data[k].objp != NULL)
+		rdff = p->data[k].objp->rdff;
+
 	/* Check that the tag signature and tag type are reasonable */
-	if (icc_check_sig(p, NULL, 0, sigNew, p->data[k].ttype, p->data[k].ttype) != ICM_ERR_OK)
+	if (icc_check_sig(p, NULL, 0, sigNew, p->data[k].ttype, p->data[k].ttype, rdff) != ICM_ERR_OK)
 		return p->e.c;
 
 	/* Check the classes are compatible */
@@ -10758,7 +10792,8 @@ static icmBase *icc_link_tag(
 	}
 
 	/* Check that the new tag signature and linked tag type are reasonable */
-	if (icc_check_sig(p, NULL, 0, sig, p->data[i].objp->ttype, p->data[i].ttype) != ICM_ERR_OK)
+	if (icc_check_sig(p, NULL, 0, sig, p->data[i].objp->ttype, p->data[i].ttype,
+		                                 p->data[i].objp->rdff) != ICM_ERR_OK)
 		return NULL;
 
 	/* Check the LUT classes are compatible */
@@ -10930,12 +10965,14 @@ static int icc_delete_tag_quiet(
 	return icc_delete_tag_imp(p, sig, 1);
 }
 
+/* (Internal implementation) */
 /* Create tagtype for embedding in another tagtype (i.e. ProfileSequenceDescType). */
 /* Returns pointer to object or NULL on error. */
-static icmBase *icc_new_ttype(
+static icmBase *icc_new_ttype_imp(
 	icc *p,
 	icTagTypeSignature ttype,		/* Sub-tagtype to create */
-	icTagTypeSignature pttype		/* tagtype of creator */
+	icTagTypeSignature pttype,		/* tagtype of creator */
+	int rdff						/* Is read from file */
 ) {
 	icmBase *nob;
 	unsigned int k;
@@ -10944,7 +10981,7 @@ static icmBase *icc_new_ttype(
 	ttype = icc_translate_pseudotype(p, icmSigUnknown, ttype);
 
 	/* Check that the tag type is reasonable */
-	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -10962,7 +10999,7 @@ static icmBase *icc_new_ttype(
 		}
 		if (icmValidSubTagTypesTable[i].pttype == icMaxEnumTagType) {
 			icmFormatWarning(p, ICM_FMT_PAR_TYPE_INVALID,
-			          "icmSn_SubTagType: parent ttype %s cannot have sub-tags\n",
+			          "icc_new_ttype_imp: parent ttype %s cannot have sub-tags\n",
 			                                             icmTypeSig2str(pttype));
 			return NULL;
 		}
@@ -10972,7 +11009,7 @@ static icmBase *icc_new_ttype(
 		}
 		if (icmValidSubTagTypesTable[i].ttypes[j] == icMaxEnumTagType) {
 			icmFormatWarning(p, ICM_FMT_SUB_TYPE_INVALID,
-			          "icmSn_SubTagType: sub ttype %s is invalid for parent %s\n",
+			          "icc_new_ttype_imp: sub ttype %s is invalid for parent %s\n",
 			                       icmTypeSig2str(ttype), icmTypeSig2str(pttype));
 			return NULL;
 		}
@@ -10985,20 +11022,31 @@ static icmBase *icc_new_ttype(
 	return nob;
 }
 
-/* Create icmPe for embedding. */
+/* Create tagtype for embedding in another tagtype (i.e. ProfileSequenceDescType). */
 /* Returns pointer to object or NULL on error. */
-/* (This has the same logic as icc_new_ttype with extra checking, since icmPe */
-/*  inherets from icmBase) */
-static icmPe *icc_new_pe(
+static icmBase *icc_new_ttype(
 	icc *p,
 	icTagTypeSignature ttype,		/* Sub-tagtype to create */
 	icTagTypeSignature pttype		/* tagtype of creator */
+) {
+	return icc_new_ttype_imp(p, ttype, pttype, 0);
+}
+
+/* Create icmPe for embedding (internal implementation). */
+/* Returns pointer to object or NULL on error. */
+/* (This has the same logic as icc_new_ttype with extra checking, since icmPe */
+/*  inherets from icmBase) */
+static icmPe *icc_new_pe_imp(
+	icc *p,
+	icTagTypeSignature ttype,		/* Sub-tagtype to create */
+	icTagTypeSignature pttype,		/* tagtype of creator */
+	int rdff						/* Is read from file */
 ) {
 	icmBase *nob;
 	unsigned int k, i, j;
 
 	/* Check that the tag type is reasonable */
-	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -11014,7 +11062,7 @@ static icmPe *icc_new_pe(
 	}
 	if (icmValidSubTagTypesTable[i].pttype == icMaxEnumTagType) {
 		icmFormatWarning(p, ICM_FMT_PAR_TYPE_INVALID,
-		          "icc_new_pe: parent ttype %s cannot have sub-tags\n",
+		          "icc_new_pe_imp: parent ttype %s cannot have sub-tags\n",
 		                                             icmTypeSig2str(pttype));
 		return NULL;
 	}
@@ -11024,7 +11072,7 @@ static icmPe *icc_new_pe(
 	}
 	if (icmValidSubTagTypesTable[i].ttypes[j] == icMaxEnumTagType) {
 		icmFormatWarning(p, ICM_FMT_SUB_TYPE_INVALID,
-		          "icc_new_pe: sub ttype %s is invalid for parent %s\n",
+		          "icc_new_pe_imp: sub ttype %s is invalid for parent %s\n",
 		                       icmTypeSig2str(ttype), icmTypeSig2str(pttype));
 		return NULL;
 	}
@@ -11036,6 +11084,16 @@ static icmPe *icc_new_pe(
 	nob->emb = 1;
 
 	return (icmPe *)nob;
+}
+
+/* Create icmPe for embedding. */
+/* Returns pointer to object or NULL on error. */
+static icmPe *icc_new_pe(
+	icc *p,
+	icTagTypeSignature ttype,		/* Sub-tagtype to create */
+	icTagTypeSignature pttype		/* tagtype of creator */
+) {
+	return icc_new_pe_imp(p, ttype, pttype, 0);
 }
 
 /* Copy & possibly translate a TagTypes contents from one TagType to another. */
@@ -11166,6 +11224,12 @@ static void icc_set_defaults(icc *p) {
 		icmCpy3x3(p->wpchtmx, icmWrongVonKries);
 		icmCpy3x3(p->iwpchtmx, icmWrongVonKries);
 	}
+
+	/* 'chad' tag requires at least V2.4 */
+	if ((p->wrDChad || p->wrOChad)
+	  && p->get_version(p) < ICMTV_24) {
+		p->set_version(p, ICMTV_24);
+	}
 }
 
 /* Create an empty object. Return NULL on error */
@@ -11232,11 +11296,13 @@ icmAlloc *al			/* Memory allocator to take reference of */
 	p->transtagtable = icmTransTagTable; 
 
 	/* By default be leanient in what we read, and strict in what we write. */
+	/* Just warn if we write tags read from an existing file though. */
 	p->cflags |= icmCFlagRdFormatWarn;
 	p->cflags |= icmCFlagRdVersionWarn;
 	p->cflags |= icmCFlagRdAllowUnknown;
 	p->cflags |= icmCFlagAllowExtensions;
 	p->cflags |= icmCFlagAllowQuirks;
+	p->cflags |= icmCFlagWrFileRdWarn;
 	p->vcrange = icmtvrange_none;
 
 	p->align = icAlignSize;		/* Everything is 32 bit aligned */

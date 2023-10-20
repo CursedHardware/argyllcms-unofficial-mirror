@@ -891,6 +891,8 @@ make_output_icc(
 			error("Output device input file has unhandled color representation '%s'",
 			                                                     icg->t[0].kdata[ti]);
 		/* Figure out some suitable table sizes */
+
+		/* A2B table: */
 		if (devchan >= 4) {			/* devchan == 4 or greater */
 			if (iquality >= 3) {
 		    	a2binres = 2048;
@@ -947,6 +949,7 @@ make_output_icc(
 			}
 		}
 
+		/* B2A table: */
 		if (devchan >= 2) {
 			if (oquality >= 3) {	/* Ultra High */
 		    	b2ainres = 2048;

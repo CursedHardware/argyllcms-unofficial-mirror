@@ -17,9 +17,23 @@
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the <a
         href="../log.txt">log.txt</a> file.</h3>
+    <h1>[V3.0.0 -&gt; V3.0.1] 19th October 2023</h1>
+    <ul>
+      <li>&nbsp;Fixed accuracy problem with xicclu -fb when using cLut
+        type profiles that use a matrix in their B2A table.</li>
+      <li>Fixed crash in xicclu with device link profiles.</li>
+      <li>Fixed error when creating profiles with
+        ARGYLL_CREATE_DISPLAY_PROFILE_WITH_CHAD or
+        ARGYLL_CREATE_OUTPUT_PROFILE_WITH_CHAD.</li>
+      <li>Make re-writing an ICC profile more forgiving of tags that are
+        incorrect for the profile version.</li>
+      <li>Fixed problem with writing textDescriptionType ScriptCode that
+        was not being padded to 67 characters.</li>
+      <li>Fixed bug in CGATS output. This showed up in oeminst.</li>
+    </ul>
     <h1>[V2.3.1 -&gt; V3.3.0] 15th September 2023</h1>
     <ul>
-      <li>&nbsp;Updated ccast/axTLS to get ChromCast working again with
+      <li>&nbsp;Updated ccast/axTLS to get ChromeCast working again with
         latest Google CC operating software.<br>
       </li>
       <li>&nbsp;Extensive re-write/re-factor of icclib to make it more
@@ -1491,6 +1505,8 @@
 
 
 
+
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1505,6 +1521,8 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
+
 
 
 

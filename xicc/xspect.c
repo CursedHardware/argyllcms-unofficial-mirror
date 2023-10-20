@@ -3758,7 +3758,7 @@ int write_nxspect_1(cgats **pocg, inst_meas_type mt, inst_meas_cond mc, xspect *
 int write_nxspect_2(cgats *ocg, char *fname) {
 
 	if (ocg->write_name(ocg, fname)) {
-		DBGF((DBGA,"CGATS file write error : %s\n",ocg->err));
+		DBGF((DBGA,"CGATS file write error : %s\n",ocg->e.m));
 		return 1;
 	}
 
@@ -3816,7 +3816,7 @@ int read_nxspect_1(cgats **picg, xspect *sp, inst_meas_type *mt, inst_meas_cond 
 	}
 
 	if (icg->read_name(icg, fname)) {
-		DBGF((DBGA,"CGATS file read error : %s\n",icg->err));
+		DBGF((DBGA,"CGATS file read error : %s\n",icg->e.m));
 		icg->del(icg);
 		return 1;
 	}

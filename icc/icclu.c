@@ -48,8 +48,8 @@ void usage(void) {
 	fprintf(stderr," -o order      n = normal (priority: lut > matrix > monochrome)\n");
 	fprintf(stderr,"               r = reverse (priority: monochrome > matrix > lut)\n");
 	fprintf(stderr," -s scale      Scale device range 0.0 - scale rather than 0.0 - 1.0\n");
+	fprintf(stderr," -D verb       Dump the Pe's of all conversions\n");
 	fprintf(stderr," -T            Trace each step of conversions\n");
-//	fprintf(stderr," -D            Dump the Pe's of all conversions\n");
 	fprintf(stderr,"\n");
 	fprintf(stderr,"    The colors to be translated should be fed into standard input,\n");
 	fprintf(stderr,"    one input color per line, white space separated.\n");
@@ -72,6 +72,7 @@ main(int argc, char *argv[]) {
 	char buf[200];
 	double oin[MAX_CHAN], in[MAX_CHAN], out[MAX_CHAN];
 
+	int dump = 0;				/* Dump the conversions */
 	int trace = 0;				/* Trace the conversions */
 	icmLuSpace *luo;
 	icmCSInfo ini, outi, pcsi;			/* Type of input and output spaces */
@@ -241,6 +242,14 @@ main(int argc, char *argv[]) {
 				if (scale <= 0.0) usage();
 			}
 
+
+			else if (argv[fa][1] == 'D') {
+				fa = nfa;
+				if (na == NULL) usage();
+				dump = atoi(na);
+				if (dump <= 0.0) usage();
+			}
+
 			else if (argv[fa][1] == 'T') {
 				trace = 1;
 			}
@@ -295,6 +304,33 @@ main(int argc, char *argv[]) {
 	/* Get a conversion object */
 	if ((luo = (icmLuSpace *)icco->get_luobj(icco, func, intent, pcsor, order)) == NULL)
 		error ("%d, %s",icco->e.c, icco->e.m);
+
+	if (dump > 0) {
+		icmErr err = { 0 };
+		icmFile *op;
+		int verb = 1;
+
+		if ((op = new_icmFileStd_fp(&err, stdout)) == NULL) {
+    		printf("Can't open stdout stream, failed with 0x%x, '%s'",err.c, err.m);
+		} else {
+			printf("\nOverall transform:\n");
+			luo->lookup->dump(luo->lookup, op, dump);
+		
+			printf("\n3 Step transform:\n");
+			luo->input->dump(luo->input, op, dump);
+			luo->core3->dump(luo->core3, op, dump);
+			luo->output->dump(luo->output, op, dump);
+
+			printf("\n5 Step transform:\n");
+			luo->input_fmt->dump(luo->input_fmt, op, dump);
+			luo->input_pch->dump(luo->input_pch, op, dump);
+			luo->core5->dump(luo->core5, op, dump);
+			luo->output_pch->dump(luo->output_pch, op, dump);
+			luo->output_fmt->dump(luo->output_fmt, op, dump);
+
+			op->del(op);
+		}
+	}
 
 	if (trace) {
 		luo->lookup->trace = 1;

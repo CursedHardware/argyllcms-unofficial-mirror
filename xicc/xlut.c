@@ -232,14 +232,24 @@ double *auxv,	/* If not NULL, return aux value used (packed) */
 double *in		/* input' value */
 ) {
 	int rv = 0;
-	co tc;
 	int i;
 
-	for (i = 0; i < p->inputChan; i++)
-		tc.p[i] = in[i];
-	rv |= p->clutTable->interp(p->clutTable, &tc);
-	for (i = 0; i < p->outputChan; i++)
-		out[i] = tc.v[i];
+	/* Use icm lookup for forward direction, since this will be more */
+	/* accurate than rspl cLUT if core5 is complex. */
+    icmPe_lurv prv = icmPe_lurv_OK;
+
+	if (p->mergeclut == 0) {	/* Do this if it's not merged with clut, */
+		prv |= p->plu->core5_fwd(p->plu, out, in);
+	} else {	/* If mergeclut */
+		prv |= p->plu->core5_fwd(p->plu, out, in);
+		prv |= p->plu->output_pch_fwd(p->plu, out, out);
+		prv |= p->plu->output_fmt_fwd(p->plu, out, out);
+
+		if (p->outs == icxSigJabData) {
+			p->cam->XYZ_to_cam(p->cam, out, out);
+		}
+	}
+	rv = LUE2XLUE(prv);
 
 	if (auxv != NULL) {
 		int ee = 0;
@@ -2083,25 +2093,16 @@ icxLuLut_clut_func(
 	icxLuLut *p      = (icxLuLut *)pp;			/* this */
 	icmLuLut *luluto = (icmLuLut *)p->plu;		/* Get icmLuLut object */
 
-	luluto->core5_fwd(luluto, out, in);
-}
+	if (p->mergeclut == 0) {	/* Do this if it's not merged with clut, */
+		luluto->core5_fwd(luluto, out, in);
+	} else {	/* If mergeclut */
+		luluto->core5_fwd(luluto, out, in);
+		luluto->output_pch_fwd(luluto, out, out);
+		luluto->output_fmt_fwd(luluto, out, out);
 
-/* Function to pass to rspl to set clut up, when mergeclut is set */
-static void
-icxLuLut_clut_merge_func(
-	void *pp,			/* icxLuLut */
-	double *out,		/* output value */
-	double *in			/* input value */
-) {
-	icxLuLut *p      = (icxLuLut *)pp;			/* this */
-	icmLuLut *luluto = (icmLuLut *)p->plu;		/* Get icmLuLut object */
-
-	luluto->core5_fwd(luluto, out, in);
-	luluto->output_pch_fwd(luluto, out, out);
-	luluto->output_fmt_fwd(luluto, out, out);
-
-	if (p->outs == icxSigJabData) {
-		p->cam->XYZ_to_cam(p->cam, out, out);
+		if (p->outs == icxSigJabData) {
+			p->cam->XYZ_to_cam(p->cam, out, out);
+		}
 	}
 }
 
@@ -2280,6 +2281,26 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 				gres[i] = res;
 		}
 
+		/* If what we're imitating is complex, use a high resolution */
+		if (p->plu->core5->attr.op == icmPeOp_complex) {
+			if (p->inputChan <= 3) {
+				for (i = 0; i < p->inputChan; i++) {
+					if (gres[i] < 33)
+						gres[i] = 33;
+				}
+			} else if (p->inputChan <= 4) {
+				for (i = 0; i < p->inputChan; i++) {
+					if (gres[i] < 17)
+						gres[i] = 17;
+				}
+			} else {
+				for (i = 0; i < p->inputChan; i++) {
+					if (gres[i] < 9)
+						gres[i] = 9;
+				}
+			}
+		}
+
 #ifdef FASTREVSETUP_NON_CAM
 		# pragma message("!!!!!!!!!!!! FASTREVSETUP_NON_CAM is on !!!!!!!!!")
 
@@ -2299,17 +2320,10 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 			return NULL;
 		}
 
-		if (p->mergeclut == 0) {	/* Do this if it's not merged with clut, */
-			p->clutTable->set_rspl(p->clutTable, RSPL_NOFLAGS,
-			           (void *)p, icxLuLut_clut_func,
-		               p->ninmin, p->ninmax, gres, p->noutmin, p->noutmax);
-
-		} else {	/* If mergeclut */
-			p->clutTable->set_rspl(p->clutTable, RSPL_NOFLAGS,
-			           (void *)p, icxLuLut_clut_merge_func,
-		               p->ninmin, p->ninmax, gres, p->noutmin, p->noutmax);
-
-		}
+		/* Setup for normal or merged */
+		p->clutTable->set_rspl(p->clutTable, RSPL_NOFLAGS,
+		           (void *)p, icxLuLut_clut_func,
+	               p->ninmin, p->ninmax, gres, p->noutmin, p->noutmax);
 
 #ifdef USELCHWEIGHT
 		/* If we are not doing camclip, but our output is an Lab like space, */

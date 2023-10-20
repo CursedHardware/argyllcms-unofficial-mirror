@@ -19,8 +19,6 @@ if $(USE_CMFM) = true {
 
 if $(USE_PLOT) = true {
 	DEFINES += EN_PLOT ; 
-} else {
-	UNDEFS += $(UNDEFFLAG)EN_PLOT ; 
 }
 
 if [ GLOB [ NormPaths . ] : fastserio.c ]  {
@@ -37,50 +35,15 @@ MADVRSOURCE = ;
 if $(NT) {
 	MADVRSOURCE = madvrwin.c ;
 
-	if $(USE_LIBUSB) = true {
-		DEFINES += USE_LIBUSB ;
-		if $(USE_LIBUSB1) = true {
-			DEFINES += USE_LIBUSB1 ;
-			LIBUSBDIR = ../libusb1 ;
-			LIBUSBHDRS = ../libusb1 ;
-			if $(MSVCNT) {
-				LIBUSBHDRS += ../libusb1/msvc ;	# So stdint.h can be found
-			}
-			if $(LIBUSB_IS_DLL) = true {
-				LIBUSB = $(LIBUSB1NAME)$(SUFIMPLIB) ;
-				LIBUSBSH = $(LIBUSB1NAME)$(SUFSHLIB) ;
-			} else {
-				LIBUSB = $(LIBUSB1NAME)$(SUFLIB) ;
-			}
-		} else {
-			LIBUSBDIR = ../libusbw ;
-			LIBUSBHDRS = ../libusbw ;
-			LIBUSB = libusb ;
-		}
+	if $(USE_USBDK) = true {
+echo "####### got USE_USBDK" ;
+		DEFINES += EN_USBDK ;
 	} else {
 		LIBUSBHDRS = ../usb/driver ;	# libusb-win32 kernel driver info
 	}
 }
 
 if $(UNIX) {
-	if $(USE_LIBUSB)  = true {
-		DEFINES += USE_LIBUSB ;
-		if $(USE_LIBUSB1) = true {
-			DEFINES += USE_LIBUSB1 ;
-			LIBUSBDIR = ../libusb1 ;
-			LIBUSBHDRS = ../libusb1 ;
-			if $(LIBUSB_IS_DLL) = true {
-				LIBUSB = $(LIBUSB1NAME)$(SUFIMPLIB) ;
-				LIBUSBSH = $(LIBUSB1NAME)$(SUFSHLIB) ;
-			} else {
-				LIBUSB = $(LIBUSB1NAME)$(SUFLIB) ;
-			}
-		} else {
-			LIBUSBDIR = ../libusb ;
-			LIBUSBHDRS = ../libusb ;
-			LIBUSB = libusb ;
-		}
-	}
 	CONVFILE = pollem.c ;
 }
 

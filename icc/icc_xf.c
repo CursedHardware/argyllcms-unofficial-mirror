@@ -5,13 +5,10 @@
 #undef DEBUG_GET_LU	/* [und] debug get_lu function */
 #undef ALWAYSLUTRACE	/* [und] create all icmLu with trace set */
 
-
 // ~8 need to check that _init() functions set & check error code ??
 
 /* ---------------------------------------------------------- */
 /* icmPe: A base object. (Not really usable as is) */
-
-static icmPe *icc_new_pe(icc *p, icTagTypeSignature ttype, icTagTypeSignature pttype);
 
 
 /* ---------------------------------------------------------- */
@@ -3107,6 +3104,7 @@ static icmLu4Base *icc_get_lu4obj (
 		return NULL;
 	}
 
+	/* -------------------------- */
 	/* Create the overall lookup: */
 	/* Add any PCS format conversions to the tagtype transform */
 
@@ -3130,6 +3128,7 @@ static icmLu4Base *icc_get_lu4obj (
 
 	p->lookup->init(p->lookup);
 
+	/* -------------------------- */
 	/* Split the overall up into the 3 component lookup: */
 
 	/* Setup components based on scanning the contents of lookup transform. */
@@ -3266,6 +3265,7 @@ static icmLu4Base *icc_get_lu4obj (
 	p->core3->init(p->core3);
 	p->output->init(p->output);
 
+	/* -------------------------- */
 	/* Split the overall up into the 5 component lookup: */
 	/* This is similar to above except we split the transform before adding */
 	/* format conversion. */ 
