@@ -24,8 +24,8 @@
 /* major number = 8 bits */
 /* (Version_str musn't have spaces) */
 
-# define ARGYLL_VERSION 0x03001
-# define ARGYLL_VERSION_STR "3.0.1"
+# define ARGYLL_VERSION 0x03002
+# define ARGYLL_VERSION_STR "3.0.2"
 
 #if defined(NT)
 # if defined(_WIN64)

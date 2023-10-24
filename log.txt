@@ -7,7 +7,16 @@ Not included yet:
 
 * Started adding comms for Lumagen Radiance detection.
 
-Version 3.0.1 beta 19 October 2023
+
+Version 3.0.2  23 October 2023
+-------------
+
+* Fix #include <ctype.h> in spectro/conv.c
+
+* Fix typo introduced into spectro/i1d3.c that prevents
+  retail i1d3 from working.
+
+Version 3.0.1  19 October 2023
 -------------
 
 * Fixed accuracy problem with xicclu -fb when using cLut type profiles
@@ -27,7 +36,7 @@ Version 3.0.1 beta 19 October 2023
 
 * Fixed bug in CGATS output. This showed up in oeminst.
 
-Version 3.0.0 15th September 2023
+Version 3.0.0  15th September 2023
 -------------
 
 * Updated ccast/axTLS to get ChromeCast working again with latest Google
