@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
+#include <ctype.h>
 
 #ifdef NT
 /* Set minimum OS target as XP */

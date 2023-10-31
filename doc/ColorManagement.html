@@ -108,7 +108,7 @@
     perceptually uniform device independent colorspace.<br>
     <br>
     As mentioned above, the key to managing color is to be able to
-    relate different color spaces so that they can be compares and
+    relate different color spaces so that they can be compared and
     transformed between. The most practical approach to doing this is to
     relate all color spaces back to one common colorspace, and the CIE
     XYZ colorspace is the logical choice for this. A description of the
@@ -124,8 +124,8 @@
     The ICC profile format refers to it's common color space as the <span
       style="font-weight: bold;">Profile Connection Space</span> (<span
       style="font-weight: bold;">PCS</span>), which is closely based on
-    the CIE XYZ space. ICC profile are based on a Tagged format, so they
-    are very flexible, and may contain a variety of ways to represent
+    the CIE XYZ space. ICC profile have a Tagged format, so they are
+    very flexible, and may contain a variety of ways to represent
     profile information, and may also contain a lot of other optional
     information.<br>
     <br>
@@ -208,10 +208,11 @@
     For an n-dimensional cLUT, the number of points needed to define it
     is equal to it's resolution taken to the power of the number of
     input channels. Because of this, the number of entries <span
-      class="st"><em></em></span>climbs rapidly with resolution, and
-    typical limited resolution tables are used to constrain profile file
-    size and processing time. cLUT's permit detailed, independent
-    control over the the transformation throughout the colorspace.<br>
+      class="st"><em></em></span>climbs rapidly with dimension and
+    resolution, and typical limited resolution tables are used to
+    constrain profile file size and processing time. cLUT's permit
+    detailed, independent control over the the transformation throughout
+    the colorspace, but may not be as smooth as a matrix.<br>
     <br>
     <span style="font-weight: bold;">Limitations of CIE XYZ</span><br>
     <br>

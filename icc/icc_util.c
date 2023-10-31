@@ -4315,7 +4315,7 @@ size_t icmASCIIZSntoUTF8(icmUTFerr *pillegal, icmUTF8 *out, icmFBuf *bin, size_t
 }
 
 /* Convert UTF-8 to ICC buffer of ASCIIZ using icmSn serialisation. */
-/* Input must be nul terminated, and so will output. */
+/* Input is expected to be nul terminated, and so will output. */
 /* ilen is number of UTF8 characters including nul of the input. */
 /* If fxlen is > 0, then the output is to a fixed length buffer of that length, */
 /* and will be padded with 0 up to that length. */
@@ -4608,7 +4608,7 @@ struct {
 	{ icmUTF_emb_nul, 	"embedded nul" },
 	{ icmUTF_no_nul,	"no nul terminator" },
 	{ icmUTF_unex_nul,	"unexpected nul terminator" },
-	{ icmUTF_prem_nul,	"premture nul terminator" },
+	{ icmUTF_prem_nul,	"premature nul terminator" },
 	{ icmUTF_bad_surr,	"bad surrogate" },
 	{ icmUTF_unn_bom,	"unnecessary BOM" },
 	{ icmUTF_unex_cont,	"unexpected continuation byte" },

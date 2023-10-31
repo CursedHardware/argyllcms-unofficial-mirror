@@ -303,7 +303,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"     C            Rec2020 Constant Luminance YCbCr UHD (16-235,240)/255 \"TV\" levels\n");
 	fprintf(stderr,"     x            xvYCC Rec601 YCbCr Rec709 Prims. SD (16-235,240)/255 \"TV\" levels\n");
 	fprintf(stderr,"     X            xvYCC Rec709 YCbCr Rec709 Prims. HD (16-235,240)/255 \"TV\" levels\n");
-	fprintf(stderr," -P              Create gamut gammap%s diagostic\n",vrml_ext());
+	fprintf(stderr," -P              Create gamut gammap%s diagnostic\n",vrml_ext());
 	exit(1);
 }
 

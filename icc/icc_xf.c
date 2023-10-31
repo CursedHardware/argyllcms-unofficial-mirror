@@ -78,7 +78,7 @@ static icmPe_lurv icmPeSeq_lookup_bwd(icmPeSeq *p, double *out, double *in) {
 		double tmp[MAX_CHAN];
 		for (m = 0; m < p->outputChan; m++)
 			tmp[m] = in[m];
-		for (n = p->count-1; n >= 0; n--) {
+		for (n = ((int)p->count)-1; n >= 0; n--) {
 			if (p->pe[n] != NULL && p->pe[n]->attr.op != icmPeOp_NOP) {
 				if (p->pe[n]->lookup_bwd != NULL && p->pe[n]->attr.bwd)
 					rv |= p->pe[n]->lookup_bwd(p->pe[n], tmp, tmp);
@@ -176,7 +176,7 @@ static icmPe_lurv icmPeSeq_trace_lookup_bwd(icmPeSeq *p, double *out, double *in
 
 		for (m = 0; m < p->outputChan; m++)
 			tmp[m] = in[m];
-		for (n = p->count-1; n >= 0; n--) {
+		for (n = ((int)p->count)-1; n >= 0; n--) {
 			if (p->pe[n] != NULL && p->pe[n]->attr.op != icmPeOp_NOP) {
 				if (p->pe[n]->lookup_bwd != NULL && p->pe[n]->attr.bwd) {
 					int ctr = p->pe[n]->trace;
@@ -356,7 +356,7 @@ static int icmTable_setup_bwd(
 	}
 
 	/* Assign each output value range bucket lists it intersects */
-	for (i = 0; i < (rt->count-1); i++) {
+	for (i = 0; rt->count > 1 && i < (rt->count-1); i++) {
 		unsigned int s, e, j;	/* Start and end indexes (inclusive) */
 		s = (unsigned int)((rt->data[i] - rt->rmin) * rt->qscale);
 		e = (unsigned int)((rt->data[i+1] - rt->rmin) * rt->qscale);
@@ -631,6 +631,9 @@ int invmatrix(
 	int i, j, k, kk;
 	int cix, rix;
 	double lval, ival;
+
+	if (n <= 0)
+		return 1;
 
 	if (out != in) {
 		/* Copy input to output */
@@ -978,7 +981,7 @@ double *in		/* Input array[outputChan] */
 		}
 	}
 	/* Now compute the output values */
-	{
+	if (p->_clutsize > 0) {
 		int i;
 		unsigned int f;
 		double w = gw[0];
@@ -1061,7 +1064,7 @@ double *in		/* Input array[outputChan] */
 		}
 	}
 	/* Now compute the weightings, simplex vertices and output values */
-	{
+	if (p->_clutsize > 0) {
 		unsigned int e, f;
 		double w;		/* Current vertex weight */
 
@@ -1069,7 +1072,7 @@ double *in		/* Input array[outputChan] */
 		for (f = 0; f < p->outputChan; f++)
 			out[f] = w * gp[f];
 
-		for (e = p->inputChan-1; e > 0; e--) {	/* Middle verticies */
+		for (e = UAL1(p->inputChan)-1; e > 0; e--) {	/* Middle verticies */
 			w = co[si[e]] - co[si[e-1]];
 			gp += p->dinc[si[e]];				/* Move to top of cell in next largest dimension */
 			for (f = 0; f < p->outputChan; f++)
@@ -1267,7 +1270,7 @@ double *in		/* Input array[outputChan] */
 			printf("  out[%d] = %f * %f = %f\n",f,w,gp[f],out[f]);
 		}
 
-		for (e = p->inputChan-1; e > 0; e--) {	/* Middle verticies */
+		for (e = UAL1(p->inputChan)-1; e > 0; e--) {	/* Middle verticies */
 			w = co[si[e]] - co[si[e-1]];
 			gp += p->dinc[si[e]];				/* Move to top of cell in next largest dimension */
 			for (f = 0; f < p->outputChan; f++) {

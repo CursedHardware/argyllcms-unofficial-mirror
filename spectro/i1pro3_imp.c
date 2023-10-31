@@ -3820,7 +3820,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 	one for reflection mode, and one for emission mode.
 
 	[ It's a puzzle as to why there are two tables. The emission
-	  table is more linear, while by comparisson the reflection
+	  table is more linear, while by comparison the reflection
 	  mode has some subltle wiggles in the conversion. Possible
 	  reasons for this could be:
 	  * It's for backwards compatibility with previous X-Rite
@@ -3829,7 +3829,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 	  * A different standard wavelength reference was used to
 	    calibrate emission and reflection, and these references
 	    have historical differences.
-	  * There's subtle something going on in the physics of the
+	  * There's a subtle something going on in the physics of the
 	    emission and reflection modes and the nature of
 	    the diffraction grating that causes the wavelength
 	    calibration to be different. ]
@@ -3854,7 +3854,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 
 	The manufacturers filter weights are the accumulated
 	third order Lagrange polynomial weights of the
-	integration of a 20 nm wide triange spectrum
+	integration of a 20 nm wide triangle spectrum
 	centered at each output wavelength, discretely
 	integrated between the range of the middle two points
 	of the Lagrange interpolator. The triangle response

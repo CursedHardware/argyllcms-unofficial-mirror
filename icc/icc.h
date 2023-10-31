@@ -921,6 +921,10 @@ unsigned int sati_pow(int *ind, unsigned int a, unsigned int b);	/* a ^ b */
 /* Float comparisons to certain precision */
 int diff_u16f16(double a, double b);		/* u16f16 precision */
 
+/* Value of an unsigned, forced to be at least 1 */
+/* Used for making sure reverse index loops don't start at 0xffffffff... */
+#define UAL1(val) ((val) > 0 ? (val) : 1)
+
 /* =========================================================== */
 
 /* Errors and warnings:
@@ -1249,7 +1253,7 @@ int icmMatrixRdAllocResize(
 									/* (shared tagtypes will have been linked to others) */	\
 	int	           touched;			/* Flag for write bookeeping */							\
     int            refcount;		/* Reference count for sharing tag instances */			\
-	int            rdfile;			/* Was read from file */								\
+	int            rdff;			/* Was read from file */								\
 	int            dp;				/* dump() padding (if implemented) */					\
 	int			   emb;				/* nz if embedded-tag */								\
 																							\
@@ -1299,7 +1303,7 @@ int icmMatrixRdAllocResize(
 	p->ttype     = TSIG;																\
 	p->icp       = icp;																	\
 	p->refcount  = 1;																	\
-	p->rdfile    = icp->rdfile;															\
+	p->rdff      = icp->rdff;															\
 	p->serialise = TCLASS##_serialise;													\
 	p->get_size  = (unsigned int (*)(TCLASS *p))	icmGeneric_get_size;				\
 	p->read      = (int (*)(TCLASS *p, unsigned int size, unsigned int of))				\
@@ -2527,7 +2531,7 @@ struct _icc {
 	icmCompatFlags cflags;          /* Compatibility flags */
 	icmTVRange     vcrange;			/* icmCFlagAllowWrVersion range */
 	icmSnOp        op;				/* tag->check() icmSnRead or icmSnWrite */
-	int            rdfile;			/* Currently reading tags from a file */
+	int            rdff;			/* Currently reading tags from a file */
 
 	icmTagTypeVersConstrRec *tagtypetable;	/* Table of Tag Types valid version range and */
 											/* constructor. Last has ttype icMaxEnumTagType */

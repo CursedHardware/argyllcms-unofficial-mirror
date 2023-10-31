@@ -4787,7 +4787,8 @@ static void icmSn_ASCIIZ(
 		*pfcount = icmUTF8toASCIIZSn(&utferr, b, (icmUTF8 *)*pdesc, *pcount, fxlen);
 
 		if (utferr != icmUTF_ok) {
-			icm_err(b->icp, 1,"%s write: utf-8 to ASCIIZ translate returned error '%s'",id,icmUTFerr2str(utferr));
+			icmQuirkWarning(b->icp, 1, 1, "%s write: utf-8 to ASCIIZ translate returned error '%s'",
+			                                                              id,icmUTFerr2str(utferr));
 			return;
 		}
 
@@ -5076,7 +5077,7 @@ static void icmSn_ScriptCode(
 /* Higher level sub-tagtype serialization support code */
 
 static icmBase *icc_new_ttype_imp(icc *p, icTagTypeSignature ttype,
-                              icTagTypeSignature pttype, int rdfile);
+                              icTagTypeSignature pttype, int rdff);
 static int icc_compare_ttype(icc *p, icmBase *idst, icmBase *isrc);
 
 /* Serialize a sub-tagtype */
@@ -5093,7 +5094,7 @@ static void icmSn_SubTagType(
 								/* If 2, sub-tag is always created by client, */
 								/* and always expected to be read. */
 	void (*init)(icmFBuf *b, icmBase *p), /* If not NULL, initialise a new sub-struct on create */
-	int rdfile,					/* Was read from file */
+	int rdff,					/* Was read from file */
 	int xpad					/* Extra dump padding */
 ) {
 	if (b->op == icmSnFree) {
@@ -5130,7 +5131,7 @@ static void icmSn_SubTagType(
 				b->aoff(b, coff);
 			}
 
-			if ((*psub = icc_new_ttype_imp(b->icp, ttype, pttype, rdfile)) == NULL) {
+			if ((*psub = icc_new_ttype_imp(b->icp, ttype, pttype, rdff)) == NULL) {
 				icmFmtWarn(b, ICM_FMT_SUB_TYPE_UNKN, "Sub-TagType %s not created()",
 				                                 icmTypeSig2str(ttype));
 				*psub = NULL;
@@ -5199,14 +5200,14 @@ static void icmSn_PeSubTag(
 	unsigned int *count,		/* If not NULL, return size of sub-tag */
 	icmPe **psub,				/* pointer to sub-structure */
 	icTagTypeSignature pttype,	/* Parent TagType */
-	int rdfile,					/* Was read from file */
+	int rdff,					/* Was read from file */
 	int xpad					/* Extra dump padding */
 ) {
 	icTagTypeSignature ttype = icmSigUnknownType;
 	if (*psub != NULL)
 		pttype = (*psub)->ttype;
 
-	icmSn_SubTagType(b, off, count, (icmBase **)psub, ttype, pttype, 2, NULL, rdfile, xpad);
+	icmSn_SubTagType(b, off, count, (icmBase **)psub, ttype, pttype, 2, NULL, rdff, xpad);
 
 	if (b->op == icmSnRead && *psub == NULL) {
 		icmFmtWarn(b, ICM_FMT_SUB_MISSING,
@@ -5612,7 +5613,7 @@ static int icmGeneric_allocate(icmBase *p);
 
 static int icc_check_sig(icc *p, unsigned int *ttix, int rd,
 		icTagSignature sig, icTagTypeSignature ttype, icTagTypeSignature uttype,
-        int rdfile);
+        int rdff);
 
 /* ---------------------------------------------------------- */
 /* icmUnknown object */
@@ -7084,9 +7085,9 @@ static void icmProfileSequenceDesc_serialise(icmProfileSequenceDesc *p, icmFBuf 
 
 		/* Deal with sub-tags */
 		icmSn_SubTagType(b, NULL, NULL, (icmBase **)(&pp->mfgDesc), icmSigCommonTextDescriptionType,
-		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdfile, 4);
+		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdff, 4);
 		icmSn_SubTagType(b, NULL, NULL, (icmBase **)&pp->modelDesc, icmSigCommonTextDescriptionType,
-		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdfile, 4);
+		                 p->ttype, 0, icmProfileSequenceDesc_Textinit, p->rdff, 4);
 	}
 
 	ICMSNFREEARRAY(b, p->_count, p->data)
@@ -7134,12 +7135,12 @@ static int icmProfileSequenceDesc_check(icmProfileSequenceDesc *p, icTagSignatur
 		icTagTypeSignature ttype;
 
 		ttype = pp->mfgDesc->ttype;
-		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdfile) != ICM_ERR_OK) {
+		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdff) != ICM_ERR_OK) {
 			return p->icp->e.c;
 		}
 
 		ttype = pp->modelDesc->ttype;
-		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdfile) != ICM_ERR_OK) {
+		if (icc_check_sig(p->icp, NULL, rd, icmSigUnknown, ttype, ttype, p->rdff) != ICM_ERR_OK) {
 			return p->icp->e.c;
 		}
 	}
@@ -9315,7 +9316,7 @@ static int icc_write_check(
 		ttype = p->data[i].objp->ttype;		/* Actual or icmSigUnknownType */ 
 
 		/* Do tag & tagtype check */
-		if (icc_check_sig(p, NULL, 0, p->data[i].sig, ttype, uttype, p->data[i].objp->rdfile)
+		if (icc_check_sig(p, NULL, 0, p->data[i].sig, ttype, uttype, p->data[i].objp->rdff)
 			                                                                   != ICM_ERR_OK)
 			return p->e.c;
 
@@ -9550,7 +9551,7 @@ static void icc_read_arts_chad(icc *p) {
 	/* which cannot be exactly decomposed into a cone space matrix + Von Kries scaling. */ 
 }
 
-static icmBase *icc_add_tag_imp(icc *p, icTagSignature sig, icTagTypeSignature ttype, int rdfile);
+static icmBase *icc_add_tag_imp(icc *p, icTagSignature sig, icTagTypeSignature ttype, int rdff);
 
 /* Add any automatically created tags. */
 /* If this is called from icc_get_size() then wr = z, */
@@ -10235,7 +10236,7 @@ static int icc_check_sig(
     icTagSignature sig,			/* Tag signature, possibly icmSigUnknown */
 	icTagTypeSignature ttype,	/* Tag type, possibly icmSigUnknownType */
 	icTagTypeSignature uttype,	/* Actual tag type if Unknown */
-	int rdfile					/* Tag was read from file */
+	int rdff					/* Tag was read from file */
 ) {
 	unsigned int i, j;
 
@@ -10264,7 +10265,7 @@ static int icc_check_sig(
 			/* Warn rather than error if icmCFlagWrFileRdWarn and tag was read from file */
 			if (p->op == icmSnWrite
 			 && (p->cflags & icmCFlagWrFileRdWarn)
-			 && rdfile)
+			 && rdff)
 				warn = 1;
 
 			/* Special case for backwards compatibility */
@@ -10321,7 +10322,7 @@ static int icc_check_sig(
 				/* Warn rather than error if icmCFlagWrFileRdWarn and tag was read from file */
 				if (p->op == icmSnWrite
 				 && (p->cflags & icmCFlagWrFileRdWarn)
-				 && rdfile)
+				 && rdff)
 					warn = 1;
 
 				if (icmVersionWarning(p, ICM_VER_SIGVERS, warn, 
@@ -10490,7 +10491,7 @@ static icmBase *icc_read_tag_ix(
 	if (k < p->count) {		/* Mark it as a link */
 
 		/* Check that the tag signature and tag type are compatible */
-		if (icc_check_sig(p, NULL, 1, p->data[i].sig, ttype, uttype, p->data[k].objp->rdfile)
+		if (icc_check_sig(p, NULL, 1, p->data[i].sig, ttype, uttype, p->data[k].objp->rdff)
 			                                                                   != ICM_ERR_OK) {
 			return NULL;
 		}
@@ -10518,10 +10519,10 @@ static icmBase *icc_read_tag_ix(
 		return nob;			/* Done */
 	}
 
-	p->rdfile = 1;		/* Objects being created during reading a file */
+	p->rdff = 1;		/* Objects being created during reading a file */
 
 	/* See if we can handle this type */
-	if (icc_check_sig(p, &j, 1, p->data[i].sig, ttype, uttype, p->rdfile) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &j, 1, p->data[i].sig, ttype, uttype, p->rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -10532,7 +10533,7 @@ static icmBase *icc_read_tag_ix(
 		nob = p->tagtypetable[j].new_obj(p, ttype);
 
 	if (nob == NULL) {
-		p->rdfile = 0;
+		p->rdff = 0;
 		return NULL;
 	}
 
@@ -10540,10 +10541,10 @@ static icmBase *icc_read_tag_ix(
 
 	if ((nob->read(nob, p->data[i].size, p->of + p->data[i].offset)) != 0) {
 		nob->del(nob);		/* Failed, so destroy it */
-		p->rdfile = 0;
+		p->rdff = 0;
 		return NULL;
 	}
-	p->rdfile = 0;
+	p->rdff = 0;
 
 	/* Check this tags validity */
 	if (nob->check != NULL) {
@@ -10625,7 +10626,7 @@ static icmBase *icc_add_tag_imp(
 	icc *p,
     icTagSignature sig,			/* Tag signature - may be unknown */
 	icTagTypeSignature ttype,	/* Tag type - may be icmSigUnknownType */
-	int rdfile					/* Is read from file */
+	int rdff					/* Is read from file */
 ) {
 	icmTagRec *tp;
 	icmBase *nob;
@@ -10636,7 +10637,7 @@ static icmBase *icc_add_tag_imp(
 
 	/* Check that the tag signature and tag type are reasonable */
 	/* (Handles icmSigUnknownType appropriately) */
-	if (icc_check_sig(p, &j, 0, sig, ttype, ttype, rdfile) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &j, 0, sig, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -10708,7 +10709,7 @@ static int icc_rename_tag(
     icTagSignature sigNew		/* New Tag signature - may be unknown */
 ) {
 	unsigned int k;
-	int rdfile = 0;
+	int rdff = 0;
 
 	p->op = icmSnWrite;			/* Let check know direction */
 
@@ -10722,12 +10723,12 @@ static int icc_rename_tag(
 		                                                         icmTagSig2str(sig));
 	}
 
-	/* Get rdfile flag if known */
+	/* Get rdff flag if known */
 	if (p->data[k].objp != NULL)
-		rdfile = p->data[k].objp->rdfile;
+		rdff = p->data[k].objp->rdff;
 
 	/* Check that the tag signature and tag type are reasonable */
-	if (icc_check_sig(p, NULL, 0, sigNew, p->data[k].ttype, p->data[k].ttype, rdfile) != ICM_ERR_OK)
+	if (icc_check_sig(p, NULL, 0, sigNew, p->data[k].ttype, p->data[k].ttype, rdff) != ICM_ERR_OK)
 		return p->e.c;
 
 	/* Check the classes are compatible */
@@ -10793,7 +10794,7 @@ static icmBase *icc_link_tag(
 
 	/* Check that the new tag signature and linked tag type are reasonable */
 	if (icc_check_sig(p, NULL, 0, sig, p->data[i].objp->ttype, p->data[i].ttype,
-		                                 p->data[i].objp->rdfile) != ICM_ERR_OK)
+		                                 p->data[i].objp->rdff) != ICM_ERR_OK)
 		return NULL;
 
 	/* Check the LUT classes are compatible */
@@ -10923,6 +10924,8 @@ static int icc_delete_tag_imp(
 		                                                  icmTagSig2str(sig));
 	}
 
+	/* We know that count > 0 now... */
+
 	/* If the tagtype is loaded, decrement the reference count */
     if (p->data[i].objp != NULL) {
 		p->data[i].objp->del(p->data[i].objp);	/* Free if last reference */
@@ -10972,7 +10975,7 @@ static icmBase *icc_new_ttype_imp(
 	icc *p,
 	icTagTypeSignature ttype,		/* Sub-tagtype to create */
 	icTagTypeSignature pttype,		/* tagtype of creator */
-	int rdfile						/* Is read from file */
+	int rdff						/* Is read from file */
 ) {
 	icmBase *nob;
 	unsigned int k;
@@ -10981,7 +10984,7 @@ static icmBase *icc_new_ttype_imp(
 	ttype = icc_translate_pseudotype(p, icmSigUnknown, ttype);
 
 	/* Check that the tag type is reasonable */
-	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdfile) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 
@@ -11040,13 +11043,13 @@ static icmPe *icc_new_pe_imp(
 	icc *p,
 	icTagTypeSignature ttype,		/* Sub-tagtype to create */
 	icTagTypeSignature pttype,		/* tagtype of creator */
-	int rdfile						/* Is read from file */
+	int rdff						/* Is read from file */
 ) {
 	icmBase *nob;
 	unsigned int k, i, j;
 
 	/* Check that the tag type is reasonable */
-	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdfile) != ICM_ERR_OK) {
+	if (icc_check_sig(p, &k, 0, icmSigUnknown, ttype, ttype, rdff) != ICM_ERR_OK) {
 		return NULL;
 	}
 

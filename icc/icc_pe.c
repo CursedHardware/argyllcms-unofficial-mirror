@@ -18,7 +18,7 @@
 /* This is #included in icc.c */
 
 static icmPe *icc_new_pe_imp(icc *p, icTagTypeSignature ttype,
-                             icTagTypeSignature pttype, int rdfile);
+                             icTagTypeSignature pttype, int rdff);
 
 /* ---------------------------------------------------------- */
 
@@ -53,7 +53,7 @@ static int icmPeSeq_init(icmPeSeq *p) {
 		}
 	}
 	/* Find last to set no chan */
-	for (i = p->count -1; i >= 0; i--) {
+	for (i = ((int)p->count)-1; i >= 0; i--) {
 		if (p->pe[i] != NULL && p->pe[i]->attr.op != icmPeOp_NOP) {
 			p->outputChan = p->pe[i]->outputChan;
 			break;
@@ -129,7 +129,7 @@ static void icmPeCurveSet_LUT816_serialise(icmPeCurveSet *p, icmFBuf *b) {
 	unsigned int n;
 
 	for (n = 0; n < p->inputChan; n++) {
-		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdfile, p->dp);  
+		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdff, p->dp);  
 	}
 	// Can't ICMRDCHECKCONSUMED(icmPeCurveSet) because there is no directory above us
 }
@@ -241,7 +241,7 @@ static int icmPeCurveSet_cpy(icmPeCurveSet *dst, icmBase *isrc) {
 	 	dst->outputChan = src->outputChan;
 
 		for (i = 0; i < dst->inputChan; i++) {
-			if ((dst->pe[i] = icc_new_pe_imp(p, src->pe[i]->ttype, dst->ttype, dst->rdfile)) == NULL)
+			if ((dst->pe[i] = icc_new_pe_imp(p, src->pe[i]->ttype, dst->ttype, dst->rdff)) == NULL)
 				return p->e.c;  
 		 	dst->pe[i]->cpy(dst->pe[i], (icmBase *)src->pe[i]);
 		}
@@ -749,7 +749,7 @@ static void icmPeClut_dump(icmPeClut *p, icmFile *op, int verb) {
 			unsigned int k;
 			/* Print table entry index */
 			op->printf(op,PAD(" "));
-			for (j = p->inputChan-1; j < p->inputChan; j--)
+			for (j = ((int)p->inputChan)-1; j >= 0; j--)
 				op->printf(op," %2u",ii[j]);
 			op->printf(op,":");
 			/* Print table entry contents */
@@ -991,7 +991,7 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 			icTagTypeSignature tsig;
 
 			if (p->pe[n] == NULL
-			 && (p->pe[n] = icc_new_pe_imp(icp, pettypes[n], p->ttype, p->rdfile)) == NULL) {
+			 && (p->pe[n] = icc_new_pe_imp(icp, pettypes[n], p->ttype, p->rdff)) == NULL) {
 				return;
 			}
 
@@ -1015,7 +1015,7 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 				for (m = 0; m < pe->inputChan; m++) {
 					icmPeCurve *cpe;
 					if (pe->pe[m] == NULL
-					 && (pe->pe[m] = icc_new_pe_imp(icp, icmSig816Curve, pe->ttype, p->rdfile))
+					 && (pe->pe[m] = icc_new_pe_imp(icp, icmSig816Curve, pe->ttype, p->rdff))
 						                                                           == NULL) {
 						icm_err(icp, ICM_ERR_NEW_PE_FAILED,"icmLut1_serialise: icc_new_pe_imp()"
 						                       " for %s failed",icmtag2str(icSigCurveType));
@@ -1062,7 +1062,7 @@ static void icmLut1_serialise(icmLut1 *p, icmFBuf *b) {
 		}
 
 		/* Serialize a sub-tag */
-		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdfile, p->dp);  
+		icmSn_PeSubTag(b, NULL, NULL, &p->pe[n], p->ttype, p->rdff, p->dp);  
 	}
 	ICMSNFREEARRAY(b, p->_count, p->pe)
 	ICMRDCHECKCONSUMED(icmLut1)
@@ -2320,6 +2320,7 @@ static int icmPeContainer_insert(icmPeContainer *p, unsigned int ix, icmPe *pe) 
 	if (ix >= p->count)
 		return icm_err(p->icp, ICM_ERR_PECONT_BOUND, "icmPeContainer_insert ix bounds");
 
+	/* We know count is at least 1 now.. */
 	p->count++;
 	if (icmArrayResize(p->icp, &p->_count, &p->count,
 	    (void **)&p->pe, sizeof(icmPe *), "icmPeContainer array")) {
@@ -2353,6 +2354,7 @@ static int icmPeContainer_remove(icmPeContainer *p, unsigned int ix) {
 	if (ix >= p->count)
 		return icm_err(p->icp, ICM_ERR_PECONT_BOUND, "icmPeContainer_remove ix bounds");
 
+	/* We know count is at least 1 now.. */
 	p->pe[ix]->del(p->pe[ix]);
 
 	for (i = ix; i < (p->count-1); i++)
@@ -2523,7 +2525,7 @@ static unsigned int icmPeContainer_max_out_res(icmPeContainer *p, int res[MAX_CH
 	}
 
 	/* Search backwards */
-	for (ix = p->count-1; ix >= 0; ix--) {
+	for (ix = ((int)p->count)-1; ix >= 0; ix--) {
 		icmPe *pe = p->pe[ix];
 
 		if (pe == NULL)
@@ -2649,7 +2651,7 @@ static icmPeClut *icmPeContainer_get_lut(
 ) {
 	int ix, e;
 
-	for (ix = p->count-1; ix >= 0; ix--) {
+	for (ix = ((int)p->count)-1; ix >= 0; ix--) {
 		icmPe *pe = p->pe[ix];
 
 		if (pe == NULL)
