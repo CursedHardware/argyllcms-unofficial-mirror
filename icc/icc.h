@@ -921,9 +921,15 @@ unsigned int sati_pow(int *ind, unsigned int a, unsigned int b);	/* a ^ b */
 /* Float comparisons to certain precision */
 int diff_u16f16(double a, double b);		/* u16f16 precision */
 
-/* Value of an unsigned, forced to be at least 1 */
-/* Used for making sure reverse index loops don't start at 0xffffffff... */
+/* Force unsigned value to be at least 1 */
 #define UAL1(val) ((val) > 0 ? (val) : 1)
+
+/* For unsigned count value where we want to access from last to second item: */
+/* unsigned e, n; for (e = UAL1(p->n)-1; e > 0; e--) { n-1 .. 1 } */
+
+/* For unsigned count value where we want to access from last to first item: */
+/* decrement at the top of the loop. */
+/* unsigned e, n; for (e = p->n; e > 0;) { --e; n-1 .. 0 } */
 
 /* =========================================================== */
 

@@ -57,7 +57,7 @@ static icmPe_lurv icmPeSeq_lookup_fwd(icmPeSeq *p, double *out, double *in) {
 }
 
 static icmPe_lurv icmPeSeq_lookup_bwd(icmPeSeq *p, double *out, double *in) {
-	int n, m;
+	unsigned int n, m;
 	icmPe_lurv rv = icmPe_lurv_OK;
 
 	if (p->trace > 0)
@@ -78,7 +78,8 @@ static icmPe_lurv icmPeSeq_lookup_bwd(icmPeSeq *p, double *out, double *in) {
 		double tmp[MAX_CHAN];
 		for (m = 0; m < p->outputChan; m++)
 			tmp[m] = in[m];
-		for (n = ((int)p->count)-1; n >= 0; n--) {
+		for (n = p->count; n > 0;) {
+			--n;
 			if (p->pe[n] != NULL && p->pe[n]->attr.op != icmPeOp_NOP) {
 				if (p->pe[n]->lookup_bwd != NULL && p->pe[n]->attr.bwd)
 					rv |= p->pe[n]->lookup_bwd(p->pe[n], tmp, tmp);
@@ -151,7 +152,7 @@ static icmPe_lurv icmPeSeq_trace_lookup_fwd(icmPeSeq *p, double *out, double *in
 }
 
 static icmPe_lurv icmPeSeq_trace_lookup_bwd(icmPeSeq *p, double *out, double *in) {
-	int n, m;
+	unsigned int n, m;
 	icmPe_lurv rv = icmPe_lurv_OK;
 	int pad = p->trace > 0 ? p->trace -1 : 0;
 
@@ -176,7 +177,8 @@ static icmPe_lurv icmPeSeq_trace_lookup_bwd(icmPeSeq *p, double *out, double *in
 
 		for (m = 0; m < p->outputChan; m++)
 			tmp[m] = in[m];
-		for (n = ((int)p->count)-1; n >= 0; n--) {
+		for (n = p->count; n > 0;) {
+			--n;
 			if (p->pe[n] != NULL && p->pe[n]->attr.op != icmPeOp_NOP) {
 				if (p->pe[n]->lookup_bwd != NULL && p->pe[n]->attr.bwd) {
 					int ctr = p->pe[n]->trace;

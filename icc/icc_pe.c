@@ -29,7 +29,7 @@ static int icmPeDummy_init(icmPe *p) {
 
 /* Compute attr for a PeSeq */
 static int icmPeSeq_init(icmPeSeq *p) {
-	int i;
+	unsigned int i;
 	icmPeOp pop = -1;
 	int count[icmPeOp_complex+1] = { 0 };
 
@@ -53,7 +53,8 @@ static int icmPeSeq_init(icmPeSeq *p) {
 		}
 	}
 	/* Find last to set no chan */
-	for (i = ((int)p->count)-1; i >= 0; i--) {
+	for (i = p->count; i > 0;) {
+		--i;
 		if (p->pe[i] != NULL && p->pe[i]->attr.op != icmPeOp_NOP) {
 			p->outputChan = p->pe[i]->outputChan;
 			break;
@@ -749,8 +750,8 @@ static void icmPeClut_dump(icmPeClut *p, icmFile *op, int verb) {
 			unsigned int k;
 			/* Print table entry index */
 			op->printf(op,PAD(" "));
-			for (j = ((int)p->inputChan)-1; j >= 0; j--)
-				op->printf(op," %2u",ii[j]);
+			for (j = p->inputChan; j > 0;)
+				{ --j; op->printf(op," %2u",ii[j]); }
 			op->printf(op,":");
 			/* Print table entry contents */
 			for (k = 0; k < p->outputChan; k++, i++)
@@ -2515,8 +2516,7 @@ static unsigned int icmPeContainer_max_clut_res(icmPeContainer *p, int res[MAX_C
 /* res may be NULL */
 /* Returns 0 if there is no per channel lut out the output sequence. */
 static unsigned int icmPeContainer_max_out_res(icmPeContainer *p, int res[MAX_CHAN]) {
-	int ix;
-	unsigned int e;
+	unsigned int ix, e;
 	unsigned int maxres = 0;
 
 	if (res != NULL) {
@@ -2525,8 +2525,8 @@ static unsigned int icmPeContainer_max_out_res(icmPeContainer *p, int res[MAX_CH
 	}
 
 	/* Search backwards */
-	for (ix = ((int)p->count)-1; ix >= 0; ix--) {
-		icmPe *pe = p->pe[ix];
+	for (ix = p->count; ix > 0;) {
+		icmPe *pe = p->pe[--ix];
 
 		if (pe == NULL)
 			continue;
@@ -2649,10 +2649,10 @@ static icmPeClut *icmPeContainer_get_lut(
 	icmPeContainer *p,			/* full transform sequence */
 	icmPeContainer **ptail		/* If not NULL return tail process, NULL if none */
 ) {
-	int ix, e;
+	int ix;
 
-	for (ix = ((int)p->count)-1; ix >= 0; ix--) {
-		icmPe *pe = p->pe[ix];
+	for (ix = p->count; ix > 0;) {
+		icmPe *pe = p->pe[--ix];
 
 		if (pe == NULL)
 			continue;

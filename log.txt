@@ -14,6 +14,9 @@ Version 3.0.3
 * Changed ICC profile serialization of pure ASCII text tags
   emit a warning rather than error if they are fed non-ASCII utf8 input.
 
+* Made icc code a little more robust against bad profiles.
+  (Thanks to David Hoyt).
+
 Version 3.0.2  23 October 2023
 -------------
 
