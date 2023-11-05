@@ -3230,54 +3230,49 @@ void icmRad2RGB(double rgb[3], double ang) {
 /* Print an int vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPiv(int di, int *p) {
-	static char buf[5][MAX_CHAN * 16];
+#   define BUFSZ (MAX_CHAN * 8 * 16)
+	char *fmt = "%d";
+	static char buf[5][BUFSZ];
 	static int ix = 0;
+	int brem = BUFSZ;
 	int e;
 	char *bp;
+
+	if (p == NULL)
+		return "(null)";
 
 	if (++ix >= 5)
 		ix = 0;
 	bp = buf[ix];
 
-	if (di > MAX_CHAN)
-		di = MAX_CHAN;		/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
+	for (e = 0; e < di && brem > 10; e++) {
+		int tt;
 		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%d", p[e]); bp += strlen(bp);
+			*bp++ = ' ', brem--;
+		tt = snprintf(bp, brem, fmt, p[e]);
+		if (tt < 0 || tt >= brem)
+			break;			/* Run out of room... */
+		bp += tt;
+		brem -= tt;
 	}
 	return buf[ix];
+#   undef BUFSZ
 }
 
 /* Print a double color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPdv(int di, double *p) {
-	static char buf[5][MAX_CHAN * 8 * 16];
-	static int ix = 0;
-	int e;
-	char *bp;
-
-	if (++ix >= 5)
-		ix = 0;
-	bp = buf[ix];
-
-	if (di > (MAX_CHAN * 8))
-		di = (MAX_CHAN * 8);	/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
-		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
-	}
-	return buf[ix];
+	return icmPdvf(di, NULL, p);
 }
 
 /* Print a double color vector to a string with format. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPdvf(int di, char *fmt, double *p) {
-	static char buf[5][MAX_CHAN * 50];
+#   define NBUF 10
+#   define BUFSZ (MAX_CHAN * 16)
+	static char buf[NBUF][BUFSZ];
 	static int ix = 0;
+	int brem = BUFSZ;
 	int e;
 	char *bp;
 
@@ -3287,43 +3282,55 @@ char *icmPdvf(int di, char *fmt, double *p) {
 	if (fmt == NULL)
 		fmt = "%.8f";
 
-	if (++ix >= 5)
+	if (++ix >= NBUF)
 		ix = 0;
 	bp = buf[ix];
 
-	if (di > MAX_CHAN)
-		di = MAX_CHAN;		/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
+	for (e = 0; e < di && brem > 10; e++) {
+		int tt;
 		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, fmt, p[e]); bp += strlen(bp);
+			*bp++ = ' ', brem--;
+		tt = snprintf(bp, brem, fmt, p[e]);
+		if (tt < 0 || tt >= brem)
+			break;			/* Run out of room... */
+		bp += tt;
+		brem -= tt;
 	}
 	return buf[ix];
+#   undef BUFSZ
+#   undef NBUF
 }
-
 
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPfv(int di, float *p) {
-	static char buf[5][MAX_CHAN * 16];
+#   define BUFSZ (MAX_CHAN * 8 * 16)
+	char *fmt = "%.8f";
+	static char buf[5][BUFSZ];
 	static int ix = 0;
+	int brem = BUFSZ;
 	int e;
 	char *bp;
+
+	if (p == NULL)
+		return "(null)";
 
 	if (++ix >= 5)
 		ix = 0;
 	bp = buf[ix];
 
-	if (di > MAX_CHAN)
-		di = MAX_CHAN;		/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
+	for (e = 0; e < di && brem > 10; e++) {
+		int tt;
 		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+			*bp++ = ' ', brem--;
+		tt = snprintf(bp, brem, fmt, p[e]);
+		if (tt < 0 || tt >= brem)
+			break;			/* Run out of room... */
+		bp += tt;
+		brem -= tt;
 	}
 	return buf[ix];
+#   undef BUFSZ
 }
 
 /* Print an XYZ */
@@ -3338,24 +3345,10 @@ char *icmPXYZ(icmXYZNumber *p) {
 /* Print an 0..1 range XYZ as a D50 Lab string */
 /* Returned static buffer is re-used every 5 calls. */
 char *icmPLab(double *p) {
-	static char buf[5][MAX_CHAN * 16];
-	static int ix = 0;
-	int e;
-	char *bp;
 	double lab[3];
 
-	if (++ix >= 5)
-		ix = 0;
-	bp = buf[ix];
-
 	icmXYZ2Lab(&icmD50, lab, p);
-
-	for (e = 0; e < 3; e++) {
-		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%f", lab[e]); bp += strlen(bp);
-	}
-	return buf[ix];
+	return icmPdv(3, lab);
 }
 
 /* ---------------------------------------------------------- */
@@ -4605,28 +4598,28 @@ struct {
 	char *string;
 
 } UTFerrStrings[] = {
-	{ icmUTF_emb_nul, 	"embedded nul" },
-	{ icmUTF_no_nul,	"no nul terminator" },
-	{ icmUTF_unex_nul,	"unexpected nul terminator" },
-	{ icmUTF_prem_nul,	"premature nul terminator" },
-	{ icmUTF_bad_surr,	"bad surrogate" },
-	{ icmUTF_unn_bom,	"unnecessary BOM" },
-	{ icmUTF_unex_cont,	"unexpected continuation byte" },
-	{ icmUTF_tmany_cont,"to many continuation bytes" },
-	{ icmUTF_short_cont,"not enough continuation bytes" },
-	{ icmUTF_overlong, 	"overlong encoding" },
-	{ icmUTF_inv_cdpnt, "invalid codepoint" },
-	{ icmUTF_ovr_cdpnt, "over-range codepoint" },
-	{ icmUTF_non_ascii, "non-ASCII characters" },
+	{ icmUTF_emb_nul, 	   "embedded nul" },
+	{ icmUTF_no_nul,	   "no nul terminator" },
+	{ icmUTF_unex_nul,	   "unexpected nul terminator" },
+	{ icmUTF_prem_nul,	   "premature nul terminator" },
+	{ icmUTF_bad_surr,	   "bad surrogate" },
+	{ icmUTF_unn_bom,	   "unnecessary BOM" },
+	{ icmUTF_unex_cont,	   "unexpected continuation byte" },
+	{ icmUTF_tmany_cont,   "to many continuation bytes" },
+	{ icmUTF_short_cont,   "not enough continuation bytes" },
+	{ icmUTF_overlong, 	   "overlong encoding" },
+	{ icmUTF_inv_cdpnt,    "invalid codepoint" },
+	{ icmUTF_ovr_cdpnt,    "over-range codepoint" },
+	{ icmUTF_non_ascii,    "non-ASCII characters" },
 	{ icmUTF_ascii_toolong,"ASCII longer than fixed sized buffer" },
-	{ icmUTF_sc_tooshort,"ScriptCode occupies less than 67 bytes" },
-	{ icmUTF_sc_toolong,"ScriptCode longer than 67 bytes" },
+	{ icmUTF_sc_tooshort,  "ScriptCode occupies less than 67 bytes" },
+	{ icmUTF_sc_toolong,   "ScriptCode longer than 67 bytes" },
 	{ 0, NULL },
 
 };
 
 char *icmUTFerr2str(icmUTFerr err) {
-	static char buf[200];
+	static char buf[400];
 	char *bp = buf;
 	int ne = 0;
 	int i;

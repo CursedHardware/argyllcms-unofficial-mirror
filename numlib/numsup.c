@@ -4174,8 +4174,11 @@ char *debPdv(int di, double *p) {
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p) {
-	static char buf[DEB_NO_BUFS][DEB_MAX_CHAN * 50];
+#   define BUFSZ (DEB_MAX_CHAN * 50)
+	char *fmt = "%.8f";
+	static char buf[DEB_NO_BUFS][BUFSZ];
 	static int ix = 0;
+	int brem = BUFSZ;
 	int e;
 	char *bp;
 
@@ -4186,15 +4189,18 @@ char *debPfv(int di, float *p) {
 		ix = 0;
 	bp = buf[ix];
 
-	if (di > DEB_MAX_CHAN)
-		di = DEB_MAX_CHAN;		/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
+	for (e = 0; e < di && brem > 10; e++) {
+		int tt;
 		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+			*bp++ = ' ', brem--;
+		tt = snprintf(bp, brem, fmt, p[e]);
+		if (tt < 0 || tt >= brem)
+			break;			/* Run out of room... */
+		bp += tt;
+		brem -= tt;
 	}
 	return buf[ix];
+#   undef BUFSZ
 }
 
 /*******************************************/
