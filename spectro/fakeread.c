@@ -833,7 +833,7 @@ int main(int argc, char *argv[])
 
 		/* We're assuming that the input space has a perfect black point... */
 
-		/* Lookup the ouput black point in XYZ PCS. We're assuming monotonicity.. */
+		/* Lookup the output black point in XYZ PCS. We're assuming monotonicity.. */
 		bp[0] = bp[1] = bp[2] = 0.0;
 		oluo->lookup_fwd(oluo, bp, bp);
 
@@ -846,7 +846,7 @@ int main(int argc, char *argv[])
 		             bt1886 == 1 ? egamma : tgamma, bt1886 == 1 ? 1 : 0);
 
 		if (verb)
-			printf("Gamma Curve: Using ouput black offset proportion %f\n",outoprop);
+			printf("Gamma Curve: Using output black offset proportion %f\n",outoprop);
 
 		if (bt1886 == 1) {		/* Using effective gamma */
 			if (verb)
@@ -999,7 +999,7 @@ int main(int argc, char *argv[])
 			else if (nmask == ICX_K && sep_ins == icSigCmykData)
 				gfudge = 2;
 			else if (icx_colorant_comb_match_icc(nmask, sep_ins) == 0) {
-				error("Separation ICC device space '%s' dosen't match TI1 '%s'",
+				error("Separation ICC device space '%s' doesn't match TI1 '%s'",
 				       icm2str(icmColorSpaceSig, sep_ins),
 				       ident);	/* Should free(). */
 			}
@@ -1008,7 +1008,7 @@ int main(int argc, char *argv[])
 			if (icc_luo != NULL) {
 				/* Check if icc is compatible with .ti1 */
 				if (sep_outs != ins)
-					error("ICC device space '%s' dosen't match Separation ICC '%s'",
+					error("ICC device space '%s' doesn't match Separation ICC '%s'",
 					       icm2str(icmColorSpaceSig, ins),
 					       icm2str(icmColorSpaceSig, sep_outs));
 			} else if (mlu != NULL) {
@@ -1033,12 +1033,12 @@ int main(int argc, char *argv[])
 			else {
 				if (!revlookup) {
 					if (icx_colorant_comb_match_icc(nmask, ins) == 0)
-						error("ICC device space '%s' dosen't match TI1 '%s'",
+						error("ICC device space '%s' doesn't match TI1 '%s'",
 						       icm2str(icmColorSpaceSig, ins),
 						       ident);	// Should free().
 				} else {
 					if (icx_colorant_comb_match_icc(nmask, outs) == 0)
-						error("ICC device space '%s' dosen't match TI1 '%s'",
+						error("ICC device space '%s' doesn't match TI1 '%s'",
 						       icm2str(icmColorSpaceSig, ins),
 						       ident);	// Should free().
 

@@ -4593,7 +4593,7 @@ void xspect_plot(xspect *sp1, xspect *sp2, xspect *sp3) {
 /* Given an emission spectrum, set the UV output to the given level. */
 /* The shape of the UV is taken from FWA1_stim, and the level is */
 /* with respect to the Y of the input spectrum. */
-/* The output range is extended to accomodate the UV wavelengths */
+/* The output range is extended to accommodate the UV wavelengths */
 void xsp_setUV(xspect *out, xspect *in, double uvlevel) {
 	int i, xs, xe;
 	double ww, avg;

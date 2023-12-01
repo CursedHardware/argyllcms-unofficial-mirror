@@ -1,6 +1,8 @@
+ArgyllCMS_install_USB.exe
+ArgyllCMS_uninstall_USB.exe
+ArgyllCMS.cat
+ArgyllCMS_x64.cat
+ArgyllCMS.inf
 bin/libusb-win32-bin-README.txt
 bin/x86/libusb0.sys
 bin/amd64/libusb0.sys
-ArgyllCMS.cat
-ArgyllCMS.inf
-ArgyllCMS_x64.cat

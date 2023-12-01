@@ -69,7 +69,7 @@ usage(void) {
 	fprintf(stderr," -D              Use D50 100.0 as L*a*b* white reference\n");
 	fprintf(stderr," -c              Show CIE94 delta E values\n");
 	fprintf(stderr," -k              Show CIEDE2000 delta E values\n");
-	fprintf(stderr," -h [hist.txt]   Plot a histogram of delta E's [Optionaly save points to .txt]\n");
+	fprintf(stderr," -h [hist.txt]   Plot a histogram of delta E's [Optionally save points to .txt]\n");
 	fprintf(stderr," -s              Sort patch values by error\n");
 	fprintf(stderr," -w              create PCS %s vector visualisation (measured%s)\n",vrml_format(),vrml_ext());
 	fprintf(stderr," -W              create PCS %s marker visualisation (measured%s)\n",vrml_format(),vrml_ext());

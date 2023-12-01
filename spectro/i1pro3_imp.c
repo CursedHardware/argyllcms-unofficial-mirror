@@ -1010,7 +1010,7 @@ i1pro3_code i1pro3_check_calib(i1pro3 *p) {
 	if ((ev = i1pro3_getboardtemp(p, &btemp)) != I1PRO3_OK)
 		return ev;
 
-	/* Timout calibrations that are too old or temperature has changed too much */
+	/* Timeout calibrations that are too old or temperature has changed too much */
 	if (m->capabilities & I1PRO3_CAP_WL_LED) {
 		if ((curtime - cs->wl_date) > WLCALTOUT) {
 			a1logd(p->log,2,"Invalidating wavelength cal as %d secs from last cal\n",curtime - cs->wl_date);
@@ -1701,7 +1701,7 @@ int *pinstmsec) {	/* Return instrument latency in msec */
 			break;
 	}
 
-	a1logd(p->log, 2, "i1pro3_meas_delay: stoped at sample %d time %f\n",i,samp[i].sec);
+	a1logd(p->log, 2, "i1pro3_meas_delay: stopped at sample %d time %f\n",i,samp[i].sec);
 
 	/* Compute overall delay */
 	dispmsec = (int)(samp[i].sec * 1000.0 + 0.5);				/* Display update time */
@@ -1985,7 +1985,7 @@ i1pro3_code i1pro3_imp_measure(
 	if (nvals > 0)
 		vals[0].duration = duration;	/* Possible flash duration */
 	
-	a1logd(p->log,3,"i1pro3_imp_measure sucessful return\n");
+	a1logd(p->log,3,"i1pro3_imp_measure successful return\n");
 	if (user_trig)
 		return I1PRO3_USER_TRIG;
 	return ev; 
@@ -2527,7 +2527,7 @@ i1pro3_code i1pro3_imp_meas_refrate(
 					}
 	
 					if (nfails == 0 || (nfails <= 2 && npeaks >= 6))
-						break;		/* Sucess */
+						break;		/* Success */
 					/* else go and try a different divisor */
 				}
 				if (j < 25)
@@ -2645,7 +2645,7 @@ i1pro3_code i1pro3_imp_meas_refrate(
 			}
 		}
 	} else {
-		a1logd(p->log, 3, "Not enough tries suceeded to determine refresh rate\n");
+		a1logd(p->log, 3, "Not enough tries succeeded to determine refresh rate\n");
 	}
 
 	return I1PRO3_RD_NOREFR_FOUND; 
@@ -2908,7 +2908,7 @@ i1pro3_code i1pro3_save_calibration(i1pro3 *p) {
 	/* Write data and compute checksum */
 	i1pro3_nv_op(p, &x, fp);
 
-	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	a1logd(p->log,3,"nbytes = %d, Checksum = 0x%x\n",x.nbytes,x.chsum);
 	write_ints(&x, fp, (int *)&x.chsum, 1);
 
 	if (x.ef == 0 && fclose(fp) != 0)
@@ -2981,7 +2981,7 @@ i1pro3_code i1pro3_restore_calibration(i1pro3 *p) {
 
 	/* Compute checksum */
 	i1pro3_nv_op(p, &x, fp);
-	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	a1logd(p->log,3,"nbytes = %d, Checksum = 0x%x\n",x.nbytes,x.chsum);
 
 	read_ints(&x, fp, (int *)&chsum, 1);
 
@@ -3820,7 +3820,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 	one for reflection mode, and one for emission mode.
 
 	[ It's a puzzle as to why there are two tables. The emission
-	  table is more linear, while by comparisson the reflection
+	  table is more linear, while by comparison the reflection
 	  mode has some subltle wiggles in the conversion. Possible
 	  reasons for this could be:
 	  * It's for backwards compatibility with previous X-Rite
@@ -3829,7 +3829,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 	  * A different standard wavelength reference was used to
 	    calibrate emission and reflection, and these references
 	    have historical differences.
-	  * There's subtle something going on in the physics of the
+	  * There's a subtle something going on in the physics of the
 	    emission and reflection modes and the nature of
 	    the diffraction grating that causes the wavelength
 	    calibration to be different. ]
@@ -3854,7 +3854,7 @@ double sum_wav2(i1pro3 *p, double *wav, double sx, double ss, double ee, double 
 
 	The manufacturers filter weights are the accumulated
 	third order Lagrange polynomial weights of the
-	integration of a 20 nm wide triange spectrum
+	integration of a 20 nm wide triangle spectrum
 	centered at each output wavelength, discretely
 	integrated between the range of the middle two points
 	of the Lagrange interpolator. The triangle response
@@ -4954,7 +4954,7 @@ i1pro3_fwver(
 	char str[50]		/* If !NULL, return version string */
 ) {
 	i1pro3imp *m = (i1pro3imp *)p->m;
-	unsigned char pbuf[57] = { 0 };			/* Recieve buffer */
+	unsigned char pbuf[57] = { 0 };			/* Receive buffer */
 	int slen = 56;			/* Buffer length */
 	int rlen = 0;			/* Receved message length */
 	int se, rv = I1PRO3_OK;
@@ -5898,7 +5898,7 @@ i1pro3_code i1pro3_waitfor_event(i1pro3 *p, i1pro3_eve *ecode, double top) {
 /* Wait for a reply triggered by an instrument event (thread version) */
 /* Returns I1PRO3_OK if the switch has been pressed or some other event such */
 /* as an adapter type change, or I1PRO3_INT_BUTTONTIMEOUT if */
-/* no event has occured before the time expired, */
+/* no event has occurred before the time expired, */
 /* or some other error. */
 i1pro3_code i1pro3_waitfor_event_th(i1pro3 *p, i1pro3_eve *ecode, double top) {
 	i1pro3imp *m = (i1pro3imp *)p->m;
@@ -12977,7 +12977,7 @@ i1pro3_code i1pro3_do_measure(
 		free(zbuf);
 
 		/* It seems that sometimes we get fewer zebra bytes than expected for */
-		/* the number of measurements. Adjust acordingly */
+		/* the number of measurements. Adjust accordingly */
 		if (jj < numzeb) {
 		a1logd(p->log,6,"i1pro3_do_measure - fewer zebra bytes than measurements\n");
 printf("~1 fewer zebra bytes than expected\n");

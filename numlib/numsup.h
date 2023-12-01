@@ -57,6 +57,10 @@
 	extern "C" {
 #endif
 
+#ifndef PATH_MAX
+# define PATH_MAX 4096
+#endif
+
 /* =========================================================== */
 /* Platform specific primitive defines. */
 /* This really needs checking for each different platform. */
@@ -175,6 +179,7 @@
 #ifndef ATTRIBUTE_NORETURN
 # define ATTRIBUTE_NORETURN __attribute__((noreturn))
 #endif
+
 #ifndef INLINE
 #  define INLINE inline
 #endif /* INLINE */

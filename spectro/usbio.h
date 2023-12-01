@@ -22,7 +22,6 @@
 	extern "C" {
 #endif
 
-
 /* Standard USB protocol defines */
 # include "iusb.h"
 
@@ -44,8 +43,10 @@ struct usbdk_olr {
 struct usb_idevice {
 	/* icompath stuff: */
 #ifdef EN_USBDK
+	int is_dk;				/* nz if this device was opened by usbio_dk */
 	USB_DK_DEVICE_ID ID;
-#else
+#endif
+#ifdef EN_LIBUSB0
 	char *dpath;			/* Device path */
 #endif
 	int nconfig;			/* Number of configurations */
@@ -189,7 +190,6 @@ struct usb_idevice {
 
 # endif	/* UNIX */
 
-
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 /* Transfer types for communicating to usb implementation */
@@ -218,7 +218,6 @@ struct _usb_cancelt {
 /* icompath paths in the icoms structure. */
 /* return icom error */
 int usb_get_paths(struct _icompaths *p);
-
 void usb_close_port(icoms *p);
 
 /* Set the USB specific icoms methods */

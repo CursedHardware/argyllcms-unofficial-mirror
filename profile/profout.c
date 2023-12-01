@@ -1044,7 +1044,7 @@ make_output_icc(
 		if (iccver < ICMTV_24) {
 			iccver = ICMTV_24;		/* Need 2.4.0 for Display intents */
 			if (verb)
-				fprintf(verbo,"Bumped ICC version to 2.4.0 to accomodate multiple Display intents\n");
+				fprintf(verbo,"Bumped ICC version to 2.4.0 to accommodate multiple Display intents\n");
 		}
 	}
 	if (wr_icco->set_version(wr_icco, iccver) != 0)

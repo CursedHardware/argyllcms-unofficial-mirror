@@ -131,7 +131,7 @@ typedef enum {
 																				\
 	/* Establish communications at the indicated baud rate. */					\
 	/* (Serial parameters are ignored for USB/Network device) */				\
-	/* Timout in to seconds, and return non-zero error code */					\
+	/* Timeout in to seconds, and return non-zero error code */					\
 	vtpglut_code (*init_coms)(													\
         struct _vtpglut *p);													\
 																				\
@@ -151,7 +151,7 @@ typedef enum {
 	char *(*get_serial_no)(  													\
         struct _vtpglut *p);													\
 																				\
-	/* Return the avilable devices modes and capabilities. */					\
+	/* Return the available devices modes and capabilities. */					\
 	/* Can be called before init, but may be different to */					\
 	/* what's returned after initilisation. */									\
 	/* Note that these may change with the mode. */								\

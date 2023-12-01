@@ -428,7 +428,7 @@ imdi_tab(
 				p += phc[e] * ibdinc[e];		/* Compute pointer to entry value */
 			}
 
-			/* Lookup this verticies value */
+			/* Lookup this vertices value */
 			{
 				double mriv[IXDI];	/* Channel mapped real input values */
 				double mrev[IXDO];	/* Channel mapped real entry values */
@@ -536,7 +536,7 @@ imdi_tab(
 		for (nsplx = 0; ;) {
 			int i;
 
-			/* XCOMB generates verticies in order from max to min offest */
+			/* XCOMB generates vertices in order from max to min offest */
 	
 			/* Compute Absolute -> Parameter mapping */
 			for (e = 0; e < it->id; e++) {		/* For each absolute axis */
@@ -549,7 +549,7 @@ imdi_tab(
 				}
 			}
 	
-//printf("~~Verticies   = ");
+//printf("~~Vertices   = ");
 //for (i = 0; i <= it->id; i++)
 //	printf("%d ",vcmb[i]);
 //printf("\n");

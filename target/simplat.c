@@ -233,7 +233,7 @@ double off,		/* Starting offset in device space */
 double angle	/* Rotation angle 0.0 - 1.0 */
 ) {
 	int  i, j, di = s->di;
-	double sx[MXTD+1][MXTD];	/* Simplex verticies */
+	double sx[MXTD+1][MXTD];	/* Simplex vertices */
 
 #ifdef SPHERICAL
 
@@ -341,7 +341,7 @@ double angle	/* Rotation angle 0.0 - 1.0 */
 		}
 	}
 
-#ifdef DEBUG	/* Dump stats on verticies */
+#ifdef DEBUG	/* Dump stats on vertices */
 for(i = 0; i < (di+1); i++) {
 	double val = 0.0;
 	printf("vert %d = ",i);
@@ -368,7 +368,7 @@ for(i = 0; i < di; i++) {
 }
 #endif	/* DEBUG */
 
-	/* Convert from di+1 verticies to di base vectors */
+	/* Convert from di+1 vertices to di base vectors */
 	for (i = 0; i < di; i++) {
 		for (j = 0; j < di; j++) {
 			s->bv[i][j] = sx[i+1][j] - sx[i][j];

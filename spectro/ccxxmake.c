@@ -416,7 +416,7 @@ int main(int argc, char *argv[]) {
 			/* COM port  */
 			} else if (argv[fa][1] == 'c') {
 				fa = nfa;
-				if (na == NULL) usage(uflag | 0,"Paramater expected following -c");
+				if (na == NULL) usage(uflag | 0,"Parameter expected following -c");
 				comno = atoi(na);
 				if (comno < 1 || comno > 40) usage(uflag | 0,"-c parameter %d out of range",comno);
 
@@ -539,7 +539,7 @@ int main(int argc, char *argv[]) {
 			/* Serial port flow control */
 			} else if (argv[fa][1] == 'W') {
 				fa = nfa;
-				if (na == NULL) usage(uflag | 0,"Paramater expected following -W");
+				if (na == NULL) usage(uflag | 0,"Parameter expected following -W");
 				if (na[0] == 'n' || na[0] == 'N')
 					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
@@ -628,7 +628,7 @@ int main(int argc, char *argv[]) {
 		strcat(outname, doccss ? ".ccss" : ".ccmx");
 
 	if (fakeseq && doccss)
-		error("Fake CCSS test not implemeted");
+		error("Fake CCSS test not implemented");
 
 	printf("\n");
 
@@ -847,7 +847,7 @@ int main(int argc, char *argv[]) {
 						refs[i][2] = cols[i][2];
 					}
 					gotref = 1;
-					warning("Got two colorimetric files - assuming '%s' is the refrence",innames[0]);
+					warning("Got two colorimetric files - assuming '%s' is the reference",innames[0]);
 					refrmode = -1;
 					cbid = 0;
 

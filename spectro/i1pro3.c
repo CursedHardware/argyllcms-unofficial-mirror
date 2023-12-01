@@ -117,7 +117,7 @@ i1pro3_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return i1pro3_interp_code(p, icoms2i1pro3_err(se));
 	}
 
-	a1logd(p->log, 2, "i1pro3_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "i1pro3_init_coms: init coms has succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;

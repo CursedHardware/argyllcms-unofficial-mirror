@@ -157,7 +157,7 @@ printf("~1 doing first gamut inside second\n");
 			int nout;				/* Number that are out */ 
 			
 printf("~1 doing triangle %d from %s gamut\n",tp1->n,k == 0 ? "first" : "second");
-			/* See how many verticies in the triangle are contained within */
+			/* See how many vertices in the triangle are contained within */
 			/* the other gamut. */
 			nout = 0;
 			for (i = 0; i < 3; i++) {	/* For each vertex */
@@ -174,7 +174,7 @@ printf("~1 doing triangle %d from %s gamut\n",tp1->n,k == 0 ? "first" : "second"
 					inout[i] = 0;
 			}
 
-printf("~1 verticies outside = %d\n",nout);
+printf("~1 vertices outside = %d\n",nout);
 
 			/* If none are in, skip this triangle */
 			if (nout == 3)

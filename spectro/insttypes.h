@@ -127,7 +127,7 @@ int nep);					/* Number of end points (0 for prelim match) */
 /* name. */
 
 /* Fill in an instruments illuminant spectrum. */
-/* Return 0 on sucess, 1 if not not applicable. */
+/* Return 0 on success, 1 if not not applicable. */
 extern int inst_illuminant(xspect *sp, instType itype);
 
 

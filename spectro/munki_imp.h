@@ -389,7 +389,7 @@ void del_munkiimp(munki *p);
 #define MUNKI_INT_CIECONVFAIL 	        0x61		/* Creating spectral to CIE converted failed */
 #define MUNKI_INT_MALLOC                0x62		/* Error in mallocing memory */
 #define MUNKI_INT_CREATE_EEPROM_STORE   0x63		/* Error in creating EEProm store */
-#define MUNKI_INT_NEW_RSPL_FAILED       0x64		/* Creating RSPL object faild */
+#define MUNKI_INT_NEW_RSPL_FAILED       0x64		/* Creating RSPL object failed */
 #define MUNKI_INT_CAL_SAVE              0x65		/* Unable to save calibration to file */
 #define MUNKI_INT_CAL_RESTORE           0x66		/* Unable to restore calibration from file */
 #define MUNKI_INT_CAL_TOUCH             0x67        /* Unable to touch calibration file */

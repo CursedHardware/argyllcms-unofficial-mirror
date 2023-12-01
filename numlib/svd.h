@@ -116,7 +116,7 @@ int      n		/* Number of unknowns */
 );
 
 /* Compute the inverse matrix Ai[[0..n-1][0..m-1] from SVD components */
-static void svdinverse(
+void svdinverse(
 double **u,		/* U[0..m-1][0..n-1] U, W, V SVD decomposition of A[][] */
 double  *w,		/* W[0..n-1] */
 double **v,		/* V[0..n-1][0..n-1] (not transpose!) */

@@ -2,7 +2,6 @@
 
 /* 
  * International Color Consortium Format Library (icclib)
- * For ICC profile version 4.3
  *
  * Author:  Graeme W. Gill
  * Date:    2022/12/15
@@ -29,7 +28,7 @@ static int icmPeDummy_init(icmPe *p) {
 
 /* Compute attr for a PeSeq */
 static int icmPeSeq_init(icmPeSeq *p) {
-	int i;
+	unsigned int i;
 	icmPeOp pop = -1;
 	int count[icmPeOp_complex+1] = { 0 };
 
@@ -53,7 +52,7 @@ static int icmPeSeq_init(icmPeSeq *p) {
 		}
 	}
 	/* Find last to set no chan */
-	for (i = p->count -1; i >= 0; i--) {
+	for (i = p->count; i-- > 0;) {
 		if (p->pe[i] != NULL && p->pe[i]->attr.op != icmPeOp_NOP) {
 			p->outputChan = p->pe[i]->outputChan;
 			break;
@@ -749,7 +748,7 @@ static void icmPeClut_dump(icmPeClut *p, icmFile *op, int verb) {
 			unsigned int k;
 			/* Print table entry index */
 			op->printf(op,PAD(" "));
-			for (j = p->inputChan-1; j < p->inputChan; j--)
+			for (j = p->inputChan; j-- > 0;)
 				op->printf(op," %2u",ii[j]);
 			op->printf(op,":");
 			/* Print table entry contents */
@@ -2320,6 +2319,7 @@ static int icmPeContainer_insert(icmPeContainer *p, unsigned int ix, icmPe *pe) 
 	if (ix >= p->count)
 		return icm_err(p->icp, ICM_ERR_PECONT_BOUND, "icmPeContainer_insert ix bounds");
 
+	/* We know count is at least 1 now.. */
 	p->count++;
 	if (icmArrayResize(p->icp, &p->_count, &p->count,
 	    (void **)&p->pe, sizeof(icmPe *), "icmPeContainer array")) {
@@ -2353,6 +2353,7 @@ static int icmPeContainer_remove(icmPeContainer *p, unsigned int ix) {
 	if (ix >= p->count)
 		return icm_err(p->icp, ICM_ERR_PECONT_BOUND, "icmPeContainer_remove ix bounds");
 
+	/* We know count is at least 1 now.. */
 	p->pe[ix]->del(p->pe[ix]);
 
 	for (i = ix; i < (p->count-1); i++)
@@ -2513,8 +2514,7 @@ static unsigned int icmPeContainer_max_clut_res(icmPeContainer *p, int res[MAX_C
 /* res may be NULL */
 /* Returns 0 if there is no per channel lut out the output sequence. */
 static unsigned int icmPeContainer_max_out_res(icmPeContainer *p, int res[MAX_CHAN]) {
-	int ix;
-	unsigned int e;
+	unsigned int ix, e;
 	unsigned int maxres = 0;
 
 	if (res != NULL) {
@@ -2523,7 +2523,7 @@ static unsigned int icmPeContainer_max_out_res(icmPeContainer *p, int res[MAX_CH
 	}
 
 	/* Search backwards */
-	for (ix = p->count-1; ix >= 0; ix--) {
+	for (ix = p->count; ix-- > 0;) {
 		icmPe *pe = p->pe[ix];
 
 		if (pe == NULL)
@@ -2647,9 +2647,10 @@ static icmPeClut *icmPeContainer_get_lut(
 	icmPeContainer *p,			/* full transform sequence */
 	icmPeContainer **ptail		/* If not NULL return tail process, NULL if none */
 ) {
-	int ix, e;
+	int ix;
 
-	for (ix = p->count-1; ix >= 0; ix--) {
+	/* Search backwards */
+	for (ix = p->count; ix-- > 0;) {
 		icmPe *pe = p->pe[ix];
 
 		if (pe == NULL)

@@ -38,7 +38,7 @@ struct _imdi {
 
 	/* Note that once an imdi is created, multiple can call interp() without */
 	/* interfering with each other, allowing parallel execution. */
-	void (*interp)(struct _imdi *s, void **outp, int outst,		/* Ouput pointers and stride */
+	void (*interp)(struct _imdi *s, void **outp, int outst,		/* Output pointers and stride */
 	                                void **inp, int inst,		/* Input pointers and stride */
 	                                unsigned int npixels);		/* Number of pixels */
 

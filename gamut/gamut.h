@@ -27,7 +27,7 @@
 
 #include "../h/llist.h"
 
-#define BSPDEPTH 100		/* Maximum BSP tree depth */
+#define BSPDEPTH 100			/* Maximum BSP tree depth */
 
 #define PFARNDIST  0.1			/* Positive (inwards) far "near" distance */
 #define NFARNDIST -200.0		/* Negative (outwards) far "near" distance */
@@ -93,7 +93,7 @@ struct _gquad {
 	/* and each node contains NSLOTS slots. */
 	/* If the quadtree recurses, the first slot containts another */
 	/* quadtree, otherwise the slots contain pointers to the */
-	/* four best verticies in the various directions. */
+	/* four best vertices in the various directions. */
 
 }; typedef struct _gquad gquad;
 
@@ -135,7 +135,7 @@ struct _gbspl {
 struct _gtri {
 	BSP_STRUCT
 	int n;			/* Serial number */
-	struct _gvert *v[3];		/* Verticies in cw order */
+	struct _gvert *v[3];		/* Vertices in cw order */
 	struct _gedge *e[3];		/* Edges v[n] - v[n+1] */
 	int           ei[3];		/* Index within edge structure of this triangle [0..1] */
 
@@ -163,7 +163,7 @@ struct _gtri {
 /* An edge shared by two triangle in the mesh */
 struct _gedge {
 	int n;			/* Serial number */
-	struct _gvert *v[2];	/* Verticies of edge */
+	struct _gvert *v[2];	/* Vertices of edge */
 	struct _gtri  *t[2];	/* Triangles edge is part of */
 	int           ti[2];	/* record of indexes of edge within the triangles [0..2]*/
 	double        re[4];	/* Radial edge plane equation (relative) */
@@ -206,12 +206,12 @@ struct _gamut {
 	double cent[3];		/* Gamut center for radial conversion. Default 50.0,0,0 */
 						/* Must be same to compare radial values. */
 
-	int nv;				/* Number of verticies used out of allocation */
-	gvert *ul;			/* Linked list of unused verticies */
-	int na;				/* Number of verticies allocated */
-	int nsv;			/* Number of verticies that have been set */
-	int ntv;			/* Number of verticies used in triangulation */
-	gvert **verts;		/* Pointers to allocated verticies */
+	int nv;				/* Number of vertices used out of allocation */
+	gvert *ul;			/* Linked list of unused vertices */
+	int na;				/* Number of vertices allocated */
+	int nsv;			/* Number of vertices that have been set */
+	int ntv;			/* Number of vertices used in triangulation */
+	gvert **verts;		/* Pointers to allocated vertices */
 	int read_inited;	/* Flag set if gamut was initialised from a read */
 	int lu_inited;		/* Flag set if radial surface lookup is inited */
 	int ne_inited;		/* Flag set if nearest lookup is inited */
@@ -247,7 +247,7 @@ struct _gamut {
 	double mx[3], mn[3];	/* Range covered by input points */
 
 	double xvra;		/* Extra vertex ratio - set/used by nssverts() */
-	int    ssnverts;	/* total ss verticies - set/used by nssverts() */
+	int    ssnverts;	/* total ss vertices - set/used by nssverts() */
 	int	   ssvertn;		/* Number of verts created for current triangle */
 	sobol *ss;			/* Sobol ss generator currently being used */
 
@@ -275,29 +275,29 @@ struct _gamut {
 
 	int (*compatible)(struct _gamut *s, struct _gamut *t);	/* Return the nz if compatible gamuts */
 
-	int (*nrawverts)(struct _gamut *s); /* Return the number of raw verticies */
+	int (*nrawverts)(struct _gamut *s); /* Return the number of raw vertices */
 
 	int (*getrawvert)(struct _gamut *s, double pos[3], int ix);
-									/* Return the raw verticies location */
+									/* Return the raw vertices location */
 
-	int (*nraw0verts)(struct _gamut *s); /* Return the number of raw verticies in */
+	int (*nraw0verts)(struct _gamut *s); /* Return the number of raw vertices in */
 	                                    /* the radial maxima direction*/
 
 	int (*getraw0vert)(struct _gamut *s, double pos[3], int ix);
-									/* Return the raw 0 direction verticies location */
+									/* Return the raw 0 direction vertices location */
 
-	int (*nverts)(struct _gamut *s); /* Return the number of surface verticies */
+	int (*nverts)(struct _gamut *s); /* Return the number of surface vertices */
 
 	int (*getvert)(struct _gamut *s, double *rad, double pos[3], int ix);
-								/* Return the surface triangle verticies location and radius */
+								/* Return the surface triangle vertices location and radius */
 								/* start at 0, and returns value is next index or -1 if last */
 
 	int (*nssverts)(struct _gamut *s, double vpua);
-								/* Return the number of stratified sampling surface verticies, */
-								/* for the given verticies per unit area parameter. */
+								/* Return the number of stratified sampling surface vertices, */
+								/* for the given vertices per unit area parameter. */
 
 	int (*getssvert)(struct _gamut *s, double *rad, double pos[3], double norn[3], int ix);
-								/* Return the stratified sampling surface verticies */
+								/* Return the stratified sampling surface vertices */
 								/* location and radius. nssverts() sets vpua */
 								/* norm will contain the normal of the triangle */
 								/* the point originates from. */

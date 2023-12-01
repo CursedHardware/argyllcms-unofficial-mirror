@@ -130,7 +130,7 @@ int nd				/* nz to disable debug messages */
 	se = p->icom->write_read_ex(p->icom, in, 0, out, bsize, &bread, tc, ntc, to, 1);
 
 	/* Because we are sometimes waiting for 3 x \r characters to terminate the read, */
-	/* we will instead time out on getting a single NAK (\025), so ignore timout */
+	/* we will instead time out on getting a single NAK (\025), so ignore timeout */
 	/* if we got a NAK. */
 	if (se == ICOM_TO && bread > 0 && out[0] == '\025')
 		se = ICOM_OK;
@@ -198,7 +198,7 @@ struct _specbos *p,
 char *in,			/* In string */
 char *out,			/* Out string buffer */
 int bsize,			/* Out buffer size */
-double to) {		/* Timout in seconds */
+double to) {		/* Timeout in seconds */
 	int rv = specbos_fcommand(p, in, out, bsize, to, 1, tnorm, 0);
 	return specbos_interp_code((inst *)p, rv);
 }
@@ -356,7 +356,7 @@ specbos_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		a1logd(p->log, 2, "specbos_init_coms: unrecognised model %04d\n",p->model);
 		return inst_unknown_model;
 	}
-	a1logd(p->log, 2, "specbos_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "specbos_init_coms: init coms has succeeded\n");
 
 	/* See if it's a 1501 or 1511 */
 	if (p->model == 1501) {
@@ -1780,7 +1780,7 @@ char id[CALIDLEN]		/* Condition identifier (ie. white reference ID) */
 	if ((ev = specbos_get_n_a_cals((inst *)p, &needed, &available)) != inst_ok)
 		return ev;
 
-	a1logd(p->log,4,"specbos_calibrate: needed 0x%x, avaialble 0x%x\n",needed, available);
+	a1logd(p->log,4,"specbos_calibrate: needed 0x%x, available 0x%x\n",needed, available);
 
 	/* Translate inst_calt_all/needed into something specific */
 	if (*calt == inst_calt_all
@@ -2279,7 +2279,7 @@ int *conf_ix
 ) {
 	specbos *p = (specbos *)pp;
 	inst_code ev;
-	inst_mode mval;
+	inst_mode mval = inst_mode_none;
 	int pos;
 
 	if (mmodes != NULL)

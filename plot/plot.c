@@ -2634,10 +2634,8 @@ static int do_plot_imp(
 			XSendEvent(mydisplay, mywindow, False, ExposureMask, (XEvent *)&ev);
 			
 		} else {
-			if (pd.dowait > 0) {
-				XMapRaised(mydisplay,mywindow);
-				debugf(("Raised window\n"));
-			}
+			XMapRaised(mydisplay,mywindow);
+			debugf(("Raised window\n"));
 		}
 	
 		/* Main event loop */
@@ -2660,6 +2658,7 @@ static int do_plot_imp(
 						DoPlot(mydisplay,mywindow, mygc, &pd);
 
 						if (pd.dowait <= 0) {		/* Don't wait */
+							XFlush(mydisplay);		/* Make sure DoPlot gets to display */
 							if (pd.dowait < 0)
 								sleep(-pd.dowait);
 							debugf(("Not waiting, so set done=1\n"));
@@ -3100,7 +3099,7 @@ static void dprintf(char *fmt, ...) {
 printf("~1 found NtQueryInformationProcess\n"); fflush(stdout);
 			if(NtQueryInformationProcess(GetCurrentProcess(), 0,
 			    &pbi, sizeof(pbi), &ulSize) >= 0 && ulSize == sizeof(pbi)) {
-printf("~1 NtQueryInformationProcess suceeded\n"); fflush(stdout);
+printf("~1 NtQueryInformationProcess succeeded\n"); fflush(stdout);
 
 				*(FARPROC *)&AttachConsole = 
 		          GetProcAddress(LoadLibraryA("kernel32.dll"), "AttachConsole");

@@ -1174,7 +1174,7 @@ a1log *log			/* verb, debug & error log */
 
 		/* Or something is wrong with instrument capabilities */
 		} else {
-			printf("\nNo reasonable trigger mode avilable for this instrument\n");
+			printf("\nNo reasonable trigger mode available for this instrument\n");
 			it->del(it);
 			return -1;
 		}
@@ -1709,7 +1709,7 @@ a1log *log			/* verb, debug & error log */
 	
 			/* Or something is wrong with instrument capabilities */
 			} else {
-				printf("\nNo reasonable trigger mode avilable for this instrument\n");
+				printf("\nNo reasonable trigger mode available for this instrument\n");
 				it->del(it);
 				return -1;
 			}

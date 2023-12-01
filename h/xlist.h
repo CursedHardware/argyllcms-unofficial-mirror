@@ -1,4 +1,4 @@
-/* A set of expandable list (i.e. array) utilities, implimented as macros. */
+/* A set of expandable list (i.e. array) utilities, implemented as macros. */
 /* Copyright 2006 Graeme W. Gill */
 
 #ifndef _XLIST_H_

@@ -745,7 +745,7 @@ icoms_hid_read(icoms *p,
 	{
 		unsigned char *rbuf2;
 
-		/* Create a copy of the data recieved with one more byte */
+		/* Create a copy of the data received with one more byte */
 		if ((rbuf2 = malloc(bsize + 1)) == NULL) {
 			a1loge(p->log, ICOM_SYS, "icoms_hid_read: malloc failed\n");
 			return ICOM_SYS;

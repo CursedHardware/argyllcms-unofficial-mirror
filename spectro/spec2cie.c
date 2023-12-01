@@ -215,7 +215,7 @@ main(int argc, char *argv[])
 					calstdi = xcalstd_gmdi;
 					calstdo = xcalstd_xrdi;
 				} else {
-					//usage("Paramater after -A '%c%c' not recognized",na[0],na[1]);
+					//usage("Parameter after -A '%c%c' not recognized",na[0],na[1]);
 					usage();
 				}
 			}
@@ -658,7 +658,7 @@ main(int argc, char *argv[])
 		int ti, ii;
 		int Xi, Yi, Zi, Li, ai, bi;		/* CGATS indexes for each field */
 		int spi[XSPECT_MAX_BANDS];		/* CGATS indexes for each wavelength */
-		int oXi, oYi, oZi, oLi, oai, obi;	/* CGATS indexes for each ouput field */
+		int oXi, oYi, oZi, oLi, oai, obi;	/* CGATS indexes for each output field */
 		int oL2i, oa2i, ob2i;				/* For illuminant wp L*a*b* output */
 		xsp2cie *sp2cie;				/* Spectral conversion object */
 		xspect sp;

@@ -3670,7 +3670,7 @@ double *in			/* Input di values */
 //printf("~1 out[%d] = %f = %f * %f\n",f,out[f],w,v[f * (1 << di)]);
 		}
 
-		for (e = di-1; e > 0; e--) {	/* Middle verticies */
+		for (e = di-1; e > 0; e--) {	/* Middle vertices */
 			w = in[si[e]] - in[si[e-1]];
 			v += (1 << si[e]);				/* Move to top of cell in next largest dimension */
 			for (f = 0; f < fdi; f++) {

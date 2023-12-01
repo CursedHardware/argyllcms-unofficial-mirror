@@ -245,7 +245,6 @@ int main(int argc, char *argv[]) {
 	icxTransformCreateType icctype = icxTCT_V2V2;	/* ICC profile version to create */
 	profxinf xpi;		/* Extra profile information */
 
-	
 #ifdef DO_TIME			/* Time the operation */
 	stime = clock();
 #endif /* DO_TIME */

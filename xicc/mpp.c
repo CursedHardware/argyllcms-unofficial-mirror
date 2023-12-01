@@ -735,7 +735,7 @@ int           use_fwa			/* NZ to involke FWA. */
 			error ("mpp->set_ilob, instrument doesn't have an FWA illuminent");
 
 		if (p->spc->set_fwa(p->spc, &inst, NULL, &white))
-			error ("mpp->set_ilob, set_fwa faild");
+			error ("mpp->set_ilob, set_fwa failed");
 	}
 
 	return 0;

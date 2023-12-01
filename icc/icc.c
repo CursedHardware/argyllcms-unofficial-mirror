@@ -1,7 +1,6 @@
 
 /* 
  * International Color Consortium Format Library (icclib)
- * For ICC profile version 3.4
  *
  * Author:  Graeme W. Gill
  * Date:    2002/04/22
@@ -1149,7 +1148,7 @@ static const char *icmTagSig2str_imp(icTagSignature sig, int alt) {
 		case icSigViewingCondDescTag:
 			return "Viewing Condition Description";
 		case icSigViewingConditionsTag:
-			return "Viewing Condition Paramaters";
+			return "Viewing Condition Parameters";
 
 		/* ArgyllCMS private tag: */
 		case icmSigAbsToRelTransSpace:
@@ -1581,7 +1580,7 @@ static const char *icmMeasurementGeometry2str(icMeasurementGeometry sig) {
 /* Rendering Intents, used in the profile header */
 static const char *icmRenderingIntent2str(icRenderingIntent sig) {
 	static int si = 0;			/* String buffer index */
-	static char buf[5][80];		/* String buffers */
+	static char buf[5][100];	/* String buffers */
 	char *bp, *cp;
 
 	cp = bp = buf[si++];
@@ -1693,7 +1692,7 @@ static const char *icmIlluminant2str(icIlluminant sig) {
 /* A language code */
 static const char *icmLanguageCode2str(icEnumLanguageCode sig) {
 	unsigned int sigv = (unsigned int)sig;
-	static char buf[50];
+	static char buf[80];
 
 	switch(sig) {
 		case icLanguageCodeEnglish:
@@ -1810,7 +1809,7 @@ static const char *icmDevSetMsftID2str(icDevSetMsftIDSignature sig) {
 /* Microsoft platform Media Type Encoding */
 static const char *icmDevSetMsftMedia2str(icDevSetMsftMedia sig) {
 	int usern;
-	static char buf[50];
+	static char buf[80];
 	/* We're allowing for 256 user settings, but this is */
 	/* arbitrary, and not defined in the ICC spec. */
 	if (sig > icMsftMediaUser1 && sig < (icMsftMediaUser1 + 255)) {
@@ -2278,22 +2277,33 @@ char *icmCSInfo2str(icmCSInfo *p)  {
 /* Return a string that shows the XYZ number value */
 /* Returned buffer is static */
 char *icmXYZNumber2str(icmXYZNumber *p) {
-	static char buf[80];
+#   define BUFSZ 100
+	static char buf[BUFSZ];
+	int rl;
 
-	sprintf(buf,"%.8f, %.8f, %.8f", p->XYZ[0], p->XYZ[1], p->XYZ[2]);
+	rl = snprintf(buf, BUFSZ,"%.8f, %.8f, %.8f", p->XYZ[0], p->XYZ[1], p->XYZ[2]);
+	if (rl < 0 || rl >= BUFSZ)
+		snprintf(buf, BUFSZ,"%g, %g, %g", p->XYZ[0], p->XYZ[1], p->XYZ[2]);
 	return buf;
+#   undef BUFSZ
 }
 
 /* Return a string that shows the XYZ number value, */
 /* and the Lab D50 number in paren. */
 /* Returned string is static */
 char *icmXYZNumber_and_Lab2str(icmXYZNumber *p) {
-	static char buf[100];
+#   define BUFSZ 100
+	static char buf[BUFSZ];
 	double lab[3];
+	int rl;
 	icmXYZ2Lab(&icmD50, lab, p->XYZ);
-	sprintf(buf,"%.8f, %.8f, %.8f    [Lab %f, %f, %f]", p->XYZ[0], p->XYZ[1], p->XYZ[2],
-	                                              lab[0], lab[1], lab[2]);
+	rl = snprintf(buf, BUFSZ, "%.8f, %.8f, %.8f    [Lab %f, %f, %f]",
+	            p->XYZ[0], p->XYZ[1], p->XYZ[2], lab[0], lab[1], lab[2]);
+	if (rl < 0 || rl >= BUFSZ)
+		snprintf(buf, BUFSZ, "%g, %g, %g    [Lab %g, %g, %g]",
+	            p->XYZ[0], p->XYZ[1], p->XYZ[2], lab[0], lab[1], lab[2]);
 	return buf;
+#   undef BUFSZ
 }
 			
 
@@ -4787,7 +4797,8 @@ static void icmSn_ASCIIZ(
 		*pfcount = icmUTF8toASCIIZSn(&utferr, b, (icmUTF8 *)*pdesc, *pcount, fxlen);
 
 		if (utferr != icmUTF_ok) {
-			icm_err(b->icp, 1,"%s write: utf-8 to ASCIIZ translate returned error '%s'",id,icmUTFerr2str(utferr));
+			icmQuirkWarning(b->icp, 1, 1, "%s write: utf-8 to ASCIIZ translate returned error '%s'",
+			                                                              id,icmUTFerr2str(utferr));
 			return;
 		}
 
@@ -9857,7 +9868,7 @@ static unsigned int icc_get_size(icc *p) {
 	p->header->phsize = nsize - size;
 	/* (Could call tagtable_serialise() with icmSnSize to compute tag table size) */
 	size = sat_addaddmul(nsize, 4, p->count, 12);	/* Tag table length */
-	size = sat_align(p->align, size);				/* Header + tage table length */
+	size = sat_align(p->align, size);				/* Header + tag table length */
 	p->pttsize = size - nsize;						/* Padded tag table size */
 
 	if (size == UINT_MAX) {
@@ -10923,6 +10934,8 @@ static int icc_delete_tag_imp(
 		                                                  icmTagSig2str(sig));
 	}
 
+	/* We know that count > 0 now... */
+
 	/* If the tagtype is loaded, decrement the reference count */
     if (p->data[i].objp != NULL) {
 		p->data[i].objp->del(p->data[i].objp);	/* Free if last reference */
@@ -10957,7 +10970,7 @@ static int icc_delete_tag(
 /* if this was the last reference to it. */
 /* Doesn't return error if tag doesn't exist */
 /* Returns error code on error. */
-/* NOTE: we don't handle tag duplication - you'll always read delete the first in the file */
+/* NOTE: we don't handle tag duplication - you'll always delete the first in the file */
 static int icc_delete_tag_quiet(
 	icc *p,
     icTagSignature sig		/* Tag signature - may be unknown */

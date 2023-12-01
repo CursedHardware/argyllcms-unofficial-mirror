@@ -723,7 +723,7 @@ i1d3_unlock(
 		if ((ev = i1d3_command(p, i1d3_lockresp, todev, fromdev, 1.0, 0)) != inst_ok)
 			return ev;
 
-		if (fromdev[2] == 0x77) {		/* Sucess ? */
+		if (fromdev[2] == 0x77) {		/* Success ? */
 			int stat;
 
 			/* Check success */
@@ -1600,7 +1600,7 @@ i1d3_imp_measure_refresh(
 
 //				if (i >= npeaks)
 				if (nfails == 0 || (nfails <= 2 && npeaks >= 6))
-					break;		/* Sucess */
+					break;		/* Success */
 				/* else go and try a different divisor */
 			}
 			if (j < 20)
@@ -2851,7 +2851,7 @@ i1d3_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		a1logd(p->log, 1, "i1d3_init_coms: failed with rv = 0x%x\n",ev);
 		return ev;
 	}
-	a1logd(p->log, 2, "i1d3_init_coms: suceeded\n");
+	a1logd(p->log, 2, "i1d3_init_coms: succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;
@@ -3574,7 +3574,7 @@ int *pinstmsec) {    /* Return instrument reaction time in msec */
 			break;
 	}
 
-	a1logd(p->log, 2, "i1d3_meas_delay: stoped at sample %d time %f\n",i,samp[i].sec);
+	a1logd(p->log, 2, "i1d3_meas_delay: stopped at sample %d time %f\n",i,samp[i].sec);
 
 	/* Compute overall delay */
 	dispmsec = (int)(samp[i].sec * 1000.0 + 0.5);

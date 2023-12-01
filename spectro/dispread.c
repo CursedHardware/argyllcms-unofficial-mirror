@@ -428,7 +428,7 @@ int main(int argc, char *argv[]) {
 			/* COM port  */
 			} else if (argv[fa][1] == 'c') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Paramater expected following -c");
+				if (na == NULL) usage(0,"Parameter expected following -c");
 				comport = atoi(na);
 				if (comport < 1 || comport > 50) usage(0,"-c parameter %d out of range",comport);
 

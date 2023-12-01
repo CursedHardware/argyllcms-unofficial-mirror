@@ -636,7 +636,7 @@ thscreen *new_thscreen(
 	mrang = 65535.0/(t->oelev - 1.0); 
 	DBG(("new_thscreen() raw modulation rande = %f\n",mrang));
 
-	/* Modify the modulation range to accomodate any level overlap */
+	/* Modify the modulation range to accommodate any level overlap */
 	if (olap > 0.0 && t->oelev > 2) {
 		mrang = ((t->oelev - 2.0) * olap * mrang + 65535.0)/(t->oelev - 1.0);
 		DBG(("new_thscreen() modulation adjusted for overlap = %f\n",mrang));

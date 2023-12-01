@@ -2915,7 +2915,7 @@ spyd2_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return spyd2_interp_code((inst *)p, icoms2spyd2_err(se));
 	}
 
-	a1logd(p->log, 2, "spyd2_init_coms: suceeded\n");
+	a1logd(p->log, 2, "spyd2_init_coms: succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;
@@ -3385,9 +3385,9 @@ spyd2_interp_error(inst *pp, int ec) {
 		case SPYD2_BADREADSIZE:
 			return "Didn't read expected amount of data";
 		case SPYD2_TRIGTIMEOUT:
-			return "Trigger timout";
+			return "Trigger timeout";
 		case SPYD2_OVERALLTIMEOUT:
-			return "Overall timout";
+			return "Overall timeout";
 		case SPYD2_BAD_EE_CRC:
 			return "Serial EEProm CRC failed";
 

@@ -505,7 +505,7 @@ char **pnames		/* List of process names to try and kill before opening */
 					p->EPINFO(ad).addr = ad;
 					p->EPINFO(ad).packetsize = maxPacketSize;
 					p->EPINFO(ad).type = transferType & IUSB_ENDPOINT_TYPE_MASK;
-					p->EPINFO(ad).interface = i;
+					p->EPINFO(ad).ifaceno = i;
 					p->EPINFO(ad).pipe = j+1;
 					a1logd(p->log, 6, "set ep ad 0x%x packetsize %d type %d, if %d, pipe %d\n",ad,maxPacketSize,transferType & IUSB_ENDPOINT_TYPE_MASK,i,j);
 				}
@@ -587,7 +587,7 @@ static int icoms_usb_transaction(
 	usbio_req req;
 	IOReturn result;
 	CFRunLoopSourceRef cfsource;	/* Device event sources */
-	int iix = p->EPINFO(endpoint).interface;
+	int iix = p->EPINFO(endpoint).ifaceno;
 	UInt8 pno = (UInt8)p->EPINFO(endpoint).pipe;
 
 	in_usb_rw++;
@@ -808,7 +808,7 @@ int icoms_usb_resetep(
 	int ep					/* End point address */
 ) {
 	int reqrv = ICOM_OK;
-	int iix = p->EPINFO(ep).interface;
+	int iix = p->EPINFO(ep).ifaceno;
 	UInt8 pno = (UInt8)p->EPINFO(ep).pipe;
 	IOReturn rv;
 
@@ -827,7 +827,7 @@ int icoms_usb_clearhalt(
 	int ep					/* End point address */
 ) {
 	int reqrv = ICOM_OK;
-	int iix = p->EPINFO(ep).interface;
+	int iix = p->EPINFO(ep).ifaceno;
 	UInt8 pno = (UInt8)p->EPINFO(ep).pipe;
 	IOReturn rv;
 	int irv;

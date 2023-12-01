@@ -116,7 +116,7 @@ dtp51_fcommand(
 	int bsize,			/* Out buffer size */
 	char *tc,			/* Terminating character */
 	int ntc,			/* Number of terminating characters */
-	double to) {		/* Timout in seconts */
+	double to) {		/* Timeout in seconts */
 	int rv, se;
 
 	if ((se = p->icom->write_read(p->icom, in, 0, out, bsize, NULL, tc, ntc, to)) != 0) {
@@ -154,7 +154,7 @@ dtp51_read(
 struct _dtp51 *p,
 char *out,			/* Out string buffer */
 int bsize,			/* Out buffer size */
-double to) {		/* Timout in seconts */
+double to) {		/* Timeout in seconts */
 	char *tc = ">";		/* Terminating character */
 	int ntc = 1;		/* Number of terminating characters */
 	int rv, se;
@@ -682,7 +682,7 @@ dtp51_interp_error(inst *pp, int ec) {
 		case DTP51_INVALID_STEP:
 			return "Invalid step";
 		case DTP51_NO_DATA_AVAILABLE:
-			return "No data availble";
+			return "No data available";
 		case DTP51_LAMP_MARGINAL:
 			return "Lamp marginal";
 		case DTP51_LAMP_FAILURE:

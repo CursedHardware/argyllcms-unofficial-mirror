@@ -47,9 +47,12 @@
 
 	added to /usr/lib/firewalld/services
 
-
 	GWG - IPV6 server support is not complete.
  */
+
+#ifndef PATH_MAX
+# define PATH_MAX 4096
+#endif
 
 #if defined(_WIN32)
 #define _CRT_SECURE_NO_WARNINGS // Disable deprecation warning in VS2005

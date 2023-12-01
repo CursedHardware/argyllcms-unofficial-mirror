@@ -122,7 +122,7 @@ struct _vrml {
 	void (*add_text)(struct _vrml *s, char *text, double p[3], double col[3], double size);
 
 
-	/* Start building up verticies that will be converted to lines, triangles or quads. */
+	/* Start building up vertices that will be converted to lines, triangles or quads. */
 	/* Set can be from 0 - 9 (call this before add_vertx() etc) */
 	void (*start_line_set)(struct _vrml *s, int set);
 
@@ -145,9 +145,9 @@ struct _vrml {
 	/* (Sets .last flag on vertex) */
 	void (*make_last_vertex)(struct _vrml *s, int set);
 
-	/* Convert the verticies to lines, ppset verticies per line (or using .last flag) */
+	/* Convert the vertices to lines, ppset vertices per line (or using .last flag) */
 	/* and output all the lines, using per vertex color. */
-	/* Use ppset > no verticies for just .last flag */
+	/* Use ppset > no vertices for just .last flag */
 	void (*make_lines)(struct _vrml *s, int set, int ppset);
 
 
@@ -196,7 +196,7 @@ struct _vrml {
 	void (*make_quads)(struct _vrml *s, int set, double trans, double col[3]);
 
 
-	/* Clear verticies and lines/triangles/quads */
+	/* Clear vertices and lines/triangles/quads */
 	void (*clear)(struct _vrml *s);
 	
 	/* Helper :- convert a Lab value to RGB */

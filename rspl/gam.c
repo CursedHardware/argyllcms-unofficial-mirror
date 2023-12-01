@@ -384,12 +384,12 @@ static rvert *get_vert(rspl *s, int gix) {
 	return vp;
 }
 
-/* Search for an existing edge containing the given verticies, */
+/* Search for an existing edge containing the given vertices, */
 /* and return it. If there is no existing edge, create it. */
-/* Note that edges have fdi-2 dimensions == fdi-1 verticies. */
+/* Note that edges have fdi-2 dimensions == fdi-1 vertices. */
 static redge *get_edge(rspl *s, rvert **_vv) {
 	int i, j, f, fdi = s->fdi;
-	rvert *vv[MXDO-1];		/* Sorted verticies */
+	rvert *vv[MXDO-1];		/* Sorted vertices */
 	int gix, hash;
 	redge *ep = NULL;
 
@@ -416,12 +416,12 @@ static redge *get_edge(rspl *s, rvert **_vv) {
 	for (ep = s->gam.edges[hash]; ep != NULL; ep = ep->next) {
 		for (i = 0; i < (fdi-1); i++) {
 			if (ep->v[i] != vv[i]) {
-//printf("~1 verticies don't match\n");
+//printf("~1 vertices don't match\n");
 				break;			/* No match */
 			}
 		}
 		if (i >= (fdi-1)) {
-//printf("~1 all verticies match\n");
+//printf("~1 all vertices match\n");
 			break;				/* All match */
 		}
 	}
@@ -490,16 +490,16 @@ printf("~1 returning edge no %d\n",ep->n);
 /* Return NULL if it doesn't */
 static rtri *check_tri(rspl *s, redge *ep, rvert *_vv) {
 	int i, j, k, f, fdi = s->fdi;
-	rvert *vv[MXDO];		/* Sorted verticies */
+	rvert *vv[MXDO];		/* Sorted vertices */
 	int gix, hash;
 	rtri *tp = NULL;
 
-	/* Copy edge verticies from edge */
+	/* Copy edge vertices from edge */
 	for (i = 0; i < (fdi-1); i++)
 		vv[i] = ep->v[i];
 	vv[i] = _vv;			/* And new vertex */
 
-	/* Sort verticies */
+	/* Sort vertices */
 	for (i = 0; i < (fdi-1); i++) {
 		for (j = i+1; j < fdi; j++) {
 			if (vv[i]->gix < vv[j]->gix) {
@@ -520,12 +520,12 @@ static rtri *check_tri(rspl *s, redge *ep, rvert *_vv) {
 	for (tp = s->gam.tris[hash]; tp != NULL; tp = tp->next) {
 		for (i = 0; i < fdi; i++) {
 			if (tp->v[i] != vv[i]) {
-//printf("~1 verticies don't match\n");
+//printf("~1 vertices don't match\n");
 				break;			/* No match */
 			}
 		}
 		if (i >= fdi) {
-//printf("~1 all verticies match\n");
+//printf("~1 all vertices match\n");
 			break;				/* All match */
 		}
 	}
@@ -533,24 +533,24 @@ static rtri *check_tri(rspl *s, redge *ep, rvert *_vv) {
 	return tp;
 }
 
-/* Create a triangle given an edge with fdi-1 verticies and a grid vertex. */
+/* Create a triangle given an edge with fdi-1 vertices and a grid vertex. */
 /* if inv is set, triangle is upside down wrt to center point, */
-/* and so all the oppositive verticies should be placed on the */
+/* and so all the oppositive vertices should be placed on the */
 /* opposite to their natural side. */
 static rtri *make_tri(rspl *s, redge *ep, rvert *_vv, int inv) {
 	int i, j, k, f, fdi = s->fdi;
-	rvert *vv[MXDO];		/* Sorted verticies */
+	rvert *vv[MXDO];		/* Sorted vertices */
 	int gix, hash;
 	rtri *tp = NULL;
 
 printf("~1 make_tri called\n");
 
-	/* Copy edge verticies from edge */
+	/* Copy edge vertices from edge */
 	for (i = 0; i < (fdi-1); i++)
 		vv[i] = ep->v[i];
 	vv[i] = _vv;			/* And new vertex */
 
-	/* Sort verticies */
+	/* Sort vertices */
 	for (i = 0; i < (fdi-1); i++) {
 		for (j = i+1; j < fdi; j++) {
 			if (vv[i]->gix < vv[j]->gix) {
@@ -571,12 +571,12 @@ printf("~1 make tri gix = %d, hash = %d\n", gix, hash);
 	for (tp = s->gam.tris[hash]; tp != NULL; tp = tp->next) {
 		for (i = 0; i < fdi; i++) {
 			if (tp->v[i] != vv[i]) {
-//printf("~1 verticies don't match\n");
+//printf("~1 vertices don't match\n");
 				break;			/* No match */
 			}
 		}
 		if (i >= fdi) {
-//printf("~1 all verticies match\n");
+//printf("~1 all vertices match\n");
 			break;				/* All match */
 		}
 	}
@@ -590,7 +590,7 @@ printf("~1 make tri gix = %d, hash = %d\n", gix, hash);
 
 		tp->n = s->gam.rtri_no++;		/* serial number */
 
-		/* Copy edge verticies to triangle */
+		/* Copy edge vertices to triangle */
 		for (i = 0; i < fdi; i++)
 			tp->v[i] = vv[i];
 
@@ -600,7 +600,7 @@ printf("~1 make tri gix = %d, hash = %d\n", gix, hash);
 //printf("~2 triangle vert 1 = %f %f %f\n", tp->v[1]->v[0], tp->f[1]->v[1], tp->f[1]->v[2]);
 //printf("~2 triangle vert 2 = %f %f %f\n", tp->v[2]->v[0], tp->f[2]->v[1], tp->f[2]->v[2]);
 		for (i = 0; i < fdi; i++) {			/* For each tri verticy being odd one out */
-			rvert *ov, *rr[MXDO-1];			/* Odd verticy, remaining edge verticies */
+			rvert *ov, *rr[MXDO-1];			/* Odd verticy, remaining edge vertices */
 			int ss;							/* Side */
 
 			ov = tp->v[i];					/* Odd node */
@@ -663,7 +663,7 @@ void *cntxb						/* Context for function */
 	int e, f, di = s->di, fdi = s->fdi;
 	int i, j, ssdi;
 	int maxp[MXDO];			/* Grid indexes of maxium function values */
-	rvert *fedge[MXDO-1];	/* The first "edge" containing fdi-1 verticies */
+	rvert *fedge[MXDO-1];	/* The first "edge" containing fdi-1 vertices */
 	rvert *onodes[50];		/* float pointers of canditate nodes */
 	int aonodes = 50;		/* Allocated out nodes */
 	int nonodes;			/* Number of nodes returned */
@@ -794,7 +794,7 @@ printf("~1 get_ssimplex_nodes returned %d nodes\n",nonodes);
 for(i = 0; i < nonodes; i++)
 printf(" ~1 %d: %d\n",i,onodes[i]->gix);
 
-		/* Evaluate the choice of verticies to choose the one that */
+		/* Evaluate the choice of vertices to choose the one that */
 		/* will best enclose the gamut. (We use a really dumb criteria - maximum radius) */
 		for (i = 0; i < nonodes; i++) {
 			double tt, a, b, c;		/* Lenght of sides of triangle squared */
@@ -828,7 +828,7 @@ printf("~1 get_ssimplex_nodes returned %d nodes\n",nonodes);
 for(i = 0; i < nonodes; i++)
 printf(" ~1 %d: %d\n",i,onodes[i]->gix);
 
-			/* Evaluate the choice of verticies to choose the one that */
+			/* Evaluate the choice of vertices to choose the one that */
 			/* will best enclose the gamut. (We use a really dumb criteria - maximum radius) */
 			for (i = 0; i < nonodes; i++) {
 				double tt;
@@ -1004,7 +1004,7 @@ for (ss = 0; ss < 2; ss++) {		/* Negative side then positive */
 //printf("~1 edge v1 = %d = %f %f %f\n", ep->v[0]->gix, ep->v[0]->v[0], ep->v[0]->v[1], ep->v[0]->v[2]);
 //printf("~1 edge v2 = %d = %f %f %f\n", ep->v[1]->gix, ep->v[1]->v[0], ep->v[1]->v[1], ep->v[1]->v[2]);
 
-	/* Show the candidate verticies */
+	/* Show the candidate vertices */
 	for (ss = 0; ss < 2; ss++) {
 		for (i = 0; i < ncnodes[ss]; i++) {		/* +ve */
 			if (ss) {
@@ -1183,7 +1183,7 @@ rspl *s		/* Pointer to rspl grid */
 	for (ssdi = 1; ssdi <= s->fdi-1; ssdi++)
 		rspl_free_ssimplex_info(s, &s->gam.ssi[ssdi]);
 
-	/* Free the verticies */
+	/* Free the vertices */
 	for (vp = s->gam.vtop; vp != NULL; vp = nvp) {
 		nvp = vp->list;
 		free(vp);
@@ -1244,7 +1244,7 @@ void rspl_gam_plot(rspl *s, char *name) {
 	if ((wrl = new_vrml(name, 1, 0)) == NULL)
 		error("new_vrml failed for '%s%s'\n",name,vrml_ext());
 
-	/* Set the verticies */
+	/* Set the vertices */
 	for (vp = s->gam.vtop; vp != NULL; vp = vp->list) {
 		wrl->add_vertex(wrl, 0, vp->v);
 	}

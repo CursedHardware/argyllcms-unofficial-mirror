@@ -87,7 +87,8 @@
 #undef CHECK_ILIMIT				/* [Undef] Do sanity checks on meeting ink limit */
 #undef WARN_CLUT_CLIPPING		/* [Undef] Print warning if setting clut clips */
 #undef DISABLE_KCURVE_FILTER	/* [Undef] don't filter the Kcurve */
-#undef REPORT_LOCUS_SEGMENTS    /* [Undef[ Examine how many segments there are in aux inversion */
+#undef REPORT_LOCUS_SEGMENTS    /* [Undef] Examine how many segments there are in aux inversion */
+#undef SKIP_PERCH_LOOKUPS		/* [Undef] Skip per channel in overall lookups (for manual trace) */
 
 #undef FASTREVSETUP_NON_CAM		/* [Undef] Use fast setup on inner non-CAM lookup, if we're */
 								/* going to use CAM clip for nn lookup */
@@ -166,6 +167,10 @@ static int icxLuLut_init_clut_camclip(icxLuLut *p);
 #else
 # undef DBS
 # define DBS(xxx) 
+#endif
+
+#ifdef SKIP_PERCH_LOOKUPS
+# pragma message("!!!!!!!!!!!! SKIP_PERCH_LOOKUPS is defined !!!!!!!!!")
 #endif
 
 /* ========================================================== */
@@ -338,6 +343,11 @@ double *in			/* Vector of input values */
 	int rv = 0;
 	double temp[MAX_CHAN];
 
+#ifdef SKIP_PERCH_LOOKUPS
+	DBOL(("xicclu: input = %s\n", icmPdv(p->inputChan, in)));
+	rv |= p->clut    (p, out,  in);
+	DBOL(("xicclu: output = %s\n", icmPdv(p->outputChan, out)));
+#else
 	DBOL(("xicclu: in = %s\n", icmPdv(p->inputChan, in)));
 	rv |= p->in_abs  (p, temp, in);
 	DBOL(("xicclu: after abs = %s\n", icmPdv(p->inputChan, temp)));
@@ -353,6 +363,7 @@ double *in			/* Vector of input values */
 		rv |= p->out_abs (p, out,  out);
 		DBOL(("xicclu: after outabs = %s\n", icmPdv(p->outputChan, out)));
 	}
+#endif
 	return rv;
 }
 
@@ -1660,6 +1671,11 @@ double *in			/* Vector of input values */
 	int i;
 	double temp[MAX_CHAN];
 
+#ifdef SKIP_PERCH_LOOKUPS
+	DBOL(("xiccilu: input            = %s\n", icmPdv(p->outputChan, in)));
+	rv |= p->inv_clut    (p, out, in);
+	DBOL(("xiccilu: output            = %s\n", icmPdv(p->inputChan, out)));
+#else
 	DBOL(("xiccilu: input            = %s\n", icmPdv(p->outputChan, in)));
 	if (p->mergeclut == 0) {		/* Do this if it's not merger with clut */
 		rv |= p->inv_out_abs (p, temp, in);
@@ -1679,6 +1695,7 @@ double *in			/* Vector of input values */
 	DBOL(("xiccilu: after inv matrix = %s\n", icmPdv(p->inputChan,out)));
 	rv |= p->inv_in_abs  (p, out, out);
 	DBOL(("xiccilu: after inv abs    = %s\n", icmPdv(p->inputChan,out)));
+#endif
 	return rv;
 }
 

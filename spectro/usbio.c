@@ -86,17 +86,22 @@ static int icoms_usb_wait_io(
 
 /* Include the USB implementation dependent function implementations */
 #ifdef NT
+# if !defined(EN_LIBUSB0) && !defined(EN_USBDK)
+#  error "One or both of USE_LIBUSB0 and USE_USBDK must be set in Jamtop!"
+# endif
+# ifdef EN_LIBUSB0
+#  include "usbio_w0.c"		/* libusb0.sys based */
+# endif
 # ifdef EN_USBDK
 #  include "usbio_dk.c"		/* UsbDk based */
-# else
-#  include "usbio_nt.c"		/* libusb0.sys based */
 # endif
+# include "usbio_nt.c"		/* multiplexing shims */
 #endif
 #if defined(UNIX_APPLE)
 # include "usbio_ox.c"
 #endif
 #if defined(UNIX_X11)
-# if defined(__FreeBSD__) || defined(__OpenBSD__)
+# if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__FreeBSD_kernel__)
 #  include "usbio_bsd.c"
 # else
 #  include "usbio_lx.c"
@@ -136,7 +141,7 @@ double tout				/* Timeout in seconds */
 		return ICOM_SYS;
 	}
 
-	top = (int)(tout * 1000.0 + 0.5);		/* Timout in msec */
+	top = (int)(tout * 1000.0 + 0.5);		/* Timeout in msec */
 
 #ifdef QUIET_MEMCHECKERS
 	if (requesttype & IUSB_ENDPOINT_IN)
@@ -215,7 +220,7 @@ icoms_usb_rw(icoms *p,
 	}
 
 	/* Until data is all read/written, we get a short read/write, we time out, or the user aborts */
-//	a1logd(p->log, 8, "icoms_usb_rw: read/write of %d bytes, timout %f\n",bsize,tout);
+//	a1logd(p->log, 8, "icoms_usb_rw: read/write of %d bytes, timeout %f\n",bsize,tout);
 	while (bsize > 0) {
 		int rv, rbytes;
 		int rsize = bsize > qa ? qa : bsize; 

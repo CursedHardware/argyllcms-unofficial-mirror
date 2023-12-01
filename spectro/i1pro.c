@@ -120,7 +120,7 @@ i1pro_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return i1pro_interp_code(p, icoms2i1pro_err(se));
 	}
 
-	a1logd(p->log, 2, "i1pro_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "i1pro_init_coms: init coms has succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;
@@ -518,7 +518,7 @@ i1pro_interp_error(inst *pp, i1pro_code ec) {
 		case I1PRO_INT_EEPROM_DATA_MISSING:
 			return "EEProm data is missing";
 		case I1PRO_INT_NEW_RSPL_FAILED:
-			return "Creating RSPL object faild";
+			return "Creating RSPL object failed";
 		case I1PRO_INT_CAL_SAVE:
 			return "Unable to save calibration to file";
 		case I1PRO_INT_CAL_RESTORE:

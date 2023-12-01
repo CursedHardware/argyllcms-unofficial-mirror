@@ -34,6 +34,10 @@
 #define poll_x poll
 #endif
 
+#ifndef PATH_MAX
+# define PATH_MAX 4096
+#endif
+
 /* USB descriptors are little endian */
 
 /* Take a word sized return buffer, and convert it to an unsigned int */
@@ -169,7 +173,7 @@ char *dpath		/* path to device */
 		bp = buf2 + buf2[0];	/* Skip coniguration tag */
 		zp = buf2 + totlen;		/* Past last bytes */
 
-		/* We are at the first configuration. */
+		/* We are at a configuration. */
 		/* Just read tags and keep track of where we are */
 		ninfaces = 0;
 		nep = 0;
@@ -197,14 +201,14 @@ char *dpath		/* path to device */
 					usbd->EPINFO(ad).addr = ad;
 					usbd->EPINFO(ad).packetsize = buf2ushort(bp + 4);
 					usbd->EPINFO(ad).type = bp[3] & IUSB_ENDPOINT_TYPE_MASK;
-					usbd->EPINFO(ad).interface = ifaceno;
+					usbd->EPINFO(ad).ifaceno = ifaceno;
 					a1logd(log, 6, "set ep ad 0x%x packetsize %d type %d\n",ad,usbd->EPINFO(ad).packetsize,usbd->EPINFO(ad).type);
 				}
 			}
 			/* Ignore other tags */
 		}
 		free(buf2);
-	}
+	}	/* Read next config descriptor */
 	if (nep10 == 0xffff) {			/* Hmm. Failed to find number of end points */
 		a1logd(log, 1, "usb_check_and_add: failed to find number of end points\n");
 		free(usbd);

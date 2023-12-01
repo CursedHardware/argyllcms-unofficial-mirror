@@ -33,6 +33,8 @@
 	Could use libusb20 API, but not backwards or cross compatible,
 	and is very likely to be buggy ?
 
+    Not clear how to proceed.
+
  */
 
 #include <unistd.h>
@@ -42,7 +44,7 @@
 #include <fcntl.h>
 #include <glob.h>
 #include <sys/ioctl.h>
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 # include <dev/usb/usb_ioctl.h>		/* Not sure what's going on with FreeBSD... */
 #else
 # include <dev/usb/usb.h>			/* The usual include for BSD */
@@ -64,7 +66,7 @@ icompaths *p
 ) {
 	int i, j;
 	char *paths[] = {
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	    "/dev/usb/[0-9]*.*.0",		/* FreeBSD >= 8 */
 	    "/dev/ugen[0-9]*",			/* FreeBSD < 8, but no .E */
 #else
@@ -99,7 +101,7 @@ icompaths *p
 		/* For all the nodes found by the glob */
 		for (i = 0; i < g.gl_pathc; i++) {
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 			/* Skip anything with an end point number */
 			if (j == 1 && strchr(g.gl_pathv[i], '.') != NULL)
 				continue;
@@ -146,7 +148,7 @@ icompaths *p
 		
 				/* Create the base device path */
 				dpath = g.gl_pathv[i];
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 				if (j == 0) {		/* Remove .0 */
 					if ((cp = strrchr(dpath, '.')) != NULL
 					 && cp[1] == '0' && cp[2] == '\000')

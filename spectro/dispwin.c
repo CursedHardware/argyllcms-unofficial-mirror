@@ -4804,7 +4804,7 @@ int win_message_thread(void *pp) {
 
 	/*
 		Should we call BOOL SystemParametersInfo()
-		to disable high contrast, powertimout and screensaver timeout ?
+		to disable high contrast, powertimeout and screensaver timeout ?
 
 	 */
 
@@ -5406,7 +5406,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		vinfo = XGetVisualInfo(p->mydisplay, VisualIDMask, &template, &nitems); 
 
 		if (nitems < 1) {
-			debugr2((errout,"new_dispwin: Failed to get XGetVisualInfo of defalt Visual\n"));
+			debugr2((errout,"new_dispwin: Failed to get XGetVisualInfo of default Visual\n"));
 			dispwin_del(p);
 			return NULL;
 		}
@@ -6606,6 +6606,8 @@ main(int argc, char *argv[]) {
 
 			/* Display number */
 			else if (argv[fa][1] == 'd') {
+				if (na == NULL)
+					usage(0, "-d parameter missing");
 				if (strncmp(na,"web",3) == 0
 				 || strncmp(na,"WEB",3) == 0) {
 					webdisp = 8080;

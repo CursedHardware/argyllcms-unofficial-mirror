@@ -199,7 +199,7 @@ i1disp_command_1(
 			/* buf[2] is usually the cc, except for i1d_unlock. */
 			/* If it is not the cc, this may indicate that the command */
 			/* should be retried up to a total of 5 times, before */
-			/* assuming it has suceeded. */
+			/* assuming it has succeeded. */
 			rcc = buf[2] & 0xff;
 		}
 	}
@@ -1360,7 +1360,7 @@ i1disp_read_refrate(
 			*ref_rate = rrate;
 		return inst_ok;
 	} else {
-		a1logd(p->log, 3, "No discernable refresh frequency measured\n");
+		a1logd(p->log, 3, "No discernible refresh frequency measured\n");
 		if (ref_rate != NULL)
 			*ref_rate = 0.0;
 		return inst_misread;

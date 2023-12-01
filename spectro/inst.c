@@ -74,7 +74,7 @@ icom_type dev_category(instType itype);
 /* Default methods for instrument class */
 
 /* Establish communications at the indicated baud rate. */
-/* Timout in to seconds, and return non-zero error code */
+/* Timeout in to seconds, and return non-zero error code */
 static inst_code init_coms(
 inst *p,
 baud_rate br,		/* Baud rate */
@@ -1456,8 +1456,8 @@ devType fast_ser_dev_type(
 	unsigned int i;
 	int delayms = 0;
 	int se, len;
-	double tryto = 0.1;		/* [0.1] Communication timout */
-//	double tryto = 0.9;		/* Communication timout (test) */
+	double tryto = 0.1;		/* [0.1] Communication timeout */
+//	double tryto = 0.9;		/* Communication timeout (test) */
 
 	a1logd(p->log, 8, "fast_ser_dev_type: on '%s' dctype 0x%x\n",p->name,p->dctype);
 
@@ -1761,7 +1761,7 @@ devType fast_ser_dev_type(
 /*
 	Lumagen uses following sequence to setup coms:
 
-	Sent			Recieved		Comments
+	Sent			Received		Comments
 	----            --------		--------
 	M0931			M0931			use %M0931 to ensure it's on
 	f				Ok				if on, else echo's 'f'

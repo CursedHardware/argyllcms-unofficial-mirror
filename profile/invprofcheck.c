@@ -98,7 +98,7 @@ void usage(void) {
 	fprintf(stderr," -k           Show CIEDE2000 delta E values\n");
 	fprintf(stderr," -w           create %s visualisation (profile%s)\n",vrml_format(),vrml_ext());
 	fprintf(stderr," -x           Use %s axes\n",vrml_format());
-	fprintf(stderr," -e           Color vectors acording to delta E\n");
+	fprintf(stderr," -e           Color vectors according to delta E\n");
 	fprintf(stderr," profile.icm  Profile to check\n");
 	exit(1);
 }
@@ -395,7 +395,7 @@ main(
 				if (dovrml) {
 					int ix[2];
 
-					/* Add the verticies */
+					/* Add the vertices */
 					ix[0] = wrl->add_vertex(wrl, 0, pcsin);
 					ix[1] = wrl->add_vertex(wrl, 0, pcsout);
 
@@ -463,7 +463,7 @@ main(
 //				if (fabs(pcsin[0] - 5.0) < 0.1 && dovrml) {
 					int ix[2];
 
-					/* Add the verticies */
+					/* Add the vertices */
 					ix[0] = wrl->add_vertex(wrl, 0, pcsin);
 					ix[1] = wrl->add_vertex(wrl, 0, pcsout);
 

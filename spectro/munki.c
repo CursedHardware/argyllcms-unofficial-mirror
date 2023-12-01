@@ -114,7 +114,7 @@ munki_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return munki_interp_code(p, icoms2munki_err(se));
 	}
 
-	a1logd(p->log, 2, "munki_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "munki_init_coms: init coms has succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;
@@ -530,7 +530,7 @@ munki_interp_error(inst *pp, munki_code ec) {
 		case MUNKI_INT_CREATE_EEPROM_STORE:
 			return "Error in creating EEProm store";
 		case MUNKI_INT_NEW_RSPL_FAILED:
-			return "Creating RSPL object faild";
+			return "Creating RSPL object failed";
 		case MUNKI_INT_CAL_SAVE:
 			return "Unable to save calibration to file";
 		case MUNKI_INT_CAL_RESTORE:

@@ -383,6 +383,7 @@ struct _psh {
 	unsigned int tmask;				/* Total 2^tbits count mask */
 	unsigned int count;				/* Usable count */
 	unsigned int ix;				/* Current binary index */
+	int diag;						/* nz if generating singe diagnostic index */
 }; typedef struct _psh psh;
 
 /* Initialise a pseudo-hilbert grid counter, return total usable count. */
@@ -390,6 +391,9 @@ extern ICCLIB_API unsigned psh_init(psh *p, int di, unsigned int res, int co[]);
 
 /* Same as above but with variable res per axis. */
 extern ICCLIB_API unsigned psh_initN(psh *p, int di, unsigned int res[], int co[]);
+
+/* Diagnostic init - psh returns the value in co[] and then terminates */
+extern ICCLIB_API unsigned psh_init_diag(psh *p, int di, int co[]);
 
 /* Reset the counter */
 extern ICCLIB_API void psh_reset(psh *p);

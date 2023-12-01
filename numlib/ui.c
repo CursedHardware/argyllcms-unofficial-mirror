@@ -233,7 +233,7 @@ void ui_UsingGUI() {
 				CPSEnableForegroundOperation(&processSerialNum, 0, 0, 0, 0);
 				*/
 			} else {
-	//			fprintf(stderr,"TransformProcess suceeded\n");
+	//			fprintf(stderr,"TransformProcess succeeded\n");
 			}
 		}
 # endif /* OS X 10.3 */

@@ -345,7 +345,7 @@ static	void ps_setcolor(trend *ss, xcal *cal, col *c) {
 		} else if (c->altrep == 6) {	/* DeviceN */
 			gen_ncolor(s, c);
 		} else {
-			error("Device white encoding not approproate!");
+			error("Device white encoding not appropriate!");
 		}
 
 	} else if (c->nmask == ICX_K) {
@@ -362,7 +362,7 @@ static	void ps_setcolor(trend *ss, xcal *cal, col *c) {
 		} else if (c->altrep == 3) {	/* DeviceN */
 			gen_ncolor(s, c);
 		} else {
-			error("Device black encoding not approproate!");
+			error("Device black encoding not appropriate!");
 		}
 
 	} else if (c->nmask == ICX_CMY) {
@@ -377,7 +377,7 @@ static	void ps_setcolor(trend *ss, xcal *cal, col *c) {
 		} else if (c->altrep == 8) {	/* DeviceN */
 			gen_ncolor(s, c);
 		} else {
-			error("Device CMY encoding not approproate!");
+			error("Device CMY encoding not appropriate!");
 		}
 
 	} else if (c->nmask == ICX_RGB || c->nmask == ICX_IRGB) {
@@ -749,7 +749,7 @@ static	void tiff_setcolor(trend *ss, xcal *cal, col *c) {
 		} else if (c->altrep == 6) {	/* DeviceN single channel */
 			s->c[0] = cdev[0];
 		} else {
-			error("Device white encoding not approproate!");
+			error("Device white encoding not appropriate!");
 		}
 
 	} else if (c->nmask == ICX_K) {
@@ -765,7 +765,7 @@ static	void tiff_setcolor(trend *ss, xcal *cal, col *c) {
 		} else if (c->altrep == 3) {	/* DeviceN single channel */
 			s->c[0] = cdev[0];
 		} else {
-			error("Device black encoding not approproate!");
+			error("Device black encoding not appropriate!");
 		}
 
 	} else if (c->nmask == ICX_CMY) {
@@ -783,7 +783,7 @@ static	void tiff_setcolor(trend *ss, xcal *cal, col *c) {
 			s->c[1] = cdev[1];
 			s->c[2] = cdev[2];
 		} else {
-			error("Device CMY encoding not approproate!");
+			error("Device CMY encoding not appropriate!");
 		}
 
 	} else {
@@ -968,7 +968,7 @@ static trend *new_tiff_trend(
 			nc = icx_noofinks(nmask);
 			nc = 1;
 		} else {
-			error("Device white encoding not approproate");
+			error("Device white encoding not appropriate");
 		}
 
 	} else if (nmask == ICX_K) {
@@ -984,7 +984,7 @@ static trend *new_tiff_trend(
 			nc = icx_noofinks(nmask);
 			nc = 1;
 		} else {
-			error("Device black encoding not approproate");
+			error("Device black encoding not appropriate");
 		}
 
 	} else if (nmask == ICX_RGB || nmask == ICX_IRGB) {
@@ -1002,7 +1002,7 @@ static trend *new_tiff_trend(
 			csp = ncol_2d;
 			nc = icx_noofinks(nmask);
 		} else {
-			error("Device CMY encoding not approproate");
+			error("Device CMY encoding not appropriate");
 		}
 
 	} else if (nmask == ICX_CMYK) {
@@ -2228,7 +2228,7 @@ int *p_npat			/* Return number of patches including padding */
 
 
 	} else {
-		error("Unsupported intrument type");
+		error("Unsupported instrument type");
 	}
 	
 	/* Compute page limits */
@@ -2274,7 +2274,7 @@ int *p_npat			/* Return number of patches including padding */
 	tidpad = (pprow - tidminp)/2;	/* Center TID */
 
 	if (pprow < (1+nextrap))
-		error("Paper size not long enought for a single patch per row!");
+		error("Paper size not long enough for a single patch per row!");
 
 	*ptpprow = tpprow = pprow - nextrap;	/* Test sample patches per row */
 
@@ -2973,7 +2973,7 @@ char *argv[];
 	double sscale = 1.0;	/* Spacer size scale */
 	int rand = 1;
 	int qbits = 0;			/* Quantization bits */
-	int oft = 0;			/* Ouput File type, 0 = PS, 1 = EPS , 2 = TIFF */
+	int oft = 0;			/* Output File type, 0 = PS, 1 = EPS , 2 = TIFF */
 	int nocups = 0;			/* Supress CUPS PS/EPS job ticket */
 	depth2d tiffdpth = bpc8_2d;	/* TIFF pixel depth */
 	double tiffres = 100.0;	/* TIFF resolution in DPI */

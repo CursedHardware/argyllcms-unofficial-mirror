@@ -1958,11 +1958,11 @@ main(int argc, char *argv[]) {
 
 		if (wh != NULL) {
 			printf("Output TIFF file '%s'\n",out_name);
-			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
+			printf("Output TIFF file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
 			printf("Output TIFF file photometric is %s\n",Photometric2str(wphotometric));
 		} else {
 			printf("Output JPEG file '%s'\n",out_name);
-			printf("Ouput raster file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
+			printf("Output JPEG file ICC colorspace is %s\n",icm2str(icmColorSpaceSig,su.outs));
 			printf("Output JPEG file colorspace is %s\n",JPEG_cspace2str(wj.jpeg_color_space));
 			if (wdesc != NULL)
 				printf("Output raster file description: '%s'\n",wdesc);

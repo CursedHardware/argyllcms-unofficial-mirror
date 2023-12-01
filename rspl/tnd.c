@@ -350,7 +350,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-	/* Mark verticies in red */
+	/* Mark vertices in red */
 	for(k = 0; k < ntps; k++)
 		{
 		j = (int)((HEIGHT * (y2 - tps[k].p[1])/(y2 - y1)) + 0.5);

@@ -491,14 +491,14 @@ printf("~1 Scaled primary %f %f %f\n", val[0], val[1], val[2]);
 			else if (nmask == ICX_K && sep_ins == icSigCmykData)
 				gfudge = 2;
 			else if (icx_colorant_comb_match_icc(nmask, sep_ins) == 0) {
-				error("Separation ICC device space '%s' dosen't match TI1 '%s'",
+				error("Separation ICC device space '%s' doesn't match TI1 '%s'",
 				       icm2str(icmColorSpaceSig, sep_ins),
 				       ident);	/* Should free(). */
 			}
 
 			/* Check if separation ICC output is compatible with ICC/MPP/TI3 conversion */ 
 			if (sep_outs != ins)
-				error("Synthetic device space '%s' dosen't match Separation ICC '%s'",
+				error("Synthetic device space '%s' doesn't match Separation ICC '%s'",
 				       icm2str(icmColorSpaceSig, ins),
 				       icm2str(icmColorSpaceSig, sep_outs));
 		} else {
@@ -508,7 +508,7 @@ printf("~1 Scaled primary %f %f %f\n", val[0], val[1], val[2]);
 			else if (nmask == ICX_K && ins == icSigCmykData)
 				gfudge = 2;		/* Should allow for other colorant combo's that include black */
 			else if (icx_colorant_comb_match_icc(nmask, ins) == 0) {
-				error("Synthetic device space '%s' dosen't match TI1 '%s'",
+				error("Synthetic device space '%s' doesn't match TI1 '%s'",
 				       icm2str(icmColorSpaceSig, ins),
 				       ident);	// Should free().
 			}

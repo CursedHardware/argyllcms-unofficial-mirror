@@ -133,7 +133,7 @@ char *ccpacket_emes(ccpacket_err rv) {
 			return "Packet: failed to read message";
 	}
 
-	return "Uknown ccpacket error";
+	return "Unknown ccpacket error";
 }
 
 /* Establish an ccpacket connection - implementation */
@@ -196,13 +196,13 @@ static ccpacket_err connect_ccpacket_imp(
 #endif
 		if ((rv = setsockopt(p->sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,
 			                                                   sizeof(tv))) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d, errno %d",rv,ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d, errno %d",rv,ERRNO))
 			return ccpacket_connect;
 		}
 		tv = 2000;
 		if ((rv = setsockopt(p->sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv,
 			                                                    sizeof(tv))) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d, errno %d",rv,ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d, errno %d",rv,ERRNO))
 			return ccpacket_connect;
 		}
 #else
@@ -216,14 +216,14 @@ static ccpacket_err connect_ccpacket_imp(
 #endif
 		if ((rv = setsockopt(p->sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,
 			                                                    sizeof(tv))) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d, errno %d",rv,ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d, errno %d",rv,ERRNO))
 			return ccpacket_connect;
 		}
 		tv.tv_sec = 2;
 		tv.tv_usec = 0;
 		if ((rv = setsockopt(p->sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv,
 			                                                    sizeof(tv))) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d, errno %d",rv,ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d, errno %d",rv,ERRNO))
 			return ccpacket_connect;
 		}
 #endif
@@ -233,7 +233,7 @@ static ccpacket_err connect_ccpacket_imp(
 		ling.l_linger = 2;	/* Two seconds */
 		if ((rv = setsockopt(p->sock, SOL_SOCKET, SO_LINGER, (const char*)&ling,
 			                                                    sizeof(ling))) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d, errno %d",rv,ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d, errno %d",rv,ERRNO))
 			return ccpacket_connect;
 		}
 #endif /* NEVER */

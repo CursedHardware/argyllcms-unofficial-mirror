@@ -725,7 +725,7 @@ char *outname		/* Output VRML/X3D file (no extension) */
 						v2 = v0 | (1 << m2) | (1 << m1);	/* X+Y offset */
 						v3 = v0 | (1 << m1);				/* Y offset */
 
-						/* Linear interp between the main verticies */
+						/* Linear interp between the main vertices */
 						for (j = 0; j < 3; j++) {
 							rgb[j] = (1.0 - yb) * (1.0 - xb) * col[v0][j]
 							       +        yb  * (1.0 - xb) * col[v1][j]

@@ -342,7 +342,7 @@ main(int argc, char *argv[]) {
 		int nverts;
 		int ntris;
 		int Lf, af, bf;			/* Fields holding L, a & b data */
-		int v0f, v1f, v2f;		/* Fields holding verticies 0, 1 & 2 */
+		int v0f, v1f, v2f;		/* Fields holding vertices 0, 1 & 2 */
 
 		pp = new_cgats();	/* Create a CGATS structure */
 	
@@ -358,7 +358,7 @@ main(int argc, char *argv[]) {
 			error("Input file doesn't contain exactly two tables");
 
 		if ((nverts = pp->t[0].nsets) <= 0)
-			error("No verticies");
+			error("No vertices");
 		if ((ntris = pp->t[1].nsets) <= 0)
 			error("No triangles");
 

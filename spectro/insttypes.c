@@ -499,7 +499,7 @@ int nep) {					/* Number of end points */
 /* name. */
 
 /* Fill in an instruments illuminant spectrum. */
-/* Return 0 on sucess, 1 if not not applicable. */
+/* Return 0 on success, 1 if not not applicable. */
 int inst_illuminant(xspect *sp, instType itype) {
 
 	switch (itype) {

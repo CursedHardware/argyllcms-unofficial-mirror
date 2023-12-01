@@ -69,7 +69,7 @@
 
 #undef TEST_LOOKUP
 #undef TEST_NEAREST
-#undef TEST_NOSORT			/* Turn off sorted insersion of verticies */
+#undef TEST_NOSORT			/* Turn off sorted insersion of vertices */
 
 #undef SHOW_BUCKETS			/* Show vertex buckets as surface */
 #undef SHOW_SPHERE			/* Show surface on sphere */
@@ -103,7 +103,7 @@
  * (ie. Lab vs. Jab + viewing conditions), and store them
  *  in the .gam file, so that a warning can be issued if
  *  the gamut colorspace is a mismatch in icclink, or to be able
- *  to translate the verticies into the correct colorespace.
+ *  to translate the vertices into the correct colorespace.
  *
  *  Add interface to transform all the nodes, while
  *  keeping structure (For use within gamut map, or
@@ -123,7 +123,7 @@
  *  Want to switch to triangulation algorithm that doesn't
  *  depend on this, and can triangulate concave objects,
  *  so that something like alpha-shapes criteria can be
- *  used to filter out non surface points. Inserting verticies
+ *  used to filter out non surface points. Inserting vertices
  *  from largest radius to smallest seems to do the right thing
  *  with cusp ridges, and this property needs to be retained.
  *
@@ -576,7 +576,7 @@ int isRast				/* Flag indicating Raster rather than colorspace, */
 #ifdef TEST_NEAREST
 	fprintf(stderr,">>>>>>> TEST_NEAREST IS COMPILED INTO GAMUT.C <<<<<<<\n");
 #endif
-#ifdef TEST_NOSORT			/* Turn off sorted insersion of verticies */
+#ifdef TEST_NOSORT			/* Turn off sorted insersion of vertices */
 	fprintf(stderr,">>>>>>> TEST_NOSORT IS COMPILED INTO GAMUT.C <<<<<<<\n");
 #endif
 #ifdef INTERSECT_VERIFY	
@@ -910,7 +910,7 @@ double pp[3]		/* rectangular coordinate of point */
 //printf("~1 Point at %f %f %f, radial %f %f %f\n", pp[0], pp[1], pp[2], rr[0], rr[1], rr[2]);
 //printf("~1     shere at %f %f %f, log %f %f %f, vhang %f %f\n", sp[0], sp[1], sp[2], ch[0], ch[1], ch[2], vang, hang);
 
-	/* If nofilter flag is set, add all points as verticies */
+	/* If nofilter flag is set, add all points as vertices */
 	if (s->nofilter) {
 
 		/* Filter out any points that are almost identical. */
@@ -969,24 +969,24 @@ double pp[3]		/* rectangular coordinate of point */
 			q->qt[i][0] = n;
 //printf("~1 Empty child node not deep enough, creating new quad node 0x%x\n",n);
 
-		/* If we've found verticies at this node */
+		/* If we've found vertices at this node */
 		} else if (n->tag == 1) {
 			int j;
 			gquad *qq;				/* New child quad */
-			gvert *vv[NSLOTS];		/* Existing verticies at this level */
+			gvert *vv[NSLOTS];		/* Existing vertices at this level */
 
 			if (q->w <= hang && q->h <= vang) {
 //printf("~1 We're at the right depth to replace vertex\n");
 				break;
 			}
-//printf("~1 deepening verticies\n");
+//printf("~1 deepening vertices\n");
 
 			for (k = 0; k < NSLOTS; k++)
-				vv[k] = (gvert *)q->qt[i][k];	/* Save pointers to current verticies */
+				vv[k] = (gvert *)q->qt[i][k];	/* Save pointers to current vertices */
 			
-//printf("~1 existing verticies are 0x%x, 0x%x, 0x%x, 0x%x\n", vv[0], vv[1], vv[2], vv[3]);
+//printf("~1 existing vertices are 0x%x, 0x%x, 0x%x, 0x%x\n", vv[0], vv[1], vv[2], vv[3]);
 
-			/* make a quad to replace the current verticies */
+			/* make a quad to replace the current vertices */
 			qq = new_gquad(q, i);
 			n = (gnode *)qq;
 			q->qt[i][0] = n;
@@ -995,8 +995,8 @@ double pp[3]		/* rectangular coordinate of point */
 
 //printf("~1 added quad 0x%x to quadrant %d\n",i,q);
 
-			/* Distribute verticies that were here, into new quad */
-			for (j = 0; j < NSLOTS; j++) {			/* For all existing verticies */
+			/* Distribute vertices that were here, into new quad */
+			for (j = 0; j < NSLOTS; j++) {			/* For all existing vertices */
 
 				if (vv[j] == NULL)
 					continue;
@@ -1076,7 +1076,7 @@ static void intersect_imp(gamut *s, gamut *sa, gamut *sb) {
 	int i, j, k;
 	gamut *s1, *s2;
 
-	/* Add each source gamuts verticies that lie within */
+	/* Add each source gamuts vertices that lie within */
 	/* the other gamut */
 	for (k = 0; k < 2; k++) {
 		gtri *tp1, *tp2;		/* Triangle pointers */
@@ -1960,7 +1960,7 @@ gtri *t
 	plane_equation(t->pe, t->v[0]->p, t->v[1]->p, t->v[2]->p);
 
 	/* Compute the plane equation for the triangle */
-	/* based on the log compressed convex hull verticies. */
+	/* based on the log compressed convex hull vertices. */
 	/* This is used for convex hull construction. */
 	plane_equation(t->che, t->v[0]->ch, t->v[1]->ch, t->v[2]->ch);
 
@@ -2031,7 +2031,7 @@ gtri *t
 /* blended with a sphere surface, we try and strike a compromise */
 /* between a pure convex hull surface, and a pure Delaunay triangulation */
 /* the latter which would show dings and nicks from points */
-/* that fall withing the "real" gamut. */
+/* that fall within the "real" gamut. */
 static double log_scale(gamut *s, double rr) {
 	double aa;
 
@@ -2051,7 +2051,7 @@ static double log_scale(gamut *s, double rr) {
 	return aa;
 }
 
-/* Comput r[], lr0, sp[] and ch[] from p[] for all verticies */
+/* Comput r[], lr0, sp[] and ch[] from p[] for all vertices */
 /* (Note that lr0 will be the first cut, log_scale() value) */ 
 static void
 compute_vertex_coords(
@@ -2086,8 +2086,8 @@ gamut *s
 	}
 }
 
-/* Sort the verticies from maximum radius */
-static void sort_verticies(
+/* Sort the vertices from maximum radius */
+static void sort_vertices(
 gamut *s
 ) {
 	int i;
@@ -2108,9 +2108,9 @@ gamut *s
 	}
 }
 
-/* Number just the verticies that have been set, */
+/* Number just the vertices that have been set, */
 /* and those that have been used in the convex hull */
-static void renumber_verticies(
+static void renumber_vertices(
 gamut *s
 ) {
 	int i, j;
@@ -2147,13 +2147,13 @@ static void check_triangulation(gamut *s, int final) {
 	tp = s->tris; 
 	FOR_ALL_ITEMS(gtri, tp) {
 
-		/* Check verticies for duplication */
+		/* Check vertices for duplication */
 		for (i = 0; i < 3; i++) {
 			for (j = i+1; j < 3; j++) {
 				if (tp->v[i] == tp->v[j]) {
 					failed = 1;
-	printf("Validation failed - duplicate verticies:\n");
-	printf("Triangle %d, has verticies %d %d %d\n", tp->n, tp->v[0]->n, tp->v[1]->n, tp->v[2]->n);
+	printf("Validation failed - duplicate vertices:\n");
+	printf("Triangle %d, has vertices %d %d %d\n", tp->n, tp->v[0]->n, tp->v[1]->n, tp->v[2]->n);
 	fflush(stdout);
 				}
 			}
@@ -2165,7 +2165,7 @@ static void check_triangulation(gamut *s, int final) {
 				if (tp->e[i] == tp->e[j]) {
 					failed = 1;
 	printf("Validation failed - duplicate connectivity:\n");
-	printf("Triangle %d, has verticies %d %d %d\n", tp->n, tp->v[0]->n, tp->v[1]->n, tp->v[2]->n);
+	printf("Triangle %d, has vertices %d %d %d\n", tp->n, tp->v[0]->n, tp->v[1]->n, tp->v[2]->n);
 	printf("Triangle %d, has edges %d %d %d\n", tp->n, tp->e[0]->n, tp->e[1]->n, tp->e[2]->n);
 	fflush(stdout);
 				}
@@ -2181,13 +2181,13 @@ static void check_triangulation(gamut *s, int final) {
 
 			e = tp->e[i];					/* The edge in question */
 			tei = tp->ei[i];
-			ei1 = e->ti[tei];				/* Edges record of edge index withing this triangle */
+			ei1 = e->ti[tei];				/* Edges record of edge index within this triangle */
 
 			/* Check that the edges reconing of what index edge it is */
 			/* for this triangle is correct */
 			if (ei1 != i) {
 				failed = 1;
-	printf("Validation failed - triangle edge index doesn't match record withing edge:\n");
+	printf("Validation failed - triangle edge index doesn't match record within edge:\n");
 	printf("Triangle %d, edge index %d edge %d has record %d\n", tp->n, i, e->n, ei1);
 	fflush(stdout);
 			}
@@ -2202,18 +2202,18 @@ static void check_triangulation(gamut *s, int final) {
 	fflush(stdout);
 			}
 
-			/* Check the verticies for this edge match edge record */
+			/* Check the vertices for this edge match edge record */
 			if ((e->v[0] != tp->v[i] || e->v[1] != tp->v[(i+1) % 3])
 			 && (e->v[1] != tp->v[i] || e->v[0] != tp->v[(i+1) % 3])) {
 				failed = 1;
-	printf("Validation failed - edge doesn't have same verticies as triangle expects:\n");
-	printf("Triangle %d, has verticies %d %d\n", tp->n, tp->v[i]->n, tp->v[(i+1) % 3]->n);
-	printf("Edge     %d, has verticies %d %d\n", e->n, e->v[0]->n, e->v[1]->n);
+	printf("Validation failed - edge doesn't have same vertices as triangle expects:\n");
+	printf("Triangle %d, has vertices %d %d\n", tp->n, tp->v[i]->n, tp->v[(i+1) % 3]->n);
+	printf("Edge     %d, has vertices %d %d\n", e->n, e->v[0]->n, e->v[1]->n);
 	fflush(stdout);
 			}
 
 			t2 = e->t[tei ^ 1];		/* The other triangle */
-			ei2 = e->ti[tei ^ 1];		/* Edges index number withing triangle t2 */
+			ei2 = e->ti[tei ^ 1];		/* Edges index number within triangle t2 */
 
 			if (t2 == tp) {
 				failed = 1;
@@ -2371,7 +2371,7 @@ gtri *tp		/* Triangle faces to be added */
 	int j;
 	gtri *t1, *t2;
 
-	/* In case some verticies disapear below the log surface, */
+	/* In case some vertices disapear below the log surface, */
 	/* and don't remain part of the triangulation, we mark them off. */
 	for (j = 0; j < 3 ; j++) {
 		tp->v[j]->f &= ~GVERT_TRI;
@@ -2445,7 +2445,7 @@ gvert *v		/* Vertex to insert */
 	/* hit list. */
 	/* We are using a brute force search, which will make the */
 	/* algorithm speed proportional to n^2. For better performance */
-	/* with a large number of verticies, an acceleration structure */
+	/* with a large number of vertices, an acceleration structure */
 	/* should be used to speed circumradius hit detection. */
 	v->f &= ~GVERT_INSIDE;	/* Reset flags */
 	v->f &= ~GVERT_TRI;
@@ -2594,7 +2594,7 @@ if (!intri) printf("~1 ###### vertex didn't land in any triangle! ########\n");
 					tp2->ei[2] = 1;			/* edges 1st triangle */
 					e->t[1] = tp2;			/* Triangles 2nd edge */
 					e->ti[1] = 2;			/* Triangles 2nd edge */
-					e->v[0] = v;			/* Add the two verticies */
+					e->v[0] = v;			/* Add the two vertices */
 					e->v[1] = tp->v[1];
 				}
 			} END_FOR_ALL_ITEMS(tp2);
@@ -2628,7 +2628,7 @@ if (!intri) printf("~1 ###### vertex didn't land in any triangle! ########\n");
 			int j;
 			DEL_LINK(hl, tp);				/* Gone from the hit list */
 			ADD_ITEM_TO_BOT(s->tris, tp);	/* Append to triangulation list */
-			for (j = 0; j < 3 ; j++) {		/* Verticies weren't dropped from triangulation */
+			for (j = 0; j < 3 ; j++) {		/* Vertices weren't dropped from triangulation */
 				tp->v[j]->f |= GVERT_TRI;
 				tp->v[j]->f &= ~GVERT_INSIDE;
 			}
@@ -2657,7 +2657,7 @@ gamut *s
 	/* Establish the base triangulation */
 	{
 		int i, j;
-		gvert *tvs[4];	/* Initial verticies */
+		gvert *tvs[4];	/* Initial vertices */
 		gtri  *tr[4];	/* Initial triangles */
 		gedge *ed[6];	/* Initial edges */
 		double fsz = FAKE_SEED_SIZE;		/* Initial tetra size */
@@ -2670,7 +2670,7 @@ gamut *s
 			{ -0.75, -0.330127, -0.5 }
 		};
 
-		/* Delete any current fake verticies */
+		/* Delete any current fake vertices */
 		for (j = i = 0; i < s->nv; i++) {
 			s->verts[i]->f &= ~GVERT_ESTP;		/* Unmark  non-fake establishment points */
 			if (!(s->verts[i]->f & GVERT_FAKE))
@@ -2690,7 +2690,7 @@ gamut *s
 			ff[1] = fsz * foffs[i][0] + s->cent[1];
 			ff[2] = fsz * foffs[i][1] + s->cent[2];
 			if ((tvs[j++] = expand_gamut(s, ff)) == NULL) {
-				fprintf(stderr,"gamut: internal error - failed to register a fake initial verticies!\n");
+				fprintf(stderr,"gamut: internal error - failed to register a fake initial vertices!\n");
 				exit (-1);
 			}
 		}
@@ -2699,7 +2699,7 @@ gamut *s
 		s->doingfake = 0;
 
 #ifdef NEVER
-		printf("Initial verticies:\n");
+		printf("Initial vertices:\n");
 		for (i = 0; i < 4; i++) {
 			printf(" %d: %f %f %f\n",tvs[i]->n, tvs[i]->p[0], tvs[i]->p[1], tvs[i]->p[2]);
 		}
@@ -2714,7 +2714,7 @@ gamut *s
 			ADD_ITEM_TO_BOT(s->edges, ed[i]);
 		}
 
-		/* Enter the edge verticies */
+		/* Enter the edge vertices */
 		ed[0]->v[0] = tvs[0];
 		ed[0]->v[1] = tvs[1];
 		ed[1]->v[0] = tvs[1];
@@ -2820,23 +2820,23 @@ gamut *s
 		comptriattr(s, tr[3]);				/* Compute triangle attributes */
 		ADD_ITEM_TO_BOT(s->tris, tr[3]);	/* Append to list */
 
-		/* The four used verticies are now part of the triangulation */
+		/* The four used vertices are now part of the triangulation */
 		for (i = 0; i < 4; i++) {
 			tvs[i]->f |= GVERT_TRI;
-//printf("Base triangle %d: %d %d %d (Verticies 0x%x, 0x%x, 0x%x, 0x%x)\n", tr[i]->n, tr[i]->v[0]->n, tr[i]->v[1]->n, tr[i]->v[2]->n, tr[i]->v[0], tr[i]->v[1], tr[i]->v[2]);
+//printf("Base triangle %d: %d %d %d (Vertices 0x%x, 0x%x, 0x%x, 0x%x)\n", tr[i]->n, tr[i]->v[0]->n, tr[i]->v[1]->n, tr[i]->v[2]->n, tr[i]->v[0], tr[i]->v[1], tr[i]->v[2]);
 		}
 #ifdef ASSERTS
 		check_triangulation(s, 0);
 #endif
 	}
 	
-	/* Sort the verticies from maximum radius, */
+	/* Sort the vertices from maximum radius, */
 	/* to make our log convex hull logic work */
-	sort_verticies(s);
+	sort_vertices(s);
 
 	{
 		int i;
-		/* Complete the triangulation by adding all the remaining verticies */
+		/* Complete the triangulation by adding all the remaining vertices */
 		/* in order of decreasing radius, so that those below the log */
 		/* convex hull get discarded. */
 		for (i = 0; i < s->nv; i++) {
@@ -2853,8 +2853,8 @@ gamut *s
 		}
 	}
 
-	/* Number the used verticies */
-	renumber_verticies(s);
+	/* Number the used vertices */
+	renumber_vertices(s);
 
 #ifdef ASSERTS
 	check_triangulation(s, 1);
@@ -3085,14 +3085,14 @@ gamut *s, struct _gamut *t) {
 }
 
 
-/* Return the number of raw verticies used to construct surface */
+/* Return the number of raw vertices used to construct surface */
 static int nrawverts(
 gamut *s
 ) {
 	int i, nrv = 0;
 
 	/* Sort them so that triangulate doesn't mess indexing up */
-	sort_verticies(s);
+	sort_vertices(s);
 
 	/* Count them */
 	for (i = 0; i < s->nv; i++) {
@@ -3103,7 +3103,7 @@ gamut *s
 	return nrv;
 }
 
-/* Return the raw (triangle and non-triangle surface) verticies */
+/* Return the raw (triangle and non-triangle surface) vertices */
 /* location given its index. */
 /* return the next (sparse) index, or -1 if beyond last */
 static int getrawvert(
@@ -3131,7 +3131,7 @@ int ix				/* Input index */
 	return ix+1;
 }
 
-/* Return the number of raw direction 0 verticies used */
+/* Return the number of raw direction 0 vertices used */
 /* to construct surface. (Direction 0 is radial direction maxima) */
 static int nraw0verts(
 gamut *s
@@ -3139,7 +3139,7 @@ gamut *s
 	int i, nrv = 0;
 
 	/* Sort them so that triangulate doesn't mess indexing up */
-	sort_verticies(s);
+	sort_vertices(s);
 
 	/* Count them */
 	for (i = 0; i < s->nv; i++) {
@@ -3152,7 +3152,7 @@ gamut *s
 }
 
 /* Return the raw (triangle and non-triangle surface)  direction 0 */
-/* verticies location given its index. (Direction 0 is radial direction maxima) */
+/* vertices location given its index. (Direction 0 is radial direction maxima) */
 /* return the next (sparse) index, or -1 if beyond last */
 static int getraw0vert(
 gamut *s,
@@ -3180,8 +3180,8 @@ int ix				/* Input index */
 	return ix+1;
 }
 
-/* Return the number of stratified sampling surface verticies, */
-/* for the given verticies per unit area parameter. */
+/* Return the number of stratified sampling surface vertices, */
+/* for the given vertices per unit area parameter. */
 static int nssverts(
 gamut *s,
 double xvra			/* Extra vertex ratio */
@@ -3195,8 +3195,8 @@ double xvra			/* Extra vertex ratio */
 		int i, j;
 		gtri *tp;		/* Triangle pointer */
 		double tarea;	/* Total area */
-		double tnverts;	/* Target number of verticies */
-		int    anverts;	/* Actual number of verticies */
+		double tnverts;	/* Target number of vertices */
+		int    anverts;	/* Actual number of vertices */
 
 		/* Calculate the total surface area of the triangulation */
 		tarea = 0.0;
@@ -3230,9 +3230,9 @@ double xvra			/* Extra vertex ratio */
 		tnverts -= (double)s->ntv;
 		anverts = 0;
 
-		/* Compute number of extra verticies for each triangle */
+		/* Compute number of extra vertices for each triangle */
 		if (tnverts > 0.0) {
-			double exvpua;	/* Extra verticies per unit area to create */
+			double exvpua;	/* Extra vertices per unit area to create */
 
 			exvpua = tnverts/tarea;
 //printf("~1 extra verts = %f\n",exvpua);
@@ -3251,7 +3251,7 @@ double xvra			/* Extra vertex ratio */
 	return s->ssnverts;
 }
 
-/* Return the stratified sampling surface verticies */
+/* Return the stratified sampling surface vertices */
 /* location and radius. nssverts() sets vpua */
 static int getssvert(
 gamut *s,
@@ -3277,7 +3277,7 @@ int ix				/* Input index */
 		}
 	}
 
-	if (ix < s->nv) {	/* returning verticies */
+	if (ix < s->nv) {	/* returning vertices */
 	
 		if (rad != NULL)
 			*rad   = s->verts[ix]->r[0];
@@ -3326,7 +3326,7 @@ int ix				/* Input index */
 			for (i = 0; i < sskip; i++)
 				s->ss->next(s->ss, uv);
 		}
-		if (ix == s->nv) {		/* Start of generating verticies in triangles */
+		if (ix == s->nv) {		/* Start of generating vertices in triangles */
 
 //printf("~1 setting up for scan through triangles\n");
 			s->nexttri = s->tris;
@@ -3380,7 +3380,7 @@ int ix				/* Input index */
 	return ix+1;
 }
 
-/* Return the number of verticies in the triangulated surface */
+/* Return the number of vertices in the triangulated surface */
 static int nverts(
 gamut *s
 ) {
@@ -3390,7 +3390,7 @@ gamut *s
 	return s->ntv;
 }
 
-/* Return the verticies location and radius given its index. */
+/* Return the vertices location and radius given its index. */
 /* return the next (sparse) index, or -1 if beyond last */
 static int getvert(
 gamut *s,
@@ -3800,16 +3800,16 @@ int llen		/* Number of triangles in the list */
 			int j;
 			int po, ne;
 
-			/* Compute distance from plane of all verticies in triangle */
+			/* Compute distance from plane of all vertices in triangle */
 			po = ne = 0;
-			for (j = 0; j < 3; j++) {	/* For triangle verticies */
+			for (j = 0; j < 3; j++) {	/* For triangle vertices */
 				double ds;
 				/* Compute distance to dividing plane of this vertex */
 				ds = eqs[0] * list[i]->v[j]->sp[0]
 				   + eqs[1] * list[i]->v[j]->sp[1]
 	    		   + eqs[2] * list[i]->v[j]->sp[2]
 				   + eqs[3];
-				/* Figure if the verticies are clearly to one side of the plane */
+				/* Figure if the vertices are clearly to one side of the plane */
 				if (ds > 1e-10) {
 					po++;
 				} else if (ds < -1e-10) {
@@ -4783,7 +4783,7 @@ double *in		/* Absolute input point */
 	}
 
 	/* Not in triangle, so find closest point along any edge, */
-	/* or at the verticies. (don't use edge info, it may not be set up) */
+	/* or at the vertices. (don't use edge info, it may not be set up) */
 	bdist = 1e38;
 	for (j = 0; j < 3; j++) {	/* For each edge */
 		gvert *v0 = t->v[j], *v1 = t->v[j >= 2 ? 0 : j+1];
@@ -6313,7 +6313,7 @@ char *filename
 	int nverts;
 	int ntris;
 	int Lf, af, bf;			/* Fields holding L, a & b data */
-	int v0f, v1f, v2f;		/* Fields holding verticies 0, 1 & 2 */
+	int v0f, v1f, v2f;		/* Fields holding vertices 0, 1 & 2 */
 	int cw, cb;				/* Colorspace white, black keyword indexes */
 	int gw, gb;				/* Gamut white, black keyword indexes */
 
@@ -6423,7 +6423,7 @@ char *filename
 
 
 	if ((nverts = gam->t[0].nsets) <= 0) {
-		fprintf(stderr,"No verticies");
+		fprintf(stderr,"No vertices");
 		return 1;
 	}
 	if ((ntris = gam->t[1].nsets) <= 0) {
@@ -6467,7 +6467,7 @@ char *filename
 	for (i = 0; i < nverts; i++) {
 		gvert *v;
 
-		/* Allocate and fill in each verticies basic information */
+		/* Allocate and fill in each vertices basic information */
 		if ((v = (gvert *)calloc(1, sizeof(gvert))) == NULL) {
 			fprintf(stderr,"gamut: malloc failed on gvert object\n");
 			return 2;
@@ -6540,10 +6540,10 @@ char *filename
 
 		for (en = 0; en < 3; en++) {	/* For each edge */
 			gedge *e;
-			gvert *v0, *v1;				/* The two verticies of the edge */
+			gvert *v0, *v1;				/* The two vertices of the edge */
 			gtri *tp2;					/* The other triangle */
 			int em;						/* The other edge */
-			gvert *w0, *w1;				/* The other verticies */
+			gvert *w0, *w1;				/* The other vertices */
 			
 			v0 = tp->v[en];
 			v1 = tp->v[en < 2 ? en+1 : 0];
@@ -6589,7 +6589,7 @@ char *filename
 			tp2->ei[em] = 1;		/* 1st triangle in edge */
 			e->t[1] = tp2;			/* 1st triangle is tp2 */
 			e->ti[1] = em;			/* 1st triangles em edge */
-			e->v[0] = v0;			/* The two verticies */
+			e->v[0] = v0;			/* The two vertices */
 			e->v[1] = v1;
 		}
 	} END_FOR_ALL_ITEMS(tp);
@@ -6721,7 +6721,7 @@ gtri *hl			/* Edge hit list (may be NULL) */
 		wrl->add_vertex(wrl, 0, out);
 	}
 
-	/* Create triangles from verticies and set tri color */
+	/* Create triangles from vertices and set tri color */
 	tp = s->tris; 
 	FOR_ALL_ITEMS(gtri, tp) {
 		int ix[3];
@@ -6763,7 +6763,7 @@ gtri *hl			/* Edge hit list (may be NULL) */
 		wrl->add_marker(wrl, vv, rgb, 1.5);
 	}
 
-	/* Verticies for Polygon edges, marked by directional cones */
+	/* Vertices for Polygon edges, marked by directional cones */
 	if (hl != NULL) {
 		tp = hl; 
 		FOR_ALL_ITEMS(gtri, tp) {

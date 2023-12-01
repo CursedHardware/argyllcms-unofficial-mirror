@@ -316,7 +316,7 @@ static void add_text(vrml *s, char *text, double p[3], double col[3], double siz
 	}
 }
 
-/* Start building up verticies that will be converted to lines or patches. */
+/* Start building up vertices that will be converted to lines or patches. */
 /* This clears the data from an existing set */
 /* Set can be from 0 - 9 */
 static void start_line_set(vrml *s, int set) {
@@ -472,7 +472,7 @@ static void make_points(vrml *s, int set) {
 	}
 }
 
-/* Convert the verticies to lines, ppset verticies per line (or .last flag) */
+/* Convert the vertices to lines, ppset vertices per line (or .last flag) */
 static void make_lines(vrml *s, int set, int ppset) {
 	double xyz[3];
 	int i, j;
@@ -596,7 +596,7 @@ static void make_lines(vrml *s, int set, int ppset) {
 	}
 }
 
-/* Convert the verticies to lines, triangles or quads */
+/* Convert the vertices to lines, triangles or quads */
 static void make_line_tri_quad(
 vrml *s,
 int set,
@@ -653,7 +653,7 @@ double cc[3]	/* Surface color, cc == NULL or cc[0] < 0.0 */
 		fprintf(s->fp,"            ]\n");
 		fprintf(s->fp,"          }\n");
 		fprintf(s->fp,"\n");
-		fprintf(s->fp,"          coordIndex [ 		# Indexes of %s Verticies \n",
+		fprintf(s->fp,"          coordIndex [ 		# Indexes of %s Vertices \n",
 		                                                  lines ? "line" : "polygon");
 	
 		/* Spit out the lines/triangles/quads */
@@ -1002,7 +1002,7 @@ static void add_triangle(vrml *s, int set, int ix[3]) {
 	add_col_triangle(s, set, ix, NULL);
 }
 
-/* Convert the verticies to quads with vertex color */
+/* Convert the vertices to quads with vertex color */
 static void make_quads_vc(
 vrml *s,
 int set,
@@ -1011,7 +1011,7 @@ double trans	/* Transparency level */
 	make_line_tri_quad(s, set, trans, NULL);
 }
 
-/* Convert the verticies to quads with color */
+/* Convert the vertices to quads with color */
 static void make_quads(
 vrml *s,
 int set,
@@ -1167,7 +1167,7 @@ double cc[3]	/* Surface color, cc[0] < 0.0 for natural color, NULL for default *
 	}
 }
 
-/* Clear verticies and triangles */
+/* Clear vertices and triangles */
 static void clear(vrml *s) {
 	int i;
 

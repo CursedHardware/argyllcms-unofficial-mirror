@@ -53,6 +53,8 @@ char *icmPfv(int di, float *p);
 # define DEBLU(xxxx)
 #endif
 
+#undef USING_INTERP_NL		/* [und] */
+
 /* Implemeted in this file: */
 rspl *new_rspl(int flags, int di, int fdi);
 static void free_rspl(rspl *s);
@@ -67,7 +69,9 @@ static int *get_res(rspl *s);
 static int within_restrictedsize(rspl *s);
 static int interp_rspl_sx(rspl *s, co *pp);
 static int part_interp_rspl_sx(rspl *s, co *p1, co *p2);
+#ifdef USING_INTERP_NL
 static int interp_rspl_nl(rspl *s, co *p);
+#endif
 int is_mono(rspl *s);
 static int set_rspl(rspl *s, int flags, void *cbctx,
                         void (*func)(void *cbctx, double *out, double *in),
@@ -168,9 +172,8 @@ new_rspl(
 	/* Set pointers to methods in this file */
 	s->del           = free_rspl;
 	s->interp        = interp_rspl_sx;	/* Default to simplex interp */
-#ifdef NEVER
-#define USING_INTERP_NL
-printf("!!!! rspl.c using interp_rspl_nl !!!!");
+#ifdef USING_INTERP_NL
+# pragma message("!!!!!!!!! USING_INTERP_NL defined !!!!!!!!!!!")
 	s->interp        = interp_rspl_nl;
 #endif
 	s->part_interp   = part_interp_rspl_sx;
@@ -518,7 +521,7 @@ co *p			/* Input value and returned function value */
 
 		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 
-		for (e = di-1; e > 0; e--) {		/* Middle verticies */
+		for (e = di-1; e > 0; e--) {		/* Middle vertices */
 			w = we[si[e]] - we[si[e-1]];
 			gp += s->g.fci[si[e]];			/* Move to top of cell in next largest dimension */
 			for (f = 0; f < fdi; f++)
@@ -623,7 +626,7 @@ co *p2			/* optional - return partial derivatives for each input channel */
 			p2[di].p[0] = 1.0;
 		}
 		
-		for (e = di-1; e >= 0; e--) {	/* Middle verticies to far vertex from base */
+		for (e = di-1; e >= 0; e--) {	/* Middle vertices to far vertex from base */
 			int ee = si[e];
 			float *lgp = gp;			/* Last gp[] */
 
@@ -1334,7 +1337,7 @@ co *p							/* Target value */
 
 		DEBLU(("ix %d: w %f * val %s\n", (int)(gp - s->g.a)/s->g.pss, w, icmPfv(fdi,gp)));
 
-		for (e = di-1; e > 0; e--) {		/* Middle verticies */
+		for (e = di-1; e > 0; e--) {		/* Middle vertices */
 			w = we[si[e]] - we[si[e-1]];
 			ww += w * w;					/* Sum of weights squared */
 			gp += s->g.fci[si[e]];			/* Move to top of cell in next largest dimension */
@@ -1370,7 +1373,7 @@ co *p							/* Target value */
 			}
 		}
 
-		for (e = di-1; e > 0; e--) {	/* Middle verticies */
+		for (e = di-1; e > 0; e--) {	/* Middle vertices */
 			w = we[si[e]] - we[si[e-1]];
 			gp += s->g.fci[si[e]];				/* Move to top of cell in next largest dimension */
 			for (f = 0; f < fdi; f++) {

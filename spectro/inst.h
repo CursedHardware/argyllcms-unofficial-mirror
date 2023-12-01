@@ -770,7 +770,7 @@ typedef struct _inst_meascondsel {
 																				\
 	/* Establish communications at the indicated baud rate. */					\
 	/* (Serial parameters are ignored for USB instrument) */					\
-	/* Timout in to seconds, and return non-zero error code */					\
+	/* Timeout in to seconds, and return non-zero error code */					\
 	inst_code (*init_coms)(														\
         struct _inst *p,														\
         baud_rate br,		/* Baud rate */										\
@@ -793,7 +793,7 @@ typedef struct _inst_meascondsel {
 	char *(*get_serial_no)(  													\
         struct _inst *p);														\
 																				\
-	/* Return the avilable instrument modes and capabilities. */				\
+	/* Return the available instrument modes and capabilities. */				\
 	/* Can be called before init, but may be different to */					\
 	/* what's returned after initilisation. */									\
 	/* Note that these may change with the mode. */								\
@@ -993,7 +993,7 @@ typedef struct _inst_meascondsel {
 	/* This call checks if calibrations are invalid or have timed out. */		\
 	/* With the exception of instruments with automated calibration */			\
 	/* (ie. SpectroScan), an instrument will typically */						\
-	/* not check for calibration timout any other way. */						\
+	/* not check for calibration timeout any other way. */						\
 	/* [What's returned is the same as get_n_a_cals() [ needed_calibrations.] */\
 	inst_cal_type (*needs_calibration)(											\
 		struct _inst *p);														\
@@ -1124,7 +1124,7 @@ typedef struct _inst_meascondsel {
 	 *	To poll for an abort while waiting to trigger.							\
 	 *	To poll for a user abort during measurement.							\
 	 *																			\
-	 * The callback function will have the purpose paramater appropriately.		\
+	 * The callback function will have the purpose parameter appropriately.		\
 	 *																			\
      * For inst_negcoms, the return value of inst_user_abort					\
 	 * will abort the communication negotiation.								\

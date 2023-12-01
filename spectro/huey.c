@@ -82,7 +82,7 @@ static int icoms2huey_err(int se, int torc) {
 /* i1Display command codes */
 /* B = byte (8bit), S = short (16bit), W = word (32bit), A = string */
 /* U = unused byte, - = no arguments/results */
-/* The is a 7 byte command buffer and 6 response recieve buffer. */
+/* The is a 7 byte command buffer and 6 response receive buffer. */
 /* :2 means the read is from a second 8 byte ep x81 read. */
 /* cbuf[-] is command byte */
 /* rbuf[-2] is continuation byte */

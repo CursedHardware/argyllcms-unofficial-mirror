@@ -35,11 +35,12 @@ MADVRSOURCE = ;
 if $(NT) {
 	MADVRSOURCE = madvrwin.c ;
 
+	if $(USE_LIBUSB0) = true {
+		DEFINES += EN_LIBUSB0 ;
+	}
 	if $(USE_USBDK) = true {
 echo "####### got USE_USBDK" ;
 		DEFINES += EN_USBDK ;
-	} else {
-		LIBUSBHDRS = ../usb/driver ;	# libusb-win32 kernel driver info
 	}
 }
 
@@ -67,7 +68,7 @@ if $(UNIX) && $(OS) != MACOSX {
 }
 
 HDRS = ../h ../numlib ../icc ../cgats ../rspl ../xicc ../gamut ../spectro
-       ../plot ../render ../ccast $(LIBUSBHDRS) $(CMMHDRS) ;
+       ../plot ../render ../ccast $(CMMHDRS) ;
 
 # Instrument access library library
 SER_INSTS = dtp22.c dtp41.c dtp51.c ss.c ss_imp.c ;

@@ -861,7 +861,7 @@ gammap *new_gammap(
 #endif
 			if (gmi->bph == gmm_clipBP) {
 
-				/* Extend the target black point to accomodate the */
+				/* Extend the target black point to accommodate the */
 				/* bent or clipped destination space L* range */
 				if (fabp[0] < dr_cs_bp[0]) {
 					t = (fabp[0] - dr_cs_wp[0])/(dr_cs_bp[0] - dr_cs_wp[0]);
@@ -2074,7 +2074,7 @@ typedef struct {
 						for (j = 0; j < 3; j++)
 							v1[j] = *((double *)locus->t[table].fdata[i][ix[j]]);
 
-						/* Rotate and locus verticies the same as the src gamuts */
+						/* Rotate and locus vertices the same as the src gamuts */
 						dopartialmap1(s, v1, v1);
 						if (i > 0 )
 							wrl->add_cone(wrl, v0, v1, rgb, 0.5);

@@ -1294,7 +1294,7 @@ int main(int argc, char *argv[]) {
 				icmXYZ2Lab(&wht, wp->Lab, wp->XYZ);
 			}
 
-			/* Sort the channel acording to device value */ 
+			/* Sort the channel according to device value */ 
 			/* For a consistent result for identical device values, */
 			/* secondary sort by inverse CIE value */
 //#define HEAP_COMPARE(A,B) ((A).dev < (B).dev)

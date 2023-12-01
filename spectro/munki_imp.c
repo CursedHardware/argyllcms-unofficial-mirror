@@ -921,7 +921,7 @@ munki_code munki_imp_get_n_a_cals(munki *p, inst_cal_type *pn_cals, inst_cal_typ
 
 	a1logd(p->log,3,"munki_imp_get_n_a_cals: checking mode %d\n",m->mmode);
 
-	/* Timout calibrations that are too old */
+	/* Timeout calibrations that are too old */
 	a1logd(p->log,4,"curtime %u, iddate %u, ddate %u, cfdate %u\n",curtime,cs->iddate,cs->ddate,cs->cfdate);
 	if ((curtime - cs->iddate) > DCALTOUT) {
 		a1logd(p->log,3,"Invalidating adaptive dark cal as %d secs from last cal\n",curtime - cs->iddate);
@@ -1918,7 +1918,7 @@ int *pinstmsec) {    /* Return instrument reaction time in msec */
 			break;
 	}
 
-	a1logd(p->log, 2, "munki_meas_delay: stoped at sample %d time %f\n",i,samp[i].sec);
+	a1logd(p->log, 2, "munki_meas_delay: stopped at sample %d time %f\n",i,samp[i].sec);
 
 	/* Compute overall delay and subtract patch change delay */
 	dispmsec = (int)(samp[i].sec * 1000.0 + 0.5);
@@ -2399,7 +2399,7 @@ munki_code munki_imp_measure(
 	if (nvals > 0)
 		vals[0].duration = duration;	/* Possible flash duration */
 	
-	a1logd(p->log,3,"munki_imp_measure sucessful return\n");
+	a1logd(p->log,3,"munki_imp_measure successful return\n");
 	if (user_trig)
 		return MUNKI_USER_TRIG;
 	return ev; 
@@ -2944,7 +2944,7 @@ munki_code munki_imp_meas_refrate(
 					}
 	
 					if (nfails == 0 || (nfails <= 2 && npeaks >= 6))
-						break;		/* Sucess */
+						break;		/* Success */
 					/* else go and try a different divisor */
 				}
 				if (j < 25)
@@ -3059,7 +3059,7 @@ munki_code munki_imp_meas_refrate(
 			}
 		}
 	} else {
-		a1logd(p->log, 3, "Not enough tries (%d) suceeded to determine refresh rate\n",tix);
+		a1logd(p->log, 3, "Not enough tries (%d) succeeded to determine refresh rate\n",tix);
 	}
 
 	return MUNKI_RD_NOREFR_FOUND; 
@@ -3274,7 +3274,7 @@ munki_code munki_save_calibration(munki *p) {
 		write_doubles(&x, fp, s->idark_data[3]-1, m->nraw+1);
 	}
 
-	a1logd(p->log,3,"Checkum = 0x%x\n",x.chsum);
+	a1logd(p->log,3,"Checksum = 0x%x\n",x.chsum);
 	write_ints(&x, fp, (int *)&x.chsum, 1);
 
 	if (fclose(fp) != 0)
@@ -6429,7 +6429,7 @@ munki_code munki_create_hr(munki *p, int ref) {
 	int i, j, jj, k, cx, sx;
 	munki_fc coeff[40][16];	/* Existing filter cooefficients */
 	int nwav1;					/* Number of filters */
-	double wl_short1, wl_long1;	/* Ouput wavelength of first and last filters */
+	double wl_short1, wl_long1;	/* Output wavelength of first and last filters */
 	double wl_step1;
 	munki_xp xp[41];			/* Crossover points each side of filter */
 	munki_code ev = MUNKI_OK;
@@ -8769,7 +8769,7 @@ munki_readmeasurement(
 
 	top = extra + m->c_inttime * nmeas;
 
-	a1logd(p->log,2,"munki_readmeasurement: inummeas %d, scanflag %d, address %p bsize 0x%x, timout %f\n",inummeas, scanflag, buf, bsize, top);
+	a1logd(p->log,2,"munki_readmeasurement: inummeas %d, scanflag %d, address %p bsize 0x%x, timeout %f\n",inummeas, scanflag, buf, bsize, top);
 
 	for (;;) {
 		int size;		/* number of bytes to read */

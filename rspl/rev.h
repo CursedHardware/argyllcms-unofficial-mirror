@@ -103,9 +103,9 @@ typedef struct {
 	                    /* Index by Absolute[di] -> Simplex Parameter[sdi], */
 						/*                          -1 == value 0, -2 == value 1 */
 						/* Note that many Abs can map to one Param to form a sum. */
-	int offs[MXDI+1];	/* Offsets to simplex verticies within cube == bit per dim */
-	int goffs[MXDI+1];	/* Offsets to simplex verticies within grid */
-	int foffs[MXDI+1];	/* Fwd grid floating offsets to simplex verticies from cube base */
+	int offs[MXDI+1];	/* Offsets to simplex vertices within cube == bit per dim */
+	int goffs[MXDI+1];	/* Offsets to simplex vertices within grid */
+	int foffs[MXDI+1];	/* Fwd grid floating offsets to simplex vertices from cube base */
 	int pmino[MXDI], pmaxo[MXDI]; /* Cube verticy offsets to setup simplex pmin[] and */
 						/* pmax[] bounding box pointers. */
 } psxinfo;
@@ -125,7 +125,7 @@ typedef struct {
 
 /* Simplex definition. Each top level fwd interpolation cell, */
 /* is decomposed into sub-simplexes. Sub-simplexes are of equal or */
-/* lower dimensionality (ie. faces, edges, verticies) to the cube. */
+/* lower dimensionality (ie. faces, edges, vertices) to the cube. */
 struct _simplex {
 	int refcount;				/* reference count */
 	struct _rspl *s;			/* Pointer to parent rspl */
@@ -351,7 +351,7 @@ typedef struct {
 /* solution locus with a sub-simplex. Used when asegs flag is set */
 typedef struct {
 	double xval;		/* Auxiliary value */
-	int nv;				/* Number of verticies valid */
+	int nv;				/* Number of vertices valid */
 	int vix[MXRI+1];	/* Verticy indexes of sub-simplex involved */
 } axisec;
 

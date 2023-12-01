@@ -39,7 +39,8 @@
 # include <windows.h>
 
 # ifdef EN_USBDK 
-#  ifndef _USING_V110_SDK71_
+#   include <objbase.h>				/* For GUID type definition */
+#  if VER_PRODUCTBUILD >= 9600		/* SDK's that have these... */
 #   include <cfgmgr32.h>
 #   include <usbspec.h>
 #   include <Usbiodef.h>
@@ -146,7 +147,7 @@ typedef struct {
 	int addr;			/* Address of end point */
 	int packetsize;		/* The max packet size */
 	int type;			/* 2 = bulk, 3 = interrupt */	
-	int interface;		/* interface number */
+	int ifaceno;		/* interface number */
 #if defined(UNIX_APPLE)
 	int pipe;			/* pipe number (1..N, OS X only) */
 #endif
@@ -261,9 +262,9 @@ struct _icompaths {
 	/* (Used to set upto value for check_usb_upto() */ 
 	int (*get_cur_count)(icompaths *p);
 
-	/* Check a usb vid/pid against combined list up to given index. */
+	/* Check a usb itype against combined list up to given index. */
 	/* return nz if on the list */
-	int (*check_usb_upto)(icompaths *p, int upto, unsigned int vid, unsigned int pid);
+	int (*check_usb_upto)(icompaths *p, int upto, devType itype);
 
 	/* Add a usb path to combined. usbd is taken, others are copied. Return icom error */
 	int (*add_usb)(struct _icompaths *p, char *name, unsigned int vid, unsigned int pid,

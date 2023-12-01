@@ -88,7 +88,7 @@ struct _prim2d {
 /* Solid rectange primitive */
 struct _rect2d {
 	PRIM_STRUCT
-	double rx0, ry0, rx1, ry1;	/* Rectangle verticies */
+	double rx0, ry0, rx1, ry1;	/* Rectangle vertices */
 	color2d c;					/* Color of rectangle (if dpat == NULL) */
 	double (*dpat)[MXPATSIZE][MXPATSIZE][TOTC2D];	/* Special for ChromeCast experiments */
 	int dp_w, dp_h;				/* dpat dimensions */
@@ -102,7 +102,7 @@ void set_rect2d_dpat(struct _rect2d *s, double (*pat)[MXPATSIZE][MXPATSIZE][TOTC
 /* Vertex shaded rectange */
 struct _rectvs2d {
 	PRIM_STRUCT
-	double rx0, ry0, rx1, ry1;	/* Rectangle verticies */
+	double rx0, ry0, rx1, ry1;	/* Rectangle vertices */
 	color2d c[4];	/* Bot left, bot right, top left, top right */
 	int x_blend;	/* Blending rule flags, 0 = linear, 1 = spline, 2 = sine */
 	int y_blend;
@@ -128,8 +128,8 @@ prim2d *new_trivs2d(struct _render2d *s, double v[3][2], color2d c[3]);
 struct _poly2d {
 	PRIM_STRUCT
 	color2d c;			/* Color of polyangle (if dpat == NULL) */
-	int n;				/* Number of verticies */
-	double co[1][2];	/* Array of [n][2] verticies */
+	int n;				/* Number of vertices */
+	double co[1][2];	/* Array of [n][2] vertices */
 }; typedef struct _poly2d poly2d;
 
 prim2d *new_poly2d(struct _render2d *s, int n, double v[][2], color2d c);
@@ -168,7 +168,7 @@ void add_circle2d(struct _render2d *s, double x, double y, double r, double w, c
 	
 struct _line2d {
 	PRIM_STRUCT
-	double lx0, ly0, lx1, ly1;	/* Line verticies */
+	double lx0, ly0, lx1, ly1;	/* Line vertices */
 	double ww;					/* half width of line squared */
 	int cap;					/* 0 = butt, 1 = round, 2 = square */
 	color2d c;					/* Color of the line */

@@ -65,24 +65,24 @@ void *fdata				/* Data needed by function */
 	double tryy, ysave;
 	double tol;
 	double **p;			/* Current simplex array */
-	double *y;			/* Values of func at verticies */
+	double *y;			/* Values of func at vertices */
 	double **p2;		/* Trial simplex array */
-	double *y2;			/* Trial values of func at verticies */
+	double *y2;			/* Trial values of func at vertices */
 	int lox, hix, nhix;	/* Lowest point index, highest point, next highest point */
 	double *tryp;		/* Temporary used by trypoint() */
 
 	/* Allocate array arrays */
 	tryp = dvector(0, di-1);		/* Trial value */		
 	p = dmatrix(0, nsp-1, 0, di-1);	/* Vertex array of dimentions */
-	y = dvector(0, nsp-1);			/* Value of function at verticies */
+	y = dvector(0, nsp-1);			/* Value of function at vertices */
 	p2 = dmatrix(0, nsp-1, 0, di-1);	/* Trial vertex array of dimentions */
-	y2 = dvector(0, nsp-1);			/* Trial value of function at verticies */
+	y2 = dvector(0, nsp-1);			/* Trial value of function at vertices */
 	
 	/* Init the search simplex */
 	simplexinit(di, cp, p, s, 1.0, ii);
 
-	/* Compute initial y (function) values at simplex verticies */
-	for (i = 0; i < nsp; i++)			/* For all verticies */
+	/* Compute initial y (function) values at simplex vertices */
+	for (i = 0; i < nsp; i++)			/* For all vertices */
 		y[i] = (*funk)(fdata, p[i]);	/* Compute error function */
 
 	/* Locate verticy with best value */
@@ -96,12 +96,12 @@ void *fdata				/* Data needed by function */
 	if (dhsx_debug) printf(" initial point %s = %e\n",debPdv(di,cp),tryy);
 #endif /* DEBUG */
 
-	/* If our initial point is better than any of the simplex verticies */
+	/* If our initial point is better than any of the simplex vertices */
 	if (y[lox] > tryy) {
 #ifdef DEBUG
 		if (dhsx_debug) printf(" initial point is better than surrounding simplex\n");
 #endif /* DEBUG */
-		/* Move all the verticies to match moving lox to cp */
+		/* Move all the vertices to match moving lox to cp */
 		for (i = 0; i < nsp; i++) {
 			if (i == lox)
 				continue;
@@ -115,11 +115,11 @@ void *fdata				/* Data needed by function */
 		y[lox] = tryy;
 	} 
 
-	/* Compute current center point location as sum of verticies. */
+	/* Compute current center point location as sum of vertices. */
 	/* (We use this to compute moves) */
 	for (j = 0; j < di; j++) {					/* For all dimensions */
 		double sum;
-		for (i = 0, sum = 0.0; i < nsp; i++)	/* For all verticies */
+		for (i = 0, sum = 0.0; i < nsp; i++)	/* For all vertices */
 			sum += p[i][j];
 		cp[j] = sum;
 	}
@@ -194,8 +194,8 @@ void *fdata				/* Data needed by function */
 			/* Init the search simplex */
 			simplexinit(di, cp, p2, s, scale, ii);
 
-			/* Compute y (function) values at simplex verticies */
-			for (i = 0; i < nsp; i++)			/* For all verticies */
+			/* Compute y (function) values at simplex vertices */
+			for (i = 0; i < nsp; i++)			/* For all vertices */
 				y2[i] = (*funk)(fdata, p2[i]);	/* Compute error function */
 
 			/* Locate verticy with best value */
@@ -222,11 +222,11 @@ void *fdata				/* Data needed by function */
 					y[i] = y2[i];
 				}
 
-				/* Compute current center point location as sum of verticies. */
+				/* Compute current center point location as sum of vertices. */
 				/* (We use this to compute moves) */
 				for (j = 0; j < di; j++) {					/* For all dimensions */
 					double sum;
-					for (i = 0, sum = 0.0; i < nsp; i++)	/* For all verticies */
+					for (i = 0, sum = 0.0; i < nsp; i++)	/* For all vertices */
 						sum += p[i][j];
 					cp[j] = sum;
 				}
@@ -351,7 +351,7 @@ static double trypoint(
 int di,					/* Dimentionality */
 double *cp,				/* nsp * center coord/Returned coordinate */
 double **p,				/* Starting/Current simplex (modified by dhsx) */
-double *y,				/* values of func at verticies */
+double *y,				/* values of func at vertices */
 int hix,				/* Index of high point we are moving */
 double hpfac,			/* factor to move high point */
 double (*funk)(void *fdata, double tp[]),		/* Error function to evaluate */

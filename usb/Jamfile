@@ -1,11 +1,6 @@
 
 # JAM style makefile for libusb-win32, to create .inf files.
 
-# This doesn't make the drivers themselves.
-# (you need the Server 2003 DDK 64 & 32 bit build enironmantes,
-#  and then run  ddk_build.cmd. This will then run
-#  build in libusb/os. )
-
 #PREF_CCFLAGS 	= $(CCOPTFLAG) ;		# Turn optimisation on
 PREF_CCFLAGS    = $(CCDEBUGFLAG) ;		# Debugging flags
 #PREF_CCFLAGS	= $(CCHEAPDEBUG) ;		# Heap Debugging flags
@@ -13,13 +8,26 @@ PREF_LINKFLAGS	= $(LINKDEBUGFLAG) ;	# Link debugging flags
 
 #Products
 #Libraries = ;
-#Executables = ;
+Executables = ArgyllCMS_install_USB ArgyllCMS_uninstall_USB ;
 #Headers = ;
 
 #Install
-#InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
+InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
 #InstallFile $(DESTDIR)$(PREFIX)/h : $(Headers) ;
 #InstallLib  $(DESTDIR)$(PREFIX)/lib : $(Libraries) ;
+
+# USB driver un-installer
+if $(NT) {
+	HDRS = ../h ;
+	UACBin ArgyllCMS_uninstall_USB ;
+	MainsFromSources ArgyllCMS_uninstall_USB.c ;
+
+	if $(TARGET64) = true {
+		File ArgyllCMS_install_USB.exe : bin/amd64/ArgyllCMS_install_USB.exe ;
+	} else {
+		File ArgyllCMS_install_USB.exe : bin/x86/ArgyllCMS_install_USB.exe ;
+	}
+}
 
 if [ GLOB $(PATH) : sed sed.exe ] {
 	Echo "sed seems to be available" ;
@@ -32,7 +40,8 @@ if [ GLOB $(PATH) : sed sed.exe ] {
 if $(CREATE_INFS) = true {
 	local _i _t _d ;
 	NDepends files : ArgyllCMS.inf ;
-	NDepends install : ArgyllCMS.inf ArgyllCMS.cat ArgyllCMS_x64.cat ;
+	# Make sure .cat's get built on install
+	NDepends install : ArgyllCMS.inf ArgyllCMS.cat ;
 
 	_i  = [ NormPaths ArgyllCMS.inf ] ;
 	_t  = [ NormPaths ArgyllCMS.inf.t ] ;

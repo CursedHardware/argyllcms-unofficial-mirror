@@ -84,7 +84,7 @@ static inst_code ser_uicallback(void *cntx, inst_ui_purp purp) {
 /* Default methods for instrument class */
 
 /* Establish communications at the indicated baud rate. */
-/* Timout in to seconds, and return non-zero error code */
+/* Timeout in to seconds, and return non-zero error code */
 static vtpglut_code init_coms(
 vtpglut *p) {		/* Timeout */
 	return vtpglut_unsupported;

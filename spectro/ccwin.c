@@ -346,7 +346,7 @@ int verb, int ddebug) {
 	const char *options[3];
 	char port[50];
 	int portno = 0;		/* Port number allocated */
-	int forcedef = 0;	/* Force default reciever app. */
+	int forcedef = 0;	/* Force default receiver app. */
 
 	if ((p = (chws *)calloc(sizeof(chws), 1)) == NULL) {
 		error("new_chws: calloc failed");
@@ -841,7 +841,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		return NULL;
 	}
 
-	debugr2((errout,"new_ccwin: return sucessfully\n"));
+	debugr2((errout,"new_ccwin: return successfully\n"));
 
 	return p;
 }

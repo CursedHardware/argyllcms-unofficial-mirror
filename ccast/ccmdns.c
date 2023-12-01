@@ -354,7 +354,7 @@ static int init_socket_mDNS(SOCKET *psock) {
 		DWORD tv;
 		tv = 100;
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d\n",ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d\n",ERRNO))
 			closesocket(sock);
 			return 1;
 		}
@@ -365,7 +365,7 @@ static int init_socket_mDNS(SOCKET *psock) {
 		tv.tv_sec = 0;
 		tv.tv_usec = 100 * 1000;
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) < 0) {
-			DBG((g_log,0,"setsockopt timout failed with %d\n",ERRNO))
+			DBG((g_log,0,"setsockopt timeout failed with %d\n",ERRNO))
 			closesocket(sock);
 			return 1;
 		}

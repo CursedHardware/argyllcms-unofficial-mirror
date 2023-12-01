@@ -707,7 +707,7 @@ int main(int argc, char *argv[]) {
 			/* COM port  */
 			} else if (argv[fa][1] == 'c') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -c");
+				if (na == NULL) usage("Parameter expected following -c");
 				{
 					comport = atoi(na);
 					if (comport < 1 || comport > 40) usage("-c parameter %d out of range",comport);
@@ -717,7 +717,7 @@ int main(int argc, char *argv[]) {
 			/* Display type */
 			} else if (argv[fa][1] == 'y') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -y");
+				if (na == NULL) usage("Parameter expected following -y");
 				ditype = na[0];
 				if (ditype == '_' && na[1] != '\000')
 					ditype = ditype << 8 | na[1];
@@ -727,7 +727,7 @@ int main(int argc, char *argv[]) {
 			} else if (argv[fa][1] == 'I') {
 
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -I");
+				if (na == NULL) usage("Parameter expected following -I");
 				if (strcmp(na, "A") == 0
 				 || strcmp(na, "M0") == 0) {
 					tillum_set = spec = 1;
@@ -775,7 +775,7 @@ int main(int argc, char *argv[]) {
 			/* Spectral Illuminant type for XYZ computation */
 			} else if (argv[fa][1] == 'i') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -i");
+				if (na == NULL) usage("Parameter expected following -i");
 				if (strcmp(na, "A") == 0) {
 					illum_set = spec = 1;
 					illum = icxIT_A;
@@ -830,7 +830,7 @@ int main(int argc, char *argv[]) {
 			/* Spectral Observer type */
 			} else if (argv[fa][1] == 'Q') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -Q");
+				if (na == NULL) usage("Parameter expected following -Q");
 				if (strcmp(na, "1931_2") == 0) {			/* Classic 2 degree */
 					obType = icxOT_CIE_1931_2;
 				} else if (strcmp(na, "1964_10") == 0) {	/* Classic 10 degree */
@@ -931,7 +931,7 @@ int main(int argc, char *argv[]) {
 			/* Filter configuration */
 			} else if (argv[fa][1] == 'F') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -F");
+				if (na == NULL) usage("Parameter expected following -F");
 				if (na[0] == 'n' || na[0] == 'N')
 					fe = inst_opt_filter_none;
 				else if (na[0] == '5')
@@ -948,13 +948,13 @@ int main(int argc, char *argv[]) {
 			/* Extra filter compensation file */
 			} else if (argv[fa][1] == 'E') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -E");
+				if (na == NULL) usage("Parameter expected following -E");
 				strncpy(filtername,na,MAXNAMEL-1); filtername[MAXNAMEL-1] = '\000';
 
 			/* XRGA conversion */
 			} else if (argv[fa][1] == 'A') {
 				fa = nfa;
-				if (na == NULL) usage("Paramater expected following -A");
+				if (na == NULL) usage("Parameter expected following -A");
 				if (na[0] == 'N')
 					calstd = xcalstd_none;
 				else if (na[0] == 'A')
@@ -964,7 +964,7 @@ int main(int argc, char *argv[]) {
 				else if (na[0] == 'G')
 					calstd = xcalstd_gmdi;
 				else
-					usage("Paramater after -A '%c' not recognized",na[0]);
+					usage("Parameter after -A '%c' not recognized",na[0]);
 
 			/* Show Yxy */
 			} else if (argv[fa][1] == 'x') {
@@ -1787,7 +1787,7 @@ remediate:;
 
 		/* Or something is wrong with instrument capabilities */
 		} else {
-			printf("\nNo reasonable trigger mode avilable for this instrument\n");
+			printf("\nNo reasonable trigger mode available for this instrument\n");
 			it->del(it);
 			return -1;
 		}

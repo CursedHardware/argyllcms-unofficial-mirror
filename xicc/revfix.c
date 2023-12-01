@@ -302,7 +302,7 @@ main(int argc, char *argv[]) {
 	double Kstle = 0.0, Kstpo = 0.0, Kenle = 0.0, Kenpo = 0.0, Kshap = 0.0;
 	double tlimit = -1.0;	/* Total ink limit */
 	double klimit = -1.0;	/* Black ink limit */
-	int intsep = 0;			/* Not implimented in xicc yet ??? */
+	int intsep = 0;			/* Not implemented in xicc yet ??? */
 	int rv = 0;
 
 	error_program = argv[0];

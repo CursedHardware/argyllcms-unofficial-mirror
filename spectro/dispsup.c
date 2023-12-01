@@ -755,7 +755,7 @@ static int disprd_read_imp(
 		scb->serno = p->serno++;
 		scb->msec = msec_time();
 
-		a1logd(p->log,1, "got reading %f %f %f, transfering to col\n",
+		a1logd(p->log,1, "got reading %f %f %f, transferring to col\n",
 		                val.XYZ[0], val.XYZ[1], val.XYZ[2]);
 
 		scb->mtype = val.mtype;
@@ -1276,7 +1276,7 @@ int disprd_ambient(
 
 	/* Or something is wrong with instrument capabilities */
 	} else {
-		printf("No reasonable trigger mode avilable for this instrument\n");
+		printf("No reasonable trigger mode available for this instrument\n");
 		return 2;
 	}
 
@@ -2405,7 +2405,7 @@ static int config_inst_displ(disprd *p) {
 	/* Reset key meanings */
 	inst_reset_uih();
 
-	a1logd(p->log,1,"config_inst_displ suceeded\n");
+	a1logd(p->log,1,"config_inst_displ succeeded\n");
 	return 0;
 }
 

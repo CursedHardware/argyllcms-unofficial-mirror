@@ -3,17 +3,19 @@
   <head>
     <title>Calibration vs. Characterization</title>
     <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
+      charset=windows-1252">
   </head>
   <body>
     <h2 style="text-decoration: underline; font-weight: bold;">Calibration
 vs.
 
+
+
       Characterization<br>
     </h2>
     Some of the terminology can be confusing. Many people are initially
     confused about the difference between <span style="font-weight:
-      bold;">Calibration</span> and <span style="font-weight: bold;">Characterization</span>.<br>
+      bold;">Calibration</span> and <span style="font-weight: bold;">Characterization/Profiling</span>.<br>
     <h3>What is Calibration ?</h3>
     "Calibration" is a short hand Graphic Arts term for adjusting a
     devices behavior to meet calibration targets.<br>
@@ -23,14 +25,24 @@ vs.
     has.<br>
     &nbsp;&nbsp;&nbsp; 2) Applying curves to its color channels.<br>
     <br>
-    The idea of calibration is to put a device is a defined state with
+    The idea of calibration is to put a device in a defined state with
     regard to its color response. Often this is used as a day to day
     means of maintaining reproducible behavior. Calibration is often the
     most practical way of setting parameters such as white point and
     brightness of displays. Typically calibration will be stored in
     device or systems specific file formats that record the device
     settings and/or per channel calibration curves.<br>
-    <h3>What is Characterization ?</h3>
+    <br>
+    For some specific applications (such as Video playback), calibration
+    may be used to allow a video signal with a specific encoding (i.e.
+    colorspace) to display correctly on a display without color
+    management software or hardware being needed to transform between
+    color spaces. For each source colorspace, a specific calibration
+    needs to be made for the display, and the display can only show one
+    source correctly at a time. If you have N source color spaces, and M
+    displays, then N x M calibrations would need to be created to
+    display any source on any display.
+    <h3>What is Characterization/Profiling ?</h3>
     Characterization (or <span style="font-weight: bold;">profiling</span>)
     is <span style="text-decoration: underline;">recording</span> the
     way a device reproduces or responds to color. Typically the result
@@ -42,9 +54,20 @@ vs.
     two devices or colorspaces, can a way of transferring color from one
     device representation to another be achieved.<br>
     <br>
+    Given a source profile and a destination (i.e. display) profile, a
+    direct transform can be computed between the two. In ICC terminology
+    this is a <b>Device Link</b>.<br>
+    The benefit of managing color this way is that such transforms can
+    be created on the fly between any source colorspace and the display,
+    and all the results rendered into the same output. Many sources with
+    different color spaces, or color spaces that are unknown at the time
+    of profiling the display can be rendered correctly. If you have N
+    source colorspaces and M displays, then only N + M profiles need to
+    be created to display any source on any display.<br>
+    <br>
     Note that a characterization (profile) will only be valid for a
     device if it is in the same state of calibration as it was when it
-    was characterized.<br>
+    was characterized/profiled.<br>
     <h3>What about display calibration and profiles ?</h3>
     In the case of display profiles there is some additional confusion
     because often the <span style="font-weight: bold;">calibration</span>

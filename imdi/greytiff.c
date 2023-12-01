@@ -131,7 +131,7 @@ int pmtc
 		case PHOTOMETRIC_LOGLUV:
 			return "CIELog2Luv";
 	}
-	sprintf(buf,"Unknonw Tag %d",pmtc);
+	sprintf(buf,"Unknown Tag %d",pmtc);
 	return buf;
 }
 

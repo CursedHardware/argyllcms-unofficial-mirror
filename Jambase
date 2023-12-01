@@ -72,6 +72,8 @@
 # CatToFile dest : strings ;			save the arguments to the file
 # GuiBin image ;						Mark executable as GUI applications
 #                                       (Needs to go before other declarations of image) 
+# UACBin image ;						Mark executable as MSWindows UAC applications
+#                                       (Needs to go before other declarations of image) 
 # HardLink target : source ;			make link from source to target
 # HdrRule source : headers ;			handle #includes
 # InstallInto dir : sources ;			install any files
@@ -379,9 +381,10 @@ JAMBASEDATE = 2008.03.26 ;
 
 if $(NT)
 {
+	WIN_MT_AVAIL = true ;
 	if ! [ GLOB $(PATH) : mt.exe ] {
     	Echo "mt is NOT available!" ;
-    	WIN_UTF8 = false ;
+    	WIN_MT_AVAIL = false ;
 	}
 
 	MV				?= move /y ;
@@ -608,6 +611,7 @@ if $(NT)
 		if [ MATCH 17\\.(.*) : $(VisualStudioVersion) ] {
 			if $(VSCMD_ARG_TGT_ARCH) = "x64" {
 				ECHO "Compiler is VC++17 64 bit" ;
+				TARGET64 = true ;
 			} else {
 				ECHO "Compiler is VC++17 32 bit" ;
 			}
@@ -997,7 +1001,7 @@ else if $(UNIX)
 
 	# UNIX defaults
 
-	CCFLAGS			?= -DUNIX -D_THREAD_SAFE -pipe ;	# -fwrapv ??
+	CCFLAGS			?= $(CPPFLAGS) -g -DUNIX -D_THREAD_SAFE -pipe -fPIC ;	# -fwrapv ??
 	CCOPTFLAG		?= -O2 ;		
 	CCDEBUGFLAG		?= -g ;		
 	CCPROFFLAG		?= ;		
@@ -1007,7 +1011,7 @@ else if $(UNIX)
 	CHGRP			?= chgrp ;
 	CHOWN			?= chown ;
 	LEX				?= lex ;
-	LINKFLAGS		?= ;
+	LINKFLAGS		?= $(LDFLAGS) ;
 	LINKOPTFLAG		?= -O ;				# Affects creating .so's
 	LINKSTRIPFLAG	?= -s ;
 	LINKDEBUGFLAG	?= ;
@@ -1043,6 +1047,7 @@ else if $(UNIX)
 	 || $(HOSTTYPE) = amd64 {
 		ECHO "We're on a 64 bit host" ;
 		HOST64     = true ;
+		TARGET64   = true ;			# We're not allowing for cross-compiling here...
 		CCFLAGS	   += -m64 ;
 		C++FLAGS   += -m64 ;
 	}
@@ -2782,11 +2787,15 @@ rule GuiBin
 	GUIAPP on $(_t) = "true" ;
 }
 
-rule GUIAPP
+# Mark MSWindows executable as needing UAC
+# GuiImages images ;
+rule UACBin
 {
+	local _t = [ NormDstTargets $(<:S=$(SUFEXE)) ] ;
+	WIN_UAC on $(_t) = "true" ;
 }
 
-rule UTF8APP
+rule GUIAPP
 {
 }
 
@@ -3454,8 +3463,17 @@ rule MainFromObjects
 	}
 
 	# On MSWin10 we may want to use UTF-8 for text
-	if $(WIN_UTF8) = true {
-		UTF8APP $(_t) ;
+	if $(WIN_MT_AVAIL) && $(WIN_UTF8) = true {
+		WIN_UTF8_MANIFEST $(_t) ;
+	}
+
+	# On MSWin we may want to trigger UAC
+	if $(WIN_MT_AVAIL) && [ geton $(_t) : WIN_UAC ] = true {
+		WIN_UAC_COMBINE on $(_t) = "outputresource" ;
+		if $(WIN_UTF8) {
+			WIN_UAC_COMBINE on $(_t) = "updateresource" ;
+		}
+		WIN_UAC_MANIFEST $(_t) ;
 	}
 
 #Echo "MainFromObjects done" ;
@@ -4471,8 +4489,7 @@ if $(NT)
 	}
 
 	# Allow MSWin10 apps to use UTF-8
-
-	actions UTF8APP
+	actions WIN_UTF8_MANIFEST
 	{
 		(echo ^<?xml version="1.0" encoding="UTF-8" standalone="yes"?^>
 		echo ^<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1"^>
@@ -4484,6 +4501,23 @@ if $(NT)
   		echo ^</application^>
 		echo ^</assembly^>)>$(<).tmp
 		mt.exe -nologo -manifest $(<).tmp -outputresource:$(<);#1
+		del $(<).tmp
+	}
+
+	# Make MSWin10 app trigger UAC
+	actions WIN_UAC_MANIFEST
+	{
+		(echo ^<?xml version="1.0" encoding="UTF-8" standalone="yes"?^>
+		echo ^<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1"^>
+		echo ^<trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"^>
+		echo ^<security^>
+		echo ^<requestedPrivileges^>
+		echo ^<requestedExecutionLevel level="requireAdministrator" uiAccess="false"/^>
+		echo ^</requestedPrivileges^>
+		echo ^</security^>
+		echo ^</trustInfo^>
+		echo ^</assembly^>)>$(<).tmp
+		mt.exe -nologo -manifest $(<).tmp -$(WIN_UAC_COMBINE):$(<);#1
 		del $(<).tmp
 	}
 }

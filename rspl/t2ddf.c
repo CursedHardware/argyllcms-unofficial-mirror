@@ -290,7 +290,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	
-		/* Mark verticies in red */
+		/* Mark vertices in red */
 		for(k = 0; k < npoints; k++) {
 			j = (int)((HEIGHT * (y2 - test_points[k].p[1])/(y2 - y1)) + 0.5);
 			i = (int)((WIDTH * (test_points[k].p[0] - x1)/(x2 - x1)) + 0.5);

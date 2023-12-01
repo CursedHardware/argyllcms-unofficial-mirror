@@ -263,7 +263,7 @@ double dxratio		/* Depth expansion ratio of mapping */
 	double va, vr, vd, vv = 0.0;
 
 	/* Absolute, Delta E^2 between test point and destination closest */
-	/* aodv is already positioned acording to the LCh weights, */
+	/* aodv is already positioned according to the LCh weights, */
 	/* so weight as per average of these */
 	a_o = w->a.o;
 	va = wdesq(dtp, aodv, a_o, a_o, a_o, SUM_POW);
@@ -1376,7 +1376,7 @@ int expand_weights(gammapweights out[14], gammapweights *in) {
 	return 0;
 }
 
-/* Tweak weights acording to extra cmy cusp mapping flags or rel override */
+/* Tweak weights according to extra cmy cusp mapping flags or rel override */
 void tweak_weights(gammapweights out[14], int dst_cmymap, int rel_oride)  {
 	int i;
 
@@ -4067,7 +4067,7 @@ static void create_influence_plot(nearsmth *smp, int nmpts, int mapres) {
 	swdiag = new_rspl(RSPL_NOFLAGS, 3, 3);	/* Allocate 3D -> 3D */
 	swdiag->fit_rspl(swdiag, RSPL_NOFLAGS, fpnts, nmpts, NULL, NULL, gres, NULL, NULL, 1.0, avgdev, NULL);
 
-	/* Now create a plot of the sci_gam with the vertexes colored acording to the */
+	/* Now create a plot of the sci_gam with the vertexes colored according to the */
 	/* diagnostic map. */
 	if ((wrl = new_vrml("sci_gam_wt", 1, vrml_lab)) == NULL) {
 		fprintf(stderr,"gamut map: new_vrml failed for '%s%s'\n","sci_gam_wt",vrm_ext());

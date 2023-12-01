@@ -598,7 +598,7 @@ struct _icxLuLut {
 
 	/* Auxiliar linearization function - NULL if none */
  	/* Only the used auxiliary chanels need be calculated. */
-	/* ~~ not implimented yet ~~~ */
+	/* ~~ not implemented yet ~~~ */
 //	void (*auxlinf)(void *auxlinf_ctx, double inout[MXDI]);
 
 	/* Opaque context for auxlin */
@@ -611,7 +611,7 @@ struct _icxLuLut {
  	/* sum from the raw rspl input values. NULL if not used. */
 	/* Use this to take account of any transformation beyond */
 	/* the input space, or 6 color masquerading as 4 etc. */
-	double (*limitf)(void *limitf_ctx, float in[MXDI]);		/* ~~ not implimented yet */
+	double (*limitf)(void *limitf_ctx, float in[MXDI]);		/* ~~ not implemented yet */
 
 	/* Opaque context for limitf */
 	void *limitf_ctx;

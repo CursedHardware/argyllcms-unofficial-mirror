@@ -303,7 +303,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"     C            Rec2020 Constant Luminance YCbCr UHD (16-235,240)/255 \"TV\" levels\n");
 	fprintf(stderr,"     x            xvYCC Rec601 YCbCr Rec709 Prims. SD (16-235,240)/255 \"TV\" levels\n");
 	fprintf(stderr,"     X            xvYCC Rec709 YCbCr Rec709 Prims. HD (16-235,240)/255 \"TV\" levels\n");
-	fprintf(stderr," -P              Create gamut gammap%s diagostic\n",vrml_ext());
+	fprintf(stderr," -P              Create gamut gammap%s diagnostic\n",vrml_ext());
 	exit(1);
 }
 
@@ -1223,7 +1223,7 @@ void devip_devop(void *cntx, double *out, double *in
 			}
 			dd = sqrt(dd);
 
-			if (dd < 1.0) {		/* Triggered withing 1 delta E */
+			if (dd < 1.0) {		/* Triggered within 1 delta E */
 				if (clip == 0)			/* Don't count zero's white caused by video input clipping */
 					p->wphacked++;
 				wptrig = 1;
@@ -1239,7 +1239,7 @@ void devip_devop(void *cntx, double *out, double *in
 				if (p->verb)
 #endif
 				{
-					printf("White point hack mapped %f %f %f to %f %f %f, hit withing %f\n",
+					printf("White point hack mapped %f %f %f to %f %f %f, hit within %f\n",
     		    p->in.wp[0],p->in.wp[1],p->in.wp[2],pcsv[0], pcsv[1], pcsv[2],dd);
 					fflush(stdout);
 				}
@@ -4868,7 +4868,7 @@ main(int argc, char *argv[]) {
 		}
 
 		if (li.verb)
-			printf("Finished verfication\n");
+			printf("Finished verification\n");
 
 		printf("Average error = %f%%, peak error = %f%%\n",aerr * 100.0/nerr, perr * 100.0);
 		printf("Input %f %f %f %f\n",pin[0], pin[1], pin[2], pin[3]);

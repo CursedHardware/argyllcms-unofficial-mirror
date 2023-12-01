@@ -59,8 +59,7 @@ if ! $(HAVE_PNG) {
 	SubInclude png ;
 }
 
-if $(NT) && $(USE_USBDK) != true {
-echo "#### subincluding usb ####"
+if $(NT) {
 	SubInclude usb ;
 }
 

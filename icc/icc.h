@@ -59,14 +59,12 @@
 	extern "C" {
 #endif
 
-#define TEST_LU4					/* [def]  Test read/write of Lut1 code, new icmLu */
-
 #undef CHECK_LOOKUP_PARTS			/* [und] Check icmLu4 3 and 5 part lookups against overall lu */
 
 /* Version of icclib release */
 
-#define ICCLIB_VERSION 0x030001			/* Format is MaMiBf */  
-#define ICCLIB_VERSION_STR "3.0.1"
+#define ICCLIB_VERSION 0x030100			/* Format is MaMiBf */  
+#define ICCLIB_VERSION_STR "3.1.0"
 
 /*
  *  Note XYZ scaling to 1.0, not 100.0
@@ -920,6 +918,20 @@ unsigned int sati_pow(int *ind, unsigned int a, unsigned int b);	/* a ^ b */
 
 /* Float comparisons to certain precision */
 int diff_u16f16(double a, double b);		/* u16f16 precision */
+
+/* Counting down idioms: */
+
+/* For signed count value where we want to access from last to first item: */
+/* signed s, p->n; for (s = p->n-1; s >= 0; s--) { s: n-1 .. 0 } */
+
+/* For unsigned count value where we want to access from last to first item: */
+/* unsigned u, p->n; for (u = p->n; u-- > 0;) { u: n-1 .. 0 } */
+
+/* For signed count value where we want to access from last to second item: */
+/* signed s, p->n; for (s = p->n-1; s >= 1; s--) { s: n-1 .. 1 } */
+
+/* For unsigned count value where we want to access from last to second item: */
+/* unsigned u, p->n; for (u = p->n; u-- > 1;) { u: n-1 .. 1 } */
 
 /* =========================================================== */
 

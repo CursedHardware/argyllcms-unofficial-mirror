@@ -18,7 +18,7 @@
  * points, and creates a model based forward printer profile
  * (Device -> CIE + spectral), based on Neugenbauer equations.
  * It is designed to handle an arbitrary number of colorants,
- * and in the future, (optionaly) create an aproximate ink overlap/mixing model
+ * and in the future, (optionally) create an aproximate ink overlap/mixing model
  * to allow synthesis of a forward model for a hyperthetical
  * similar printing process with aditional inks.
  *

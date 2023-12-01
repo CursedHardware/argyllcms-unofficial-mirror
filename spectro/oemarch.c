@@ -1533,7 +1533,7 @@ static xfile *spyd4cal_extract(xfile **pxf, xfile *dll, int verb) {
 static ccss *parse_EDR(unsigned char *buf, unsigned long len, char *name, int verb);
 static ccss *read_EDR_file(char *name, int verb);
 
-/* Do conversion. Return NZ on sucess */
+/* Do conversion. Return NZ on success */
 static xfile *edr_convert(xfile **pxf, xfile *xi, int verb) {
 	xfile *xf = NULL;
 	ccss *c;

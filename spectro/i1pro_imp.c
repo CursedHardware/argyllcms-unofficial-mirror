@@ -1536,7 +1536,7 @@ i1pro_code i1pro_imp_get_n_a_cals(i1pro *p, inst_cal_type *pn_cals, inst_cal_typ
 
 	a1logd(p->log,2,"i1pro_imp_get_n_a_cals: checking mode %d\n",m->mmode);
 
-	/* Timout calibrations that are too old */
+	/* Timeout calibrations that are too old */
 	if (m->capabilities2 & I1PRO_CAP2_WL_LED) {
 		if ((curtime - cs->wldate) > WLCALTOUT) {
 			a1logd(p->log,2,"Invalidating wavelength cal as %d secs from last cal\n",curtime - cs->wldate);
@@ -2834,7 +2834,7 @@ int *pinstmsec) {	/* Return instrument latency in msec */
 			break;
 	}
 
-	a1logd(p->log, 2, "i1pro_meas_delay: stoped at sample %d time %f\n",i,samp[i].sec);
+	a1logd(p->log, 2, "i1pro_meas_delay: stopped at sample %d time %f\n",i,samp[i].sec);
 
 	/* Compute overall delay */
 	dispmsec = (int)(samp[i].sec * 1000.0 + 0.5);				/* Display update time */
@@ -3287,7 +3287,7 @@ i1pro_code i1pro_imp_measure(
 		}
 	}
 	
-	a1logd(p->log,3,"i1pro_imp_measure sucessful return\n");
+	a1logd(p->log,3,"i1pro_imp_measure successful return\n");
 	if (user_trig)
 		return I1PRO_USER_TRIG;
 	return ev; 
@@ -3830,7 +3830,7 @@ i1pro_code i1pro_imp_meas_refrate(
 					}
 	
 					if (nfails == 0 || (nfails <= 2 && npeaks >= 6))
-						break;		/* Sucess */
+						break;		/* Success */
 					/* else go and try a different divisor */
 				}
 				if (j < 25)
@@ -3948,7 +3948,7 @@ i1pro_code i1pro_imp_meas_refrate(
 			}
 		}
 	} else {
-		a1logd(p->log, 3, "Not enough tries suceeded to determine refresh rate\n");
+		a1logd(p->log, 3, "Not enough tries succeeded to determine refresh rate\n");
 	}
 
 	return I1PRO_RD_NOREFR_FOUND; 
@@ -4043,7 +4043,7 @@ i1pro_code i1pro_restore_refspot_cal(i1pro *p) {
 		return I1PRO_OK;
 	}
 
-	/* We've sucessfully restored the dark calibration */
+	/* We've successfully restored the dark calibration */
 	s->dark_valid = 1;
 	s->ddate = m->caldate;
 
@@ -4088,7 +4088,7 @@ i1pro_code i1pro_restore_refspot_cal(i1pro *p) {
 		return I1PRO_OK;
 	}
 
-	/* We've sucessfully restored the calibration */
+	/* We've successfully restored the calibration */
 	s->cal_valid = 1;
 	s->cfdate = m->caldate;
 
@@ -4444,7 +4444,7 @@ i1pro_code i1pro_save_calibration(i1pro *p) {
 		write_doubles(&x, fp, s->idark_data[3]-1, m->nraw+1);
 	}
 
-	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	a1logd(p->log,3,"nbytes = %d, Checksum = 0x%x\n",x.nbytes,x.chsum);
 	write_ints(&x, fp, (int *)&x.chsum, 1);
 
 	if (fclose(fp) != 0)

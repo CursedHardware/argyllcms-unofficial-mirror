@@ -255,7 +255,7 @@ main(int argc, char *argv[]) {
 					rv = icco->check_id(icco, id);
 					if (rv == 0) {
 						icmHeader *p = icco->header;
-						printf("Id check suceeds\n");
+						printf("Id check succeeds\n");
 						op->printf(op," ID is        = %02x%02x%02x%02x%02x%02x%02x%02x"
 						                              "%02x%02x%02x%02x%02x%02x%02x%02x\n",
 							p->id[0], p->id[1], p->id[2], p->id[3],

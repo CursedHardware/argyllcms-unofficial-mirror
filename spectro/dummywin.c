@@ -336,7 +336,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 	}
 #endif
 
-	debugr("new_dummywin: return sucessfully\n");
+	debugr("new_dummywin: return successfully\n");
 
 	return p;
 }

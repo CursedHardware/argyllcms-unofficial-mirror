@@ -8,6 +8,37 @@ Not included yet:
 * Started adding comms for Lumagen Radiance detection.
 
 
+Version 3.1.0  1st December 2023
+-------------
+
+* Added MSWindows USB uninstaller and libwdi based installer installer
+  to make use on MSWindows easier.
+
+* Added UbsDk MSWindows usb driver support code, but it
+  is currenly disabled because the release versions of UsbDk 
+  have limited usefulness as a general USB driver.
+
+* Fixed bug in CMYK profile B2A table creation that sometimes
+  resulted in bumpy black generation. (Only occured when compiled
+  using recent gcc with code optimization.)
+
+* Changed ICC profile serialization of pure ASCII text tags
+  emit a warning rather than error if they are fed non-ASCII utf8 input.
+
+* Made ICC code a little more robust against bad profiles.
+  (Thanks to David Hoyt).
+
+* Fixed latent bug in X11 plot code that caused window not to
+  be created or updated when dowait == 0.
+  This shows up on Linux as failure of spotread -S to show spectral plot.
+
+* Fixed problem with colorhug not noticing errors from the instrument.
+
+* Updated scanin/it8Wolf.cht to improve accuracy of grey wedge patch
+  recognition.
+
+* Merged some Debian patches, including spelling fixes.
+
 Version 3.0.2  23 October 2023
 -------------
 

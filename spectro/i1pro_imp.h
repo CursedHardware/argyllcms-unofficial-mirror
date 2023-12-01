@@ -442,7 +442,7 @@ void del_i1proimp(i1pro *p);
 #define I1PRO_INT_SAVE_SUBT_MODE        0x65		/* Can't save calibration if in subt mode */
 #define I1PRO_INT_NO_CAL_TO_SAVE        0x66		/* No calibration data to save */
 #define I1PRO_INT_EEPROM_DATA_MISSING   0x67		/* EEProm data is missing */
-#define I1PRO_INT_NEW_RSPL_FAILED       0x68		/* Creating RSPL object faild */
+#define I1PRO_INT_NEW_RSPL_FAILED       0x68		/* Creating RSPL object failed */
 #define I1PRO_INT_CAL_SAVE              0x69		/* Unable to save calibration to file */
 #define I1PRO_INT_CAL_RESTORE           0x6A		/* Unable to restore calibration from file */
 #define I1PRO_INT_CAL_TOUCH             0x6B		/* Unable to touch calibration file */

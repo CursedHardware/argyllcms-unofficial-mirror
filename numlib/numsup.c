@@ -79,21 +79,9 @@ void set_exe_path(char *argv0) {
 #ifdef NT	/* CMD.EXE doesn't give us the full path in argv[0] :-( */
 			/* so we need to fix this */
 	{
-		HMODULE mh;
 		char *tpath = NULL;
 		int pl;
 
-		/* Add an .exe extension if it is missing */
-		if (i < 4 || _stricmp(exe_path +i -4, ".exe") != 0)
-			strcat(exe_path, ".exe");
-
-		if ((mh = GetModuleHandle(exe_path)) == NULL) {
-			a1loge(g_log, 1, "set_exe_path: GetModuleHandle '%s' failed with%d\n",
-			                                            exe_path,GetLastError());
-			exe_path[0] = '\000';
-			return;
-		}
-		
 		/* Retry until we don't truncate the returned path */
 		for (pl = 100; ; pl *= 2) {
 			if (tpath != NULL)
@@ -103,7 +91,7 @@ void set_exe_path(char *argv0) {
 				exe_path[0] = '\000';
 			return;
 			}
-			if ((i = GetModuleFileName(mh, tpath, pl)) == 0) {
+			if ((i = GetModuleFileName(NULL, tpath, pl)) == 0) {
 				a1loge(g_log, 1, "set_exe_path: GetModuleFileName '%s' failed with%d\n",
 				                                                tpath,GetLastError());
 				exe_path[0] = '\000';
@@ -4174,8 +4162,11 @@ char *debPdv(int di, double *p) {
 /* Print a float color vector to a string. */
 /* Returned static buffer is re-used every 5 calls. */
 char *debPfv(int di, float *p) {
-	static char buf[DEB_NO_BUFS][DEB_MAX_CHAN * 50];
+#   define BUFSZ (DEB_MAX_CHAN * 50)
+	char *fmt = "%.8f";
+	static char buf[DEB_NO_BUFS][BUFSZ];
 	static int ix = 0;
+	int brem = BUFSZ;
 	int e;
 	char *bp;
 
@@ -4186,15 +4177,18 @@ char *debPfv(int di, float *p) {
 		ix = 0;
 	bp = buf[ix];
 
-	if (di > DEB_MAX_CHAN)
-		di = DEB_MAX_CHAN;		/* Make sure that buf isn't overrun */
-
-	for (e = 0; e < di; e++) {
+	for (e = 0; e < di && brem > 10; e++) {
+		int tt;
 		if (e > 0)
-			*bp++ = ' ';
-		sprintf(bp, "%.8f", p[e]); bp += strlen(bp);
+			*bp++ = ' ', brem--;
+		tt = snprintf(bp, brem, fmt, p[e]);
+		if (tt < 0 || tt >= brem)
+			break;			/* Run out of room... */
+		bp += tt;
+		brem -= tt;
 	}
 	return buf[ix];
+#   undef BUFSZ
 }
 
 /*******************************************/

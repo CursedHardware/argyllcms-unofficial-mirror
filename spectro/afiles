@@ -114,7 +114,13 @@ icoms_nt.c
 icoms_ux.c
 iusb.h
 usbio.h
+driver_api.h
+UsbDkHelper.h
+UsbDkData.h
+UsbDkHlprCompat.h
 usbio.c
+usbio_w0.c
+usbio_dk.c
 usbio_nt.c
 usbio_ox.c
 usbio_lx.c

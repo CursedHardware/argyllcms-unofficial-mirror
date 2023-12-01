@@ -48,7 +48,7 @@
 	and perceptual function curvature.	
 
 	We then initially add sampling points at the largest estimated error
-	verticies of the voronoi natural neighbourhood.
+	vertices of the voronoi natural neighbourhood.
 	This gives us an optimal distribution measuring in estimated position
 	error within a tollerance of 2:1
 	
@@ -1440,7 +1440,7 @@ static void del_mid(ofps *s, mid *p) {
 /* Clear any veroinoi content of a node, but not the node itself. */
 static void node_clear(ofps *s, node *p) {
 
-	/* Clear the list of Voronoi verticies */
+	/* Clear the list of Voronoi vertices */
 	p->nvv = 0;
 
 	/* Clear any midpoints and nodes */
@@ -1455,7 +1455,7 @@ static void node_free(ofps *s, node *p) {
 
 //printf("~1 freeing node ix %d and all contents\n",p->ix);
 
-	/* Free up list of Voronoi verticies */
+	/* Free up list of Voronoi vertices */
 	if (p->vv != NULL) {
 		free(p->vv);
 		p->vv = NULL;
@@ -2261,7 +2261,7 @@ int dnsq_solver(	/* Return < 0 on abort */
 /* Locate a vertex position that has the eperr from all the real nodes */
 /* being equal. Set eperr, eserr and subjective value v[] too. */ 
 /* vv->ceperr contains the current eperr that must be bettered. */
-/* Return 0 if suceeded, 1 if best result is out of tollerance, 2 if failed. */
+/* Return 0 if succeeded, 1 if best result is out of tollerance, 2 if failed. */
 static int position_vtx(
 	ofps *s,
 	nodecomb *vv,		/* Return the location and its error */
@@ -2613,11 +2613,11 @@ static int position_vtx(
 					if (tries > s->maxretries)
 						s->maxretries = tries;
 #ifdef DEBUG
-					printf(" - comb %s suceeded on retry %d (max %d)\n",pcomb(di,vv->nix),tries,s->maxretries);
+					printf(" - comb %s succeeded on retry %d (max %d)\n",pcomb(di,vv->nix),tries,s->maxretries);
 					printf("       oog = %f, eperr = %f, ceperr = %f\n",vv->oog,vv->eperr,vv->ceperr);
 #endif
 //if (tries > 10)
-//	printf(" - comb %s suceeded on retry %d (max %d)\n",pcomb(di,vv->nix),tries,s->maxretries);
+//	printf(" - comb %s succeeded on retry %d (max %d)\n",pcomb(di,vv->nix),tries,s->maxretries);
 // 
 //printf("Solution for comb %s has eperr %f < ceperr %f and not out of gamut by %f, retry %d\n",pcomb(di,vv->nix),vv->eperr,vv->ceperr,vv->oog,tries+1);
 //printf("Solution is at %s (%s)\n",ppos(di,vv->p),ppos(di,vv->v));
@@ -2628,7 +2628,7 @@ static int position_vtx(
 
 #ifdef DUMP_FERR 		/* Create .tiff of dnsq function error */
 					if (tries >= DUMP_FERR) {
-						printf("Suceeded on retry %d, dumping debug rasters\n",tries);
+						printf("Succeeded on retry %d, dumping debug rasters\n",tries);
 
 						/* Re-run the last unsucessful dnsq, to trace the path */
 						pcx.debug = 1;
@@ -2944,7 +2944,7 @@ int abortonfail	/* 0 = ignore position failures, 1 = abort add if there are any 
 		printf("  vtx no %d nix %s\n",ev1->no,pcomb(di,ev1->nix));
 #endif
 
-	/* Generate all the potential new node combinations/replacement verticies. */
+	/* Generate all the potential new node combinations/replacement vertices. */
 	/* We check each deleted vertex against its non-deleted neighbours. */
 	/* The same replacement combination may be generated more than once. */
 	for (nncombs = 0, ev1 = s->nxh; ev1 != NULL; ev1 = ev1->nxh) {
@@ -3472,7 +3472,7 @@ int abortonfail	/* 0 = ignore position failures, 1 = abort add if there are any 
 }
 
 /* - - - - - - - - - - - */
-/* Deal with verticies marked for deletion or addition, */
+/* Deal with vertices marked for deletion or addition, */
 /* as well as updating the nodes consequently affects. */
 /* If fixup is set, add any new or updates vertexes to the s->fchl */
 
@@ -3709,7 +3709,7 @@ static void do_batch_update2(ofps *s, int fixup) {
 
 /* ------------------------------------------------------------------------------- */
 
-/* Do a quick count of the number of verticies hit by their */
+/* Do a quick count of the number of vertices hit by their */
 /* neighbour nodes. This is used during itteration to decide */
 /* whether to reseed or fixup. */
 /* Return the number of vertexes hit */
@@ -4719,7 +4719,7 @@ static void ofps_binit(ofps *s) {
 	int e, di = s->di;
 	int doink = 0;
 	int i, j;
-	DCOUNT(co, MXPD, di, 0, 0, 2);	/* Count through corner verticies */
+	DCOUNT(co, MXPD, di, 0, 0, 2);	/* Count through corner vertices */
 	int iix = -2 * di - 2;  /* Fake inside node index */
 	node *inp = s->n[iix];	/* Fake inside node */
 	int oix = -2 * di - 3;	/* Fake outside node index */
@@ -4833,7 +4833,7 @@ static void ofps_binit(ofps *s) {
 		vtxwt += log(ivtx_whts[i]);
 	vtxwt += ivtx_whts[i];
 
-	/* Create initial verticies, one for each di combination of planes, */
+	/* Create initial vertices, one for each di combination of planes, */
 	/* and keep the ones that are in gamut. */
 	DC_INIT(co);
 	while(!DC_DONE(co)) {
@@ -5020,7 +5020,7 @@ static void ofps_binit(ofps *s) {
 	printf("=========================================================================\n");
 #endif
 #ifdef DUMP_PLOT_SEED
-	dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+	dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_SEED */
 }
 
@@ -5698,7 +5698,7 @@ ofps *s
 		printf("=========================================================================\n");
 #endif
 #ifdef DUMP_PLOT_SEED
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_SEED */
 	}
 
@@ -6049,7 +6049,7 @@ ofps_seed(ofps *s) {
 			continue;
 		}
 
-		/* Suceeded in adding the point */
+		/* Succeeded in adding the point */
 		if (p->fx) {	/* Fixed point was added */
 			fc++;
 			if (dofixed > 0)		/* May not have been triggered by dofixed */
@@ -6078,7 +6078,7 @@ ofps_seed(ofps *s) {
 		printf("=========================================================================\n");
 #endif
 #ifdef DUMP_PLOT_SEED
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_SEED */
 
 		needfirst = 0;		/* Must have done first */
@@ -6110,7 +6110,7 @@ ofps *s
 		for (j = -s->gnp; j < s->np; j++)
 			node_clear(s, s->n[j]);
 
-		/* Delete the voronoi verticies */
+		/* Delete the voronoi vertices */
 		for (vx = s->uvtx; vx != NULL; vx = nvx) {
 			nvx = vx->link;
 			del_vtx(s, vx);
@@ -6172,7 +6172,7 @@ ofps *s
 			printf("=========================================================================\n");
 #endif
 #ifdef DUMP_PLOT_RESEED
-			dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+			dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_RESEED */
 		}
 		if (i >= s->tinp) {
@@ -6222,7 +6222,7 @@ static int ofps_findhit_vtxs(ofps *s, node *nn) {
 	int hit = 0;
 
 	if (nn->ix < 0)
-		error("ofps_findhit_vtxs given gamut boudary node ix %d",nn->ix);
+		error("ofps_findhit_vtxs given gamut boundary node ix %d",nn->ix);
 
 #ifdef DEBUG
 	if (s->agrid_init == 0)
@@ -7126,7 +7126,7 @@ ofps *s
 
 #ifdef DUMP_PLOT_BEFORFIXUP
 	printf("Before applying fixups:\n");
-	dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+	dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_BEFORFIXUP */
 
 	/* Now fixup the veroni. */
@@ -7341,7 +7341,7 @@ ofps *s
 				s->add_hit++;
 #ifdef DUMP_PLOT_EACHFIXUP
 				printf("After adding node ix %d at %s to vurf\n",nn->ix,ppos(di,nn->p));
-				dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, verticies */
+				dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 0, -1);		/* Device, No wait, vertices */
 #endif /* DUMP_PLOT_EACHFIXUP */
 			} else {
 #ifdef DUMP_PLOT_EACHFIXUP
@@ -7625,7 +7625,7 @@ ofps_read(ofps *s, double *p, double *v) {
 /* --------------------------------------------------- */
 
 /* Compute more optimum location for node amongst the surrounding */
-/* verticies. The result is put in ->np[] and ->nv[]. */
+/* vertices. The result is put in ->np[] and ->nv[]. */
 /* The main aim is to minimize the maximum eserr of any vertex, */
 /* but moving away from low midpoint eserr's improves the */
 /* convergence rate and improves the eveness of the result. */
@@ -7653,7 +7653,7 @@ static void comp_opt(ofps *s, int poi, double oshoot, double sep_weight) {
 //printf("\n --------------------------------\n");
 //printf("~1 Optimizing ix %d, %f %f\n",poi,pp->p[0],pp->p[1]);
 
-		/* Compute the average and locate the largest error from verticies */
+		/* Compute the average and locate the largest error from vertices */
 		for (aerr1 = cnt1 = 0.0, werr1 = -1.0, berr1 = 1e80, i = 0; i < pp->nvv; i++) {
 			vtx *vp = pp->vv[i];
 
@@ -7985,7 +7985,7 @@ ofps *s
 		printf("=========================================================================\n");
 #endif
 #ifdef DUMP_PLOT
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, vertices */
 #endif /* DUMP_PLOT */
 
 #ifdef SANITY_RESEED_AFTER_FIXUPS
@@ -8024,13 +8024,13 @@ ofps *s
 			warning("Verify of incremental vertexes failed!");
 			printf("Verify of incremental vertexes failed!\n");
 		} else {
-			warning("Verify of incremental vertexes suceeded!");
+			warning("Verify of incremental vertexes succeeded!");
 		}
 #ifdef DUMP_STRUCTURE
 		dump_node_vtxs(s, 1);
 #endif
 #ifdef DUMP_PLOT
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, vertices */
 #endif /* DUMP_PLOT */
 #endif /* SANITY_RESEED_AFTER_FIXUPS */
 
@@ -8371,7 +8371,7 @@ int nopstop				/* Debug - number of optimizations until diagnostic stop, -1 = no
 #endif
 #endif /* !DUMP_STRUCTURE */
 #ifdef DUMP_PLOT
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, No wait, no verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, No wait, no vertices */
 #endif /* DUMP_PLOT */
 
 #ifdef DOOPT
@@ -8392,7 +8392,7 @@ int nopstop				/* Debug - number of optimizations until diagnostic stop, -1 = no
 		if (s->verb)
 			printf("After optimization: MinPoint = %.3f, Min = %.3f, Avg. = %.3f, Max = %.3f\n",s->smns, s->mn,s->av,s->mx);
 #ifdef DUMP_PLOT
-		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, verticies */
+		dump_image(s, PERC_PLOT, DO_WAIT, DUMP_VTX, DUMP_PLA, 1, -1);		/* Device, wait, vertices */
 #endif /* DUMP_PLOT */
 	}
 
@@ -8670,7 +8670,7 @@ dump_image(
 	ofps *s,
 	int pcp,			/* Do perceptual plot */
 	int dwt,			/* Do wait for a key */
-	int dvx,			/* Dump voronoi verticies and mid points */
+	int dvx,			/* Dump voronoi vertices and mid points */
 	int dpla,			/* Dump node planes */ 
 	int ferr,			/* Show final error rather than seeding error */
 	int noi				/* -1 for general state, node of interest for particular */
@@ -8682,7 +8682,7 @@ dump_image(
 	static double *x2a = NULL;		/* Current sample locations */
 	static double *y2a = NULL;
 	static char *_ntext, **ntext;
-	static int _n3 = 0;				/* Current Voronoi verticies */
+	static int _n3 = 0;				/* Current Voronoi vertices */
 	static double *x3a = NULL;
 	static double *y3a = NULL;
 	static plot_col *mcols = NULL;
@@ -8844,7 +8844,7 @@ dump_image(
 //			sprintf(mtext[n3],"%d",(int)(mp->eserr + 0.5));
 		}
 
-		/* Add Voronoi verticies */
+		/* Add Voronoi vertices */
 		for (vx = s->uvtx; vx != NULL; vx = vx->link, n3++) {
 
 			if (n3 >= _n3) {		/* need more space */

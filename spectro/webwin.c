@@ -414,7 +414,7 @@ int ddebug						/* >0 to print debug statements to stderr */
 		msec_sleep(50);
 	}
 
-	debugr("new_webwin: return sucessfully\n");
+	debugr("new_webwin: return successfully\n");
 
 	return p;
 }

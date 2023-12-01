@@ -1164,7 +1164,7 @@ int system_processors() {
 static int th_kkill_nprocess(void *pp) {
 	kkill_nproc_ctx *ctx = (kkill_nproc_ctx *)pp;
 
-	/* set result to 0 if it ever suceeds or there was no such process */
+	/* set result to 0 if it ever succeeds or there was no such process */
 	ctx->th->result = -1;
 	while(ctx->stop == 0) {
 		if (kill_nprocess(ctx->pname, ctx->log) >= 0)

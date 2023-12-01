@@ -78,7 +78,7 @@ fi
 
 if [ X$OS = "XWindows_NT" ] ; then
 	echo "We're on MSWindows!"
-	# On Win10 we need to check compiler
+	# On Win 64 bit we need to check compiler target platform
 	if [ X${COMPILER/MINGW64//} != X$COMPILER	\
 	  -o X${COMPILER/MSVCPP64//} != X$COMPILER ] ; then
 		echo "We're compiling to MSWin 64 bit !"
@@ -86,12 +86,14 @@ if [ X$OS = "XWindows_NT" ] ; then
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
 		unset USETAR
+		WIN_TARG="64"
 	else if [ X${COMPILER/MINGW//} != X$COMPILER	\
 	       -o X${COMPILER/MSVCPP//} != X$COMPILER ] ; then
 		echo "We're compiling to MSWin 32 bit !"
 		PACKAGE=${PRODUCT}_V${VERSION}_win32_exe.zip
 		USBDIRS="usb"
 		USBBINFILES="binfiles.msw"
+		WIN_TARG="32"
 		unset USETAR
 	fi
 	fi

@@ -668,7 +668,7 @@ int main(int argc, char *argv[])
 
 			/* Or something is wrong with instrument capabilities */
 			} else {
-				printf("!!! No reasonable trigger mode avilable for this instrument !!!\n");
+				printf("!!! No reasonable trigger mode available for this instrument !!!\n");
 				continue;
 			}
 			if ((rv = it->get_set_opt(it, trigmode)) != inst_ok) {

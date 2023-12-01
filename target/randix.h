@@ -33,7 +33,7 @@ struct _randix {
 	}; typedef struct _randix randix;
 
 /* Creator */
-/* Counts withing range 0 to length-1 */
+/* Counts within range 0 to length-1 */
 extern randix *new_randix(int length, int start);
 
 

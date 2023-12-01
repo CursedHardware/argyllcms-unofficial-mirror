@@ -189,7 +189,7 @@ ex1_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 	p->gotcoms = 1;
 
-	a1logd(p->log, 2, "ex1_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "ex1_init_coms: init coms has succeeded\n");
 
 	return inst_ok;
 }
@@ -943,7 +943,7 @@ ex1_interp_native_error(ex1 *p, int ec) {
 		case EX1_FLASH_MAP:
 			return "Flash map is incompatible with firmware";
 		case EX1_DEFERRED:
-			return "Operation/Response deffered";
+			return "Operation/Response deferred";
 		default:
 			return NULL;
 	}
@@ -1294,7 +1294,7 @@ static int ex1_save_calibration(ex1 *p) {
 	calf_wrspec(&x, p->sconf.idark[0]);
 	calf_wrspec(&x, p->sconf.idark[1]);
 
-	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	a1logd(p->log,3,"nbytes = %d, Checksum = 0x%x\n",x.nbytes,x.chsum);
 	calf_wints(&x, (int *)(&x.chsum), 1);
 
 	if (calf_done(&x))
@@ -1419,7 +1419,7 @@ static int icoms2ex1_err(int se) {
 #define EX1_FLAG_ACK	0x0002		/* Acknowldgement response */
 #define EX1_FLAG_RQACK	0x0004		/* Request for acknowldgement */
 #define EX1_FLAG_NACK	0x0008		/* Negative acknowldgement response */
-#define EX1_FLAG_EXPTN	0x0010		/* Exception occured */
+#define EX1_FLAG_EXPTN	0x0010		/* Exception occurred */
 #define EX1_FLAG_PVDEP	0x0020		/* Protocol version is deprecated */
 
 #define EX1_CHSUM_NONE	0x0			/* No checksum */
@@ -1481,7 +1481,7 @@ static void dump_command(ex1 *p, ORD8 *buf, int len, int deblev) {
 	if (flags & EX1_FLAG_NACK)
 		a1logd(p->log, 0, "   Negative acknowldgement response\n");
 	if (flags & EX1_FLAG_EXPTN)
-		a1logd(p->log, 0, "   Exception occured\n");
+		a1logd(p->log, 0, "   Exception occurred\n");
 	if (flags & EX1_FLAG_PVDEP)
 		a1logd(p->log, 0, "   Protocol version is deprecated request\n");
 
@@ -1769,7 +1769,7 @@ int nd				/* nz to disable debug messages */
 	}
 
 	if (p->log->debug >= 8) { 
-		a1logd(p->log,1,"\nex1_command: RECIEVING:\n");
+		a1logd(p->log,1,"\nex1_command: RECEIVING:\n");
 		dump_command(p, buf, rwbytes, p->log->debug);
 	}
 

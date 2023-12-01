@@ -506,7 +506,7 @@ static void print_nnck(rspl *s);
 /* Do reverse interpolation given target output values and (optional) auxiliary target */
 /* input values. Return number of results and clipping flag. If return value == mxsoln, */
 /* then there might be more results. The target values returned will correspond to the */
-/* actual (posssibly clipped) point. The return value is the number of solutions + */
+/* actual (possibly clipped) point. The return value is the number of solutions + */
 /* a clipped flag. Properly set hint flags improve performance, but a correct result should */
 /* be returned if the RSPL_NEARCLIP is set, even if they are not set correctly. */
 /* If RSPL_NONNSETUP is set, then rev.fastsetup will be set for this call, avoiding */
@@ -910,7 +910,7 @@ printf(" %d", b->axisl[i].vix[f]);
 printf("\n");
 }
 #endif
-			/* Find the segments by finding common verticies */
+			/* Find the segments by finding common vertices */
 			six = si = i = 0;
 
 			min[six][e] = b->axisl[i].xval;
@@ -1938,7 +1938,7 @@ static void nn_grpinit(rspl *s, nn_grp *p, double **pnts, int npnts, double *G) 
 		/* what's needed for in-gamut work, and is computationally faster */
 		/* and easier than attempting it using weighted space. */
 	
-		/* Find verticies of cell that have min and max values in output space */
+		/* Find vertices of cell that have min and max values in output space */
 		for (f = 0; f < fdi; f++)
 			min[f] = max[f] = NULL;
 	
@@ -2735,6 +2735,7 @@ static int auxil_compute(schbase *b, simplex *x) {
 		DBG(("Simplex doesn't contain solution that has as many aux above auxiliary goal\n"));
 		return 0;
 	}
+
 	if (!(b->flags & RSPL_MAXAUX) || nabove == b->iabove) {
 		for (nabove = e = 0; e < b->naux; e++) {
 			int ei = b->auxi[e];					/* pmin/max[] is indexed in input space */
@@ -3564,7 +3565,7 @@ double *err		/* Output error (weighted) distance at solution point */
 	
 			DBG(("Got solution within simplex %s\n",debPdv(sdi,tb)));
 //if (b->rix == 7135) printf("Got solution within simplex params %s\n",debPdv(sdi,tb));
-//if (b->rix == 7135) printf(" verticies ix %s\n",debPiv(sdi+1,x->vix));
+//if (b->rix == 7135) printf(" vertices ix %s\n",debPiv(sdi+1,x->vix));
 	
 			/* Compute the output space solution point */
 			for (f = 0; f < fdi; f++) {
@@ -3625,7 +3626,7 @@ simplex *x
 
 double st[MXRO],	/* Start point */
 double de[MXRO]		/* Delta */
-	DBG(("Computing clipping line implicit equation, dim = %d\n", fdi));
+//	DBG(("Computing clipping line implicit equation, dim = %d\n", fdi));
 	
 	/* Pick a pivot element - the smallest */
 	for (lgst = -1.0, p = -1, f = 0; f < fdi; f++) {
@@ -4541,7 +4542,7 @@ static int lchw_tri_solve(rspl *s, double *vv, double *p, double *vt, double v[M
 #define THR 0.25
 		/* If we're too far out of bounds, give up */
 		/* (Speeds things up by about 40% at the cost of failing */
-		/*  some that would suceed.) */
+		/*  some that would succeed.) */
 		if (i >= 2 && (pp[0] < -THR || pp[0] > (1.0 + THR) || pp[1] < -THR || pp[1] > (1.0 + THR) 
 		  || pp[1] < (pp[0]-THR))) {
 			return 0;
@@ -4636,7 +4637,7 @@ static void uncache_fxcell(revcache *r, fxcell *cp);
 /* Return a pointer to an appropriate fxcell cache structure. */
 /* None of the sub simplex lists will be initialised. */
 /* NOTE: must unget_cell() (== uncache_fxcell()) when fxcell */
-/* is no longer needed */
+/* is no longer needed. */
 /* Return NULL if we ran out of room in the cache. */
 static fxcell *get_fxcell(
 schbase *b,			/* Base search information */
@@ -4691,7 +4692,7 @@ int force			/* if nz, force memory allocation, so that we have at least one cell
 				if (ee & (1 << e))
 					c->p[ee][e] += s->g.w[e];		/* In input space offset */
 			}
-			if (s->limitf != NULL) {			/* Compute ink limit values at cell verticies */
+			if (s->limitf != NULL) {			/* Compute ink limit values at cell vertices */
 				double lv = get_limitv(b, ix, fcb + s->g.fhi[ee], c->p[ee]);
 				c->v[ee][fdi] = lv;
 				if (lv < c->limmin)	/* And min/max for this cell */
@@ -4845,7 +4846,7 @@ int nsdi			/* Non limited sub simplex dimensionality */
 			double min =  INF_DIST;
 
 			/* Find the range of ink limit values covered by simplex */
-			for (e = 0; e <= sdi; e++) {		/* For all the simplex verticies */
+			for (e = 0; e <= sdi; e++) {		/* For all the simplex vertices */
 				int i = offs[e];
 				double vv = c->v[i][fdi];		/* Ink limit value */
 				if (vv < min)
@@ -4949,7 +4950,7 @@ int nsdi			/* Non limited sub simplex dimensionality */
 			/* Fill in the other simplex details */
 			x->s    = s;					/* Parent rspl */
 			x->ix   = c->ix;				/* Construction cube base index */
-			for (e = 0; e <= sdi; e++)		/* Indexs of fwd verticies that make up this simplex */
+			for (e = 0; e <= sdi; e++)		/* Indexs of fwd vertices that make up this simplex */
 				x->vix[e] = vix[e];
 			x->psxi = psxi;					/* Pointer to constant per simplex info */
 //printf("~1 set simplex 0x%x psxi = 0x%x\n",x,x->psxi);
@@ -4958,7 +4959,7 @@ int nsdi			/* Non limited sub simplex dimensionality */
 			x->efdi = efdi;					/* Copy of effective output dimensionality */
 
 			/* Copy cell simplex vertex output and limit values */
-			for (e = 0; e <= sdi; e++) {		/* For all the simplex verticies */
+			for (e = 0; e <= sdi; e++) {		/* For all the simplex vertices */
 				int i = x->psxi->offs[e];
 
 				for (f = 0; f <= fdi; f++)		/* Copy vertex value + ink sum */
@@ -5298,7 +5299,7 @@ int inkeq			/* nz to add ink limit target equation if s->limitf != NULL */
 	double lgst;
 	double **cla = *pcla;
 
-	DBG(("Computing clipping line implicit equation, dim = %d\n", fdi));
+//	DBG(("Computing clipping line implicit equation, dim = %d\n", fdi));
 	
 	/* Pick a pivot element */
 	for (lgst = -1.0, p = -1, f = 0; f < fdi; f++) {
@@ -5386,7 +5387,7 @@ schbase *b,
 double st[MXRO],	/* Start point */
 double de[MXRO]		/* Delta */
 ) {
-	DBG(("Computing clipping line implicit equation, dim = %d\n", b->s->fdi));
+//	DBG(("Computing clipping line implicit equation, dim = %d\n", b->s->fdi));
 	
 	init_line_eq_imp(b->s, b, &b->cla, b->clb, st, de, 1); 
 }
@@ -5812,8 +5813,9 @@ int sdi						/* Sub-simplex dimensionality (range 0 - di) */
 		psxinfo *x = &xip->spxi[vi];
 		int i;
 		int andm, orm;
+		int pmin[MXRI], pmax[MXRI];
 
-		/* XCOMB generates verticies in order from max to min offset */
+		/* XCOMB generates vertices in order from max to min offset */
 
 		/* Compute Absolute -> Parameter mapping */
 		for (e = 0; e < di; e++) {				/* For each absolute axis */
@@ -5837,7 +5839,6 @@ int sdi						/* Sub-simplex dimensionality (range 0 - di) */
 		
 		/* Compute fwd grid offsets for each simplex vertex in baricentric order */
 		for (i = 0; i <= sdi; i++) {	/* For each verticy */
-			int pmin[MXRI], pmax[MXRI];
 			x->offs[i]  = vcmb[i];
 			x->goffs[i] = s->g.hi[vcmb[i]];
 			x->foffs[i] = s->g.fhi[vcmb[i]];
@@ -5869,7 +5870,7 @@ int sdi						/* Sub-simplex dimensionality (range 0 - di) */
 			andm &= vcmb[i];
 			orm  |= vcmb[i];
 		}
-		/* If one coordinate is common (all 0 or all 1) to the verticies, */
+		/* If one coordinate is common (all 0 or all 1) to the vertices, */
 		/* they must all be on the same cube face. */
 		if (andm != 0 || orm != ((1 << di)-1))
 			x->face = 1;
@@ -5877,7 +5878,7 @@ int sdi						/* Sub-simplex dimensionality (range 0 - di) */
 			x->face = 0;
 
 #ifdef DEBUG
-		printf("Verticies   = ");
+		printf("Vertices   = ");
 		for (i = 0; i <= sdi; i++)
 			printf("%d ",vcmb[i]);
 		printf("\n");
@@ -6495,7 +6496,7 @@ rspl *s		/* Pointer to rspl grid */
    any call for nn lookup is satisfied by filling the requisite rev.nnrev[] on-demand,
    by an exaustive search of the surface bwd cells (rev.surflist)
 
-   Note that unlike the forward grid which is composed of verticies,
+   Note that unlike the forward grid which is composed of vertices,
    these rev lists are composed of fwd cells.
 
    The nnrev[] setup code identifies possible surface bwd revp[] cells
@@ -6525,16 +6526,16 @@ rspl *s		/* Pointer to rspl grid */
 
 	Add all triangles that are part of a full di simplex
 	with at least one vertex within ink limit (and not on device gamut),
-	where all the other verticies of the simplex are on one
+	where all the other vertices of the simplex are on one
 	side of the triangle (non-monotonic surfaces).
 
 	Add all triangles on the ink limit plane.
 	(Will be 1 or more triangles per simplex that has
-	1..di verticies that are over the ink limit.)
+	1..di vertices that are over the ink limit.)
 
 	Check all triangles for instersection with each other.
 	Convert any such intersections into smaller, non-intersecting
-	triangles that share verticies along intersection line.
+	triangles that share vertices along intersection line.
 
 	Delete triangles that have dangling edges (i.e. triangles that
 	have edges with odd number of associated triangles).
@@ -6629,7 +6630,7 @@ static bxcell *new_bxcell(
 			int nverts;
 //printf("~1 creating super-cell for bx %d\n",ix);
 
-			/* Maximum number of verticies for all surrounders */
+			/* Maximum number of vertices for all surrounders */
 			for (nverts = (1 << fdi), f = 0; f < fdi; f++)
 				nverts *= 3;
 
@@ -6858,7 +6859,7 @@ struct _vtxrec {
 	char tflag;					/* nz when on tlist */
 	struct _vtxrec *tlist;		/* Linked list of vertexes for nnrev[] cell/freelist */
 
-#ifdef REVVRML
+#if defined(REVVRML) || defined(REVTABLESTATS)
 	int addvtx;					/* Vertex that caused a bxcell to be added */
 	int vrmlix;					/* Index for plotting */
 #endif
@@ -7057,7 +7058,7 @@ static vtxrec *new_vtxrec(
 	/* Fwd vertex array address */
 	gp = s->g.a + ix * s->g.pss;
 
-	/* Set cell index so that cell verticies don't exceed grid boundary */
+	/* Set cell index so that cell vertices don't exceed grid boundary */
 	vx->cix = ix;
 	for (e = 0; e < di; e++) {
 		if (G_FL(gp, e) == 0)		/* At the top edge */
@@ -7402,8 +7403,8 @@ static void comp_shadow_group(
 	double *pcc,			/* Return distance of group center to gamut center */  
 	double *pdw,			/* Return width of furthest point from group center */
 	double *gc,				/* if not-NULL, the group center */
-	double (*v)[MXRO],		/* Input verticies */
-	int nvert				/* Number of verticies */
+	double (*v)[MXRO],		/* Input vertices */
+	int nvert				/* Number of vertices */
 ) {
 	double _gc[MXRO];
 	int i;
@@ -8189,7 +8190,7 @@ static void fill_nncell(
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* Associated sub-simplex tables. For a given base vertex with a given fwd */
-/* access flags FLV(), create is a pointer to a list of sub-simplex verticies */
+/* access flags FLV(), create is a pointer to a list of sub-simplex vertices */
 /* offset from the base vertex that the base vertex is part of, in all possible */
 /* directions. We do all possible directions to make the bxcell triangle */
 /* search symetrical, and searching triangles using points outside */
@@ -8198,7 +8199,7 @@ static void fill_nncell(
 typedef struct {
 	int pos;			/* nz if this is a ssimplex that is only in the +ve direction */ 
 	int ee;
-	int goffs[MXDI+1];	/* Offsets to sub-simplex verticies within grid in simplex order. */
+	int goffs[MXDI+1];	/* Offsets to sub-simplex vertices within grid in simplex order. */
 } assinfo;
 
 typedef struct {
@@ -9512,7 +9513,7 @@ rspl *s
 	}
 
 	/* We then fill in the in-gamut reverse grid lookups, */
-	/* and identify nnrev prime seed verticies to put in the surface bxcells. */
+	/* and identify nnrev prime seed vertices to put in the surface bxcells. */
 
 	DBG(("filling in rev.rev[] grid\n"));
 	
@@ -9520,7 +9521,7 @@ rspl *s
 	/* point at its base, and determine the bounding box of the output values */
 	/* that could intersect that fwd cube. Add that fwd index to the lists of */
 	/* of all bwd cells that the bounding box intersects. */
-	/* As a start for creating surface bxcell list, flag which bwd verticies */
+	/* As a start for creating surface bxcell list, flag which bwd vertices */
 	/* are covered by the fwd grid output range. */
 
 	/* Pre-marking device edge rev cells creates many more initial cells, */
@@ -9563,7 +9564,7 @@ rspl *s
 		else
 			edge = oil = 1;		/* May be stradling ink limit edge */
 	
-		/* Then add all other fwd cube verticies */
+		/* Then add all other fwd cube vertices */
 		for (ee = 1; ee < (1 << di); ee++) {
 			float *gt = gp + s->g.fhi[ee];	/* Pointer to cube vertex */
 			
@@ -9900,8 +9901,8 @@ rspl *s
 
 			/* For each surface bxcell, convert the corresponding */
 			/* rev[] fwd cubes into vertices. */
-			/* (Must keep bxcells even if none of their verticies */
-			/*  are physically in them, so that those verticies get thinned. */
+			/* (Must keep bxcells even if none of their vertices */
+			/*  are physically in them, so that those vertices get thinned. */
 			/*  could only remove them if vertex was not in any surface cell ?) */
 			for (pbx = &s->rev.surflist, bx = *pbx; bx != NULL; bx = nbx) {
 				int *crp, *rp, *nrp;
@@ -9968,9 +9969,9 @@ rspl *s
 				/* so that shadow testing works correctly for vertexes that don't */
 				/* actually lie within the bxcell. (Note that in fact the triangle */
 				/* testing creates triangles that are made of vertexes that may not */
-				/* be in this bx's list, so the shadow size doesn't accuratly  reprsent */
+				/* be in this bx's list, so the shadow size doesn't accuratly  represent */
 				/* the possible shadow area. It's not clear what consequences this has, */
-				/* if any. If we extanded the group to cover this, we would need to have */
+				/* if any. If we expanded the group to cover this, we would need to have */
 				/* two groups, a shadower group including those vertexes, and a shadowee */
 				/* goup for just those vertexes that are part of the bx. */
 				extend_bxcell_shadow_group(s, &vc, bx);
@@ -10109,7 +10110,7 @@ rspl *s
 
 					/* Add all the secondary bxcell vertexes to the vtxlist */
 					for (nbx = bx->wlist; nbx != NULL; nbx = nbx->wlist) {
-//printf("Adding bx %d verticies\n",nbx->ix);
+//printf("Adding bx %d vertices\n",nbx->ix);
 						for (rp = nbx->sl+3; *rp != -1; rp++) {
 
 							if ((vx = get_vtxrec(&vc, *rp)) == NULL)
@@ -10133,9 +10134,9 @@ rspl *s
 						}
 					}
 
-					/* Add all the primary bxcell verticies to the list, and */
+					/* Add all the primary bxcell vertices to the list, and */
 					/* mark them (override shadow mark) */
-//printf("Adding bx %d verticies\n",bx->ix);
+//printf("Adding bx %d vertices\n",bx->ix);
 					for (rp = bx->sl+3; *rp != -1; rp++) {
 						if ((vx = get_vtxrec(&vc, *rp)) == NULL)
 							error("Failed to find vertex %s in cache",*rp);
@@ -10162,7 +10163,7 @@ rspl *s
 
 //printf("~1 checking against vtx %d\n",vx->ix);
 
-						/* Only check triangles using verticies of the primary bxcell, */
+						/* Only check triangles using vertices of the primary bxcell, */
 						/* not shadow bx's. */
 						if (!vx->prim)
 							continue;
@@ -10181,7 +10182,7 @@ rspl *s
 							vtxrec *trivx[3];
 							double v[MXRI+1][MXRO]; 	/* Triangle vertex values */
 							double gc[MXRO], cc, dw;	/* Triangle shadow group info. */
-							int ntvsh = 0;				/* Number of triangle verticies shadowed */
+							int ntvsh = 0;				/* Number of triangle vertices shadowed */
 							double bdist = -1.0;
 
 							/* Get triangle verticy values */
@@ -10349,9 +10350,9 @@ rspl *s
 				vc.nilist = 0;
 				xlist = NULL;
 
-				DBG(("deleting verticies in all bxcells\n"));
+				DBG(("deleting vertices in all bxcells\n"));
 
-				/* The thinning may have deleted verticies from bxcell's that */
+				/* The thinning may have deleted vertices from bxcell's that */
 				/* were not involved in the thinning, so go though all bxcells */
 				/* to do deletions. Look also for any needed additional surface bxcells. */
 				for (bx = s->rev.surflist; bx != NULL; bx = bx->slist) {
@@ -10489,10 +10490,10 @@ rspl *s
 //printf("~1 deleting vtx %d\n",vx->ix);
 								del_vtxrec_hash(&vc, vx->ix);
 								if (get_vtxrec(&vc, vx->ix) != NULL)
-									error("get_vtxrec suceeded after del_vtxrec_hash!");
+									error("get_vtxrec succeeded after del_vtxrec_hash!");
 							}
 #else /* !DELETE_SHAD */
-							/* Keep track of deleted verticies that are in this bx, */
+							/* Keep track of deleted vertices that are in this bx, */
 							/* so we can add back in crossing triangle vertexes */
 							add2indexlist(s, &bx->dl, vx->ix, 0);
 #endif /* !DELETE_SHAD */
@@ -10502,7 +10503,7 @@ rspl *s
 					bx->sl[1] = nrp - bx->sl;
 
 //aftercount = bx->sl[1]-3;
-//if (beforecount != 0 && aftercount < beforecount) printf("Reduced bx from %d to %d verticies\n",beforecount,aftercount);
+//if (beforecount != 0 && aftercount < beforecount) printf("Reduced bx from %d to %d vertices\n",beforecount,aftercount);
 				}				/* Next bx */
 			}				/* Next phase */
 
@@ -10578,8 +10579,8 @@ rspl *s
 		DBG(("Preserving overlapping triangles\n"));
 		{
 #ifdef REVTABLESTATS
-			int notverts = 0;			/* Number of possible crossed triangles/test verticies */
-			int nopreserved = 0;		/* Number of verticies preseved for crossied triangles */
+			int notverts = 0;			/* Number of possible crossed triangles/test vertices */
+			int nopreserved = 0;		/* Number of vertices preseved for crossied triangles */
 			unsigned long lmsec = msec_time();
 #endif
 			int sdi = 2;				/* sub-simplexes are triangles */
@@ -10590,7 +10591,7 @@ rspl *s
 			struct _tvxrec {
 				double v[MXRO];			/* Log output vertex value */
 				double dist;			/* Distance from center point squared */
-				int ix[MXRO+1];			/* Indexes of the triangle verticies */
+				int ix[MXRO+1];			/* Indexes of the triangle vertices */
 				int shad;				/* Test result */
 				struct _tvxrec *tlist;
 			}; typedef struct _tvxrec tvxrec;
@@ -10610,7 +10611,7 @@ rspl *s
 				if (bx->sl == NULL || bx->sl[1] == 3)
 					continue;
 
-				/* Put the testing triangle verticies on the vtxlist */
+				/* Put the testing triangle vertices on the vtxlist */
 				vc.vtxlist = NULL;
 				vc.nilist = 0;
 
@@ -10618,7 +10619,7 @@ rspl *s
 				/* from this shadowing bxcell. */
 				clear_trirec(s, &tc);
 
-				/* See whether to add cell verticies to the list. */
+				/* See whether to add cell vertices to the list. */
 				for (rp = bx->sl+3; *rp != -1; rp++) {
 					assdire *tri;			/* Triangle table */
 					float *fp;
@@ -10639,8 +10640,8 @@ rspl *s
 					for (k = 0; k < tridir[fl].no; k++) {
 						int triix[MXRI+1];
 						vtxrec *trivx[3];
-						int ntvsh = 0;			/* Number of verticies shadowed */
-						int nntvsh = 0;			/* Number of verticies not shadowed */
+						int ntvsh = 0;			/* Number of vertices shadowed */
+						int nntvsh = 0;			/* Number of vertices not shadowed */
 
 //printf("~1 tri %d: goffs = %s\n", k, debPiv(sdi+1, tri->ti[k].goffs));
 
@@ -10765,7 +10766,7 @@ rspl *s
 							vtxrec *trivx[MXRI+1];
 							double v[MXRI+1][MXRO]; 	/* Triangle vertex values */
 							double gc[MXRO], cc, dw;	/* Triangle shadow group info. */
-							int ntvsh = 0;			/* Number of verticies shadowed */
+							int ntvsh = 0;			/* Number of vertices shadowed */
 							double bdist = -1.0;
 							double tb[MXRI];	/* Solution point in input space */
 							double xv[MXRO];	/* Solution point in output space */
@@ -10964,7 +10965,7 @@ rspl *s
 						vtxrec *trivx[MXRI+1];
 						double v[MXRI+1][MXRO]; 	/* Triangle vertex values */
 						double gc[MXRO], cc, dw;	/* Triangle shadow group info. */
-						int ntvsh = 0;			/* Number of verticies shadowed */
+						int ntvsh = 0;			/* Number of vertices shadowed */
 						double bdist = -1.0;
 
 //printf("~1 tri %d: goffs = %s\n", i, debPiv(sdi+1, tri->ti[k].goffs));
@@ -11170,7 +11171,7 @@ rspl *s
 				}
 			}
 			printf("%d crossed triangles tested\n",notverts);
-			printf("%d hidden verticies retained for crossed triangles\n",nopreserved);
+			printf("%d hidden vertices retained for crossed triangles\n",nopreserved);
 			printf("Took %f secs to preserving crossing triangless\n",0.001 * (msec_time()-lmsec));
 #endif
 		}	/* End of preserve shadowed triangles */
@@ -11243,7 +11244,7 @@ rspl *s
 			/* Do this by checking all vertexes edge neighbors, */
 			/* and adding any that are over the ink limit. */
 			/* (Only do this for bx cells that are known to contain */
-			/* over ink limit verticies.) */ 
+			/* over ink limit vertices.) */ 
 			if (s->limiten && vflag[bx->ix] & 0x10) {
 				int *rp;
 
@@ -11300,7 +11301,7 @@ rspl *s
 					}
 				}
 		
-				/* If we found over ink limit verticies, add them to our list */
+				/* If we found over ink limit vertices, add them to our list */
 				if (exlist != NULL) {
 					for (rp = exlist+3; *rp != -1; rp++) {
 						add2indexlist(s, &bx->sl, *rp, 0);
@@ -11344,7 +11345,7 @@ rspl *s
 			/* Create cach list of vxrec's for just this nnrev[] */
 			clear_vtxrec_lists(s, &vc);
 
-			/* Add all this bxcell verticies to cache and list */
+			/* Add all this bxcell vertices to cache and list */
 			for (rp = bx->sl+3; *rp != -1; rp++) {
 				vx = new_vtxrec(s, &vc, *rp); 
 				add_vtxrec_list(&vc, vx, 0);
@@ -12481,7 +12482,7 @@ rspl *s
 /* Utility - return a string containing a fwd cells output value range */
 static char *pcellorange(fxcell *c) {
 	static char buf[5][300];
-	static ix = 0;
+	static int ix = 0;
 	char *bp;
 	rspl *s = c->s;
 	int di = s->di, fdi = s->fdi;

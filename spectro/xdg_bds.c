@@ -881,7 +881,7 @@ char *xdg_errstr(xdg_error er) {
 		case xdg_nohome:
 			return "There is no $HOME";
 		case xdg_noalluserprofile:
-			return "Theres no $ALLUSERSPROFILE is no $ALLUSERSPROFILE";
+			return "There's no $ALLUSERSPROFILE is no $ALLUSERSPROFILE";
 		case xdg_nopath:
 			return "There is no resulting path";
 		case xdg_mallformed:

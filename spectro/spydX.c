@@ -128,7 +128,7 @@ spydX_command(
 	unsigned int nonce, chnonce;
 	int xfrd;				/* Bytes transferred */
 	unsigned int iec;		/* Instrument error code */
-	int xrlen;				/* Expected recieve length */
+	int xrlen;				/* Expected receive length */
 	int se;
 
 	if ((s_size + 5) > BUF_SIZE
@@ -176,7 +176,7 @@ spydX_command(
 	se = p->icom->usb_read(p->icom, NULL, 0x81, buf, 5 + r_size, &xfrd, to);
 
 	if (p->log->debug >= 7) {
-		a1logd(p->log, 1, "recieved:\n");
+		a1logd(p->log, 1, "received:\n");
 		adump_bytes(p->log, "  ", buf, 0, xfrd);
 	}
 
@@ -699,7 +699,7 @@ spydX_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 		return spydX_interp_code((inst *)p, icoms2spydX_err(se));
 	}
 
-	a1logd(p->log, 2, "spydX_init_coms: suceeded\n");
+	a1logd(p->log, 2, "spydX_init_coms: succeeded\n");
 
 	p->gotcoms = 1;
 	return inst_ok;
@@ -1510,7 +1510,7 @@ static int spydX_save_calibration(spydX *p) {
 	calf_wtime_ts(&x, &p->bdate, 1);
 	calf_wints(&x, p->bcal, 3);
 
-	a1logd(p->log,3,"nbytes = %d, Checkum = 0x%x\n",x.nbytes,x.chsum);
+	a1logd(p->log,3,"nbytes = %d, Checksum = 0x%x\n",x.nbytes,x.chsum);
 	calf_wints(&x, (int *)(&x.chsum), 1);
 
 	if (calf_done(&x))

@@ -380,9 +380,12 @@ static int icompaths_get_cur_count(icompaths *p) {
 	return p->ndpaths[dtix_combined];
 }
 
-/* Check a usb vid/pid against combined list up to given index. */
+/* Check an instrument type against combined list up to given index. */
+/* We're assuming that all instruments of the same type will be found */
+/* by a single driver type. To avoid this assumption we'd have to somehow */
+/* obtain the hub+port number to check agains. */
 /* return nz if on the list */
-static int icompaths_check_usb_upto(icompaths *p, int upto, unsigned int vid, unsigned int pid) {
+static int icompaths_check_usb_upto(icompaths *p, int upto, devType itype) {
 	icom_dtix ix = dtix_combined;
 	int i;
 
@@ -395,9 +398,10 @@ static int icompaths_check_usb_upto(icompaths *p, int upto, unsigned int vid, un
 		upto = p->ndpaths[ix];
 
 	for (i = 0; i < upto; i++) {
-		if (p->dpaths[ix][i]->vid == vid
-		 && p->dpaths[ix][i]->pid == pid)
+		if (p->dpaths[ix][i]->dtype == itype) {
+			a1logd(p->log, 1, "icompaths_check_usb_upto: skipping vid 0x%04x, pid 0x%04x nep %d because we've already found a driver for it\n",p->dpaths[ix][i]->vid,p->dpaths[ix][i]->pid,p->dpaths[ix][i]->nep);
 			return 1;
+		}
 	}
 	return 0;
 }

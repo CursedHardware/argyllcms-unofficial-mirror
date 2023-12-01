@@ -135,7 +135,7 @@ static int initMadVR(dispwin *p) {
 				wcscat(us1, dllname);
 				HcNetDll = LoadLibraryW(us1);
 				if (HcNetDll != NULL)
-					debugr2((errout,"MadVR LoadLibrary('%ls') suceeded\n",us1));
+					debugr2((errout,"MadVR LoadLibrary('%ls') succeeded\n",us1));
 				else
 					debugr2((errout,"MadVR LoadLibrary('%ls') failed\n",us1));
 			}
@@ -617,7 +617,7 @@ int ii = 0;
 	}
 #endif
 
-	debugr("new_madvrwin: return sucessfully\n");
+	debugr("new_madvrwin: return successfully\n");
 
 	return p;
 }

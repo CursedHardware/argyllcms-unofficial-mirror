@@ -376,7 +376,7 @@ ss_init_coms(inst *pp, baud_rate br, flow_control fc, double tout) {
 
 	p->gotcoms = 1;
 
-	a1logd(p->log, 2, "ss_init_coms: init coms has suceeded\n");
+	a1logd(p->log, 2, "ss_init_coms: init coms has succeeded\n");
 
 	return inst_ok;
 }
@@ -1659,7 +1659,7 @@ ss_interp_error(inst *pp, int ec) {
 		case ss_et_FilterOutOfPos:
 			return "Filter wheel out of position";
 		case ss_et_SendTimeout:
-			return "Data transmission timout";
+			return "Data transmission timeout";
 		case ss_et_DriveError:
 			return "Data drive defect";
 		case ss_et_MeasDisabled:
@@ -1779,7 +1779,7 @@ ss_interp_error(inst *pp, int ec) {
 		case ss_et_BadHexEncoding:
 			return "Message received from instrument has bad Hex encoding";
 		case ss_et_RecBufferOverun:
-			return "Message received from instrument would overflow recieve buffer";
+			return "Message received from instrument would overflow receive buffer";
 		default:
 			return "Unknown error code";
 	}

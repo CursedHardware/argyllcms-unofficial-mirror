@@ -1439,7 +1439,7 @@ i1pro3_code i1pro3_waitfor_event(i1pro3 *p, i1pro3_eve *ecode, double top);
 /* Wait for a reply triggered by an instrument event (thread version) */
 /* Returns I1PRO3_OK if the switch has been pressed or some other event such */
 /* as an adapter type change, or I1PRO3_INT_BUTTONTIMEOUT if */
-/* no event has occured before the time expired, */
+/* no event has occurred before the time expired, */
 /* or some other error. */
 i1pro3_code i1pro3_waitfor_event_th(i1pro3 *p, i1pro3_eve *ecode, double top);
 

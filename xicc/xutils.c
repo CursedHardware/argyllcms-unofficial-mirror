@@ -149,7 +149,7 @@ icc *read_embedded_icc(char *file_name) {
 		TIFFSetWarningHandler(oldwarnh);
 		TIFFSetErrorHandlerExt(olderrhx);
 		TIFFSetWarningHandlerExt(oldwarnhx);
-		debug("TIFFOpen suceeded\n");
+		debug("TIFFOpen succeeded\n");
 
 		if (TIFFGetField(rh, TIFFTAG_ICCPROFILE, &size, &tag) == 0 || size == 0) {
 			debug2((errout,"no ICC profile found in '%s'\n",file_name));

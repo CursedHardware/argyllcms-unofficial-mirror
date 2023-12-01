@@ -45,7 +45,7 @@ typedef struct {
 /* Vertexes are the vericies of the Voronoi polyhedra. */
 /* Because these are based on the natural eserr neighborhood, */
 /* they are not necessarily exactly poyhedra. */
-/* (Non gamut boundary verticies are shared) */
+/* (Non gamut boundary vertices are shared) */
 struct _vtx {
 	int    no;			/* Serial number for id */
 	int nix[MXNIX];		/* di+1 Sample point node indexes involved in vertex */
@@ -55,11 +55,11 @@ struct _vtx {
 						/* [MXPD+2] is the OR of all the node ixm's */
 	double ce[MXPD+1];	/* Estimated curvature error from mid point to each real node */
 						/* (ce's are compacted, skipping fake boundary nodes) */
-	int nnv;			/* Number of neighbour verticies (vertex net) */ 
+	int nnv;			/* Number of neighbour vertices (vertex net) */ 
 	int _nnv;			/* Number allocated */
-	struct _vtx **nv;	/* List of neighbour verticies. This includes hidden verts. */
+	struct _vtx **nv;	/* List of neighbour vertices. This includes hidden verts. */
 						/* (If we didn't have to support INDEP_SURFACE, then there would */
-						/*  be exactly di neighbour verticies.) */
+						/*  be exactly di neighbour vertices.) */
 
 	double p[MXPD];		/* Vertex location */
 	double v[MXPD];		/* Subjective value at vertex (Labj) ? */
@@ -148,9 +148,9 @@ struct _node {
 
 	double op[MXPD];	/* Previous device coordinates during opt */
 
-	int nvv;			/* Number of Voronoi surface verticies */ 
+	int nvv;			/* Number of Voronoi surface vertices */ 
 	int _nvv;			/* Number allocated */
-	vtx **vv;			/* List of Voronoi surface verticies */
+	vtx **vv;			/* List of Voronoi surface vertices */
 
 	int nvn;			/* Number of Voronoi nodes & midpoints */ 
 	int _nvn;			/* Number allocated */
@@ -181,7 +181,7 @@ struct _node {
 struct _acell {
 	unsigned int gflag;	/* Acceleration grid search touched & boundary flag */
 	node *head;			/* List of nodes inside acceleration cell */
-	vtx  *vhead;		/* List of verticies with all real nodes inside acceleration cell */
+	vtx  *vhead;		/* List of vertices with all real nodes inside acceleration cell */
 	int co[MXPD];		/* coordinate of cell */
 	double p[MXPD];		/* Device position of base of cell */
 	double v[MXPD];		/* Corresponfing perceptual value of base of cell */
@@ -258,7 +258,7 @@ struct _ofps {
 	int tinp;		/* Target number of total points in list, including fnp */
 	int np;			/* Number of points currently in list */
 	node *_n, **n;	/* tinp allocation of points, list of pointers to points */
-	int nv;			/* Current number of verticies */
+	int nv;			/* Current number of vertices */
 	int nxvno;		/* Next vertex serial number */
 	int nxmno;		/* Next midpoint serial number */
 

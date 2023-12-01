@@ -22,7 +22,7 @@
 
 /* In practice the gamut is only ever computed for 2D or 3D output */
 /* dimensions. The gamut surface is composed of simplexes ("triangles") */
-/* of dimensions fdi-1, with fdi verticies */
+/* of dimensions fdi-1, with fdi vertices */
 
 #include "llist.h"
 
@@ -53,8 +53,8 @@ struct _rvert {
 struct _redge {
 	struct _redge *next;	/* Hash linked list */
 	int n;					/* Serial number */
-//	float *f[MXDO-1];		/* fdi-1 grid verticies of edge in base simplex order. */
-	struct _rvert *v[MXDO-1];	/* fdi-1 Verticies of edge in base simplex order. */
+//	float *f[MXDO-1];		/* fdi-1 grid vertices of edge in base simplex order. */
+	struct _rvert *v[MXDO-1];	/* fdi-1 Vertices of edge in base simplex order. */
 	double pe[MXDO+1];		/* Plane equation for edge for side of edge testing. */
 							/* fdi for normal + constant */
 	int nt;					/* Total number of triangles that share this edge */
@@ -71,8 +71,8 @@ struct _redge {
 struct _rtri {
 	struct _rtri *next;			/* Hash linked list */
 	int n;						/* Serial number */
-//	float *f[MXDO];				/* fdi grid verticies in gix order */
-	struct _rvert *v[MXDO];		/* fdi verticies in gix order */
+//	float *f[MXDO];				/* fdi grid vertices in gix order */
+	struct _rvert *v[MXDO];		/* fdi vertices in gix order */
 
 //	struct _redge *e[((MXDO+1) * MXDO)/2];		/* Edges in vertex sorted order */
 //	double mix[2][MXDO];	/* nn: Bounding box min and max */
@@ -98,8 +98,8 @@ struct _gam_struct {
 	int rvert_no;		/* Number of rverts allocated */
 	int vhsize;			/* Vertex hash list size */
 	rvert **verts;		/* Hash list, NULL if not allocated */
-	rvert *vtop;      	/* Top of list of verticies */
-	rvert *vbot;      	/* Bottom of list of verticies */
+	rvert *vtop;      	/* Top of list of vertices */
+	rvert *vbot;      	/* Bottom of list of vertices */
 	
 	int redge_no;		/* Number of redges allocated */
 	int ehsize;			/* Edge hash list size */

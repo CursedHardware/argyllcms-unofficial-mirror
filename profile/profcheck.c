@@ -59,7 +59,7 @@ usage(void) {
 	fprintf(stderr," -w              create %s visualisation (iccprofile%s)\n",vrml_format(),vrml_ext());
 	fprintf(stderr," -x              Use %s axes\n",vrml_format());
 	fprintf(stderr," -m              Make %s lines a minimum of 0.5\n",vrml_format());
-	fprintf(stderr," -e              Color vectors acording to delta E\n");
+	fprintf(stderr," -e              Color vectors according to delta E\n");
 	fprintf(stderr," -h              Plot a histogram of delta E's\n");
 	fprintf(stderr," -s              Sort output by delta E\n");
 	fprintf(stderr," -P N.NN         Create a pruned .ti3 with points less or equal to N.NN delta E\n");

@@ -625,7 +625,7 @@ int main(int argc, char *argv[]) {
 	/* Write out the output and free the cgats * */
 	for (n = 0; n <= ninps; n++) {
 
-		if (n >= ninps) {		/* If ouput file, write it */
+		if (n >= ninps) {		/* If output file, write it */
 			if (inps[n].c->write_name(inps[n].c, inps[ninps].name))
 				error("CGATS file '%s' write error : %s",inps[n].name,inps[n].c->e.m);
 		}

@@ -1,4 +1,4 @@
-/* A set of doubly linked list utilities, implimented as macros. */
+/* A set of doubly linked list utilities, implemented as macros. */
 /* Copyright 1995, 2000 Graeme W. Gill */
 
 #ifndef _LLIST_H_

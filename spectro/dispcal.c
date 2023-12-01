@@ -421,7 +421,7 @@ static double tech_gamma(
 	double *pioff,			/* return input offset needed */
 	double egamma,			/* effective gamma needed (> 0.0 if valid, overrides gamma) */
 	double gamma,			/* advertised gamma needed */
-	double tooff			/* Total ouput offset needed */
+	double tooff			/* Total output offset needed */
 ) {
 	int i;
 	double rv;
@@ -1998,7 +1998,7 @@ int main(int argc, char *argv[]) {
 			/* Serial port flow control */
 			} else if (argv[fa][1] == 'W') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Paramater expected following -W");
+				if (na == NULL) usage(0,"Parameter expected following -W");
 				if (na[0] == 'n' || na[0] == 'N')
 					fc = fc_None;
 				else if (na[0] == 'h' || na[0] == 'H')
@@ -2021,13 +2021,13 @@ int main(int argc, char *argv[]) {
 			/* Black point correction amount */
 			} else if (argv[fa][1] == 'k') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Paramater expected following -k");
+				if (na == NULL) usage(0,"Parameter expected following -k");
 				bkcorrect = atof(na);
 				if (bkcorrect < 0.0 || bkcorrect > 1.0) usage(0,"-k parameter must be between 0.0 and 1.0");
 			/* Neutral blend rate (power) */
 			} else if (argv[fa][1] == 'A') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Paramater expected following -A");
+				if (na == NULL) usage(0,"Parameter expected following -A");
 				x.nbrate = atof(na);
 				if (x.nbrate < 0.05 || x.nbrate > 20.0) usage(0,"-A parameter must be between 0.05 and 20.0");
 			/* Black brightness */
@@ -2060,7 +2060,7 @@ int main(int argc, char *argv[]) {
 			/* COM port  */
 			} else if (argv[fa][1] == 'c') {
 				fa = nfa;
-				if (na == NULL) usage(0,"Paramater expected following -c");
+				if (na == NULL) usage(0,"Parameter expected following -c");
 				comport = atoi(na);
 				if (comport < 1 || comport > 50) usage(0,"-c parameter %d out of range",comport);
 
@@ -3134,7 +3134,7 @@ int main(int argc, char *argv[]) {
 			/* Black level adjustment */
 			/* Due to the possibility of the channel offsets not being even, */
 			/* we use the largest of the XYZ values after they have been */
-			/* scaled to be even acording to the white XYZ balance. */
+			/* scaled to be even according to the white XYZ balance. */
 			/* It's safer to set the black level a bit low, and then the */
 			/* calibration curves can bump the low ones up. */
 			if (c == '1') {
