@@ -17,6 +17,9 @@ ArgyllCMS.inf.t
 ArgyllCMS.inf.d
 ArgyllCMS_uninstall_USB.c
 bin/libusb-win32-bin-README.txt
+bin/AUTHORS.txt
+bin/COPYING_GPL.txt
+bin/COPYING_LGPL.txt
 bin/amd64/libusb0.sys
 bin/amd64/ArgyllCMS_install_USB.exe
 bin/x86/libusb0.sys

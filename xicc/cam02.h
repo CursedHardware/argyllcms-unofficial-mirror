@@ -105,7 +105,7 @@
 Typical adapting field luminances and white luminance in reflective setup:
 
 E = illuminance in Lux
-Lv = White luminance assuming 100% reflectance
+Lv = White luminance assuming 100% reflectance in cd/m^2
 La = Adapting field luminance in cd/m^2, assuming 20% reflectance from surround
     
     E     La     Lv   Condition 

@@ -33,9 +33,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include <sys/types.h>
 #include <time.h>
 #include "copyright.h"
@@ -84,13 +81,14 @@ int main(int argc, char *argv[]) {
 
 	int i, j, n;
 
+
 	error_program = "splitti3";
 
 	if (argc <= 1)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -161,6 +159,7 @@ int main(int argc, char *argv[]) {
 		error("Failed to create cgats object");
 	cgf->add_other(cgf, ""); 	/* Allow any signature file */
 	
+
 	if (cgf->read_name(cgf, in_name))
 		error("CGATS file '%s' read error : %s",in_name,cgf->e.m);
 	
@@ -355,6 +354,7 @@ int main(int argc, char *argv[]) {
 		free(bident);
 	}
 
+
 	/* Chose which of the sets go into file 1 and 2*/
 	for (;n < numb;) {
 		i = i_rand(0, cgf->t[0].nsets-1);
@@ -393,6 +393,8 @@ int main(int argc, char *argv[]) {
 	
 	return 0;
 }
+
+
 
 
 

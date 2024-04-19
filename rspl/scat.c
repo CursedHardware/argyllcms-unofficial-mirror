@@ -114,9 +114,6 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 
 #include "rspl_imp.h"
 #include "numlib.h"
@@ -439,10 +436,6 @@ debPiv(di, gres),smooth, debPdv(fdi,avgdev));
 printf("~1 rspl: glow = %s ghigh = %s\n", debPdv(di,glow), debPdv(di,ghigh));
 printf("~1 rspl: vlow = %s vhigh = %s\n",debPdv(fdi,vlow), debPdv(fdi,vhigh));
 printf("~1 rspl: flags = 0x%x\n",flags);
-#endif
-
-#if defined(__IBMC__) && defined(_M_IX86)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
 #endif
 
 	/* This is a restricted size function */

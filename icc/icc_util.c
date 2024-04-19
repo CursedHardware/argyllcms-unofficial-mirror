@@ -3764,8 +3764,10 @@ size_t icmUTF8toUTF16Sn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t 
 
 //printf("\n~1 icmUTF8toUTF16Sn:\n");
 
-	if (in == NULL)
+	if (in == NULL) {
+//printf("~1 in == NULL, setting len = 0\n");
 		len = 0;
+	}
 
 	for (;;) {
 		unsigned short extraBytesToRead;
@@ -3909,7 +3911,7 @@ size_t icmUTF8toUTF16Sn(icmUTFerr *pillegal, icmFBuf *bout, icmUTF8 *in, size_t 
 	if (pillegal != NULL)
 		*pillegal = illegal;
 
-//printf("  ~1 returning osize %zu\n",osize * sizeof(ORD8));
+//printf("  ~1 returning osize %zu with illegal = 0x%X\n",osize * sizeof(ORD8),illegal);
 	return osize * sizeof(ORD8);
 }
 

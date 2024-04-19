@@ -38,7 +38,7 @@
 
 void usage(void) {
 	fprintf(stderr,"Install OEM data files, Version %s\n",ARGYLL_VERSION_STR);
-	fprintf(stderr,"Author: Graeme W. Gill, licensed under the GPL Version 2 or later\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: oeminst [-options] [infile(s)]\n");
 	fprintf(stderr," -v [level]              Verbose\n");
 	fprintf(stderr," -n                      Don't install, show where files would be installed\n");
@@ -63,13 +63,14 @@ main(int argc, char *argv[]) {
 	xfile *files = NULL;
 	int rv = 0;
 	
+
 	set_exe_path(argv[0]);		/* Set global exe_path and error_program */
 
 	if (argc < 1)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -124,6 +125,7 @@ main(int argc, char *argv[]) {
 	}
 
 	if (fa > argc || (fa < argc && argv[fa][0] == '-')) usage();
+
 
 	/* If filename(s) are provided, load the files up. */
 	/* We don't know what they are, but oemarch_get_ifiles() will figure it out */
@@ -229,6 +231,7 @@ main(int argc, char *argv[]) {
 
 	/* We now have all the install files loaded into files. Save or install them all */
  	
+
 	if (!local) /* Install them in ArgyllCMS sub-directory */
 		install_dir = "ArgyllCMS/";
 
@@ -287,3 +290,5 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+

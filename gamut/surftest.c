@@ -25,7 +25,7 @@
 #include "aconfig.h"
 #include "numlib.h"
 #include "icc.h"
-//#include "xicc.h"
+#include "cgats.h"
 #include "gamut.h"
 
 #define DEF_POINTS 5

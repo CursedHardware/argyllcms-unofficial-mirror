@@ -25,6 +25,9 @@
 #include <math.h>
 #include "icc.h"
 
+
+/* Default is to do nothing... */
+#undef DUMP_INCOMING
 #undef TEST_VIDGAMTAG		/* Add ColorSync 2.5 VideoCardGamma tag with linear table */
 #undef TEST_SRGB_FIX		/* Some test code */
 #undef WP_PATCH				/* Overwrite the white point */
@@ -113,6 +116,37 @@ main(int argc, char *argv[]) {
 	/* ======================================= */
 	/* Change profile in here.                 */
 
+#ifdef DUMP_INCOMING
+	{
+		icmFile *op = new_icmFileStd_fp(NULL, stdout);
+		icco->dump(icco, op, 2);
+		op->del(op);
+	}
+#endif
+
+#ifdef NEVER
+	/* Add a generic discription */
+	{
+		icmMultiLocalizedUnicode *ro;
+		int i;
+
+		/* Try and read the tag from the file */
+		ro = (icmMultiLocalizedUnicode *)icco->read_tag(icco, icmMakeTag('d','s','c','m'));
+		if (ro == NULL) 
+			error("Unable to read MLU tag");
+
+		/* Need to check that the cast is appropriate. */
+		if (ro->ttype != icSigMultiLocalizedUnicodeType)
+			error("rTRC is not icSigMultiLocalizedUnicodeType");
+
+		ro->rcount = 0;
+		ro->allocate(ro);
+
+		ro->desc = strdup("This is an extra description");
+		ro->count = strlen(ro->desc) + 1;
+	}
+#endif
+
 #ifdef TEST_SRGB_FIX		/* Some test code */
 	/* Try deleting the black point tag */
 	{
@@ -172,9 +206,9 @@ main(int argc, char *argv[]) {
 		wo->u.table.entryCount = 256;         /* full lut */
 		wo->u.table.entrySize = 1;            /* byte */
 		wo->allocate((icmBase*)wo);
-		for (c=0; c<3; c++)
-			for (i=0; i<256; i++)
-				((unsigned char*)wo->u.table.data)[256*c+i] = 255-i;
+		for (c = 0; c < 3; c++)
+			for (i = 0; i < 256; i++)
+				wo->u.table.data[c][i] = (1.0 - i/255.0);
 	}
 
 	/* Show we modified this ICC file */

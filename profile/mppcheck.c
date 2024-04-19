@@ -23,9 +23,6 @@
 #include <math.h>
 #include <sys/types.h>
 #include <time.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -82,17 +79,14 @@ int main(int argc, char *argv[])
 	double aerr = 0.0;
 	double nsamps = 0.0;
 
-#if defined(__IBMC__) && defined(_M_IX86)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
+
 	error_program = argv[0];
 
 	if (argc <= 1)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -145,6 +139,7 @@ int main(int argc, char *argv[])
 
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(mppname,argv[fa++]);
+
 
 	/* Open and look at the .ti3 profile patches file */
 	icg = new_cgats();				/* Create a CGATS structure */
@@ -241,6 +236,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+
 
 	if (limit > 1e-4 && limit <= (ICX_MXINKS * 100.0)) {
 		if (verb)
@@ -560,6 +556,8 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 
 

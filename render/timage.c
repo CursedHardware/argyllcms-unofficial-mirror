@@ -82,13 +82,14 @@ int main(int argc, char *argv[]) {
 	double w, h;			/* Size of page in mm */
 	int i, j;
 
+
 	error_program = "timage";
 
 	if (argc <= 1)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -171,6 +172,7 @@ int main(int argc, char *argv[]) {
 	/* Get the file name arguments */
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strncpy(outname,argv[fa++],MAXNAMEL); outname[MAXNAMEL] = '\000';
+
 
 	res /= 25.4;				/* Convert to DPmm */ 
 
@@ -713,6 +715,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+
 #ifdef PNG_MEM
 	{
 		char *nmode = "w";
@@ -747,5 +750,7 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 

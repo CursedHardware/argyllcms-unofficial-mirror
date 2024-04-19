@@ -69,7 +69,7 @@ if ! jam -fJambase -sBUILTIN_TIFF=true -sBUILTIN_JPEG=true -sBUILTIN_PNG=true -s
 fi 
 
 # Make sure it's built and installed
-if ! jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-2} -sBUILTIN_TIFF=true -sBUILTIN_JPEG=true -sBUILTIN_PNG=true -sBUILTIN_Z=true -sBUILTIN_SSL=true install ; then
+if ! jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-1} -sBUILTIN_TIFF=true -sBUILTIN_JPEG=true -sBUILTIN_PNG=true -sBUILTIN_Z=true -sBUILTIN_SSL=true install ; then
 	echo "Build failed!"
 	exit 1
 fi 
@@ -188,6 +188,9 @@ for i in ${allfiles}; do
 	if [ X$path != "X" ] ; then
 		mkdir -p $TOPDIR/${path}
 	fi
+	if [ X${file} = "Xafiles" ] ; then
+		continue
+	fi
 	cp $i $TOPDIR/$i
 done
 
@@ -200,7 +203,7 @@ if [ X$USETAR = "Xtrue" ] ; then
 	else
 		tar -czvf $PACKAGE $TOPDIR
 	fi
-	# tar -xzf to extract
+	# tar -xzvf to extract
 	# tar -tzf to list
 	# to update a file:
 	#  gzip -d archive.tgz

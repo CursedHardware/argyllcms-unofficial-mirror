@@ -47,7 +47,7 @@
 
 
 #define VERBOSE			/* [Def] Print out extra interesting information when verbose is set */
-#undef PLOT_DIAG_WRL	/* [Und] Always plot "gammap.wrl" */
+#undef PLOT_DIAG_WRL	/* [Und] Plot "gammap.wrl" if -P not used. */
 
 	/* What do display when user requests disgnostic VRML/X3D */
 #define PLOT_SRC_GMT	/* [Def] Plot the source surface to "gammap.wrl" as well */
@@ -55,7 +55,7 @@
 #undef PLOT_SRC_CUSPS	/* [Und] Plot the source surface cusps to "gammap.wrl" as well */
 #undef PLOT_DST_CUSPS	/* [Und] Plot the dest surface cusps to "gammap.wrl" as well */
 #undef PLOT_TRANSSRC_CUSPS	/* [Und] Plot the gamut mapped source surface cusps to "gammap.wrl" */
-#define PLOT_AXES		/* [Und] Plot the axes to "gammap.wrl" as well */
+#define PLOT_AXES		/* [Def] Plot the axes to "gammap.wrl" as well */
 #undef SHOW_VECTOR_INDEXES	/* [Und] Show the mapping vector index numbers */
 #define SHOW_MAP_VECTORS	/* [Def] Show the mapping vectors - yellow to red, green to red */
 							/*       if no clear direction. */
@@ -516,6 +516,7 @@ static void domap(gammap *s, double *out, double *in);
 static void dopartialmap1(gammap *s, double *out, double *in);
 static void dopartialmap2(gammap *s, double *out, double *in);
 static gamut *parttransgamut(gammap *s, gamut *src);
+static void inv_domap(gammap *s, double *out, double *in);
 static void invdomap1(gammap *s, double *out, double *in);
 #ifdef PLOT_GAMUTS
 static void map_trans(void *cntx, double out[3], double in[3]);
@@ -604,9 +605,14 @@ gammap *new_gammap(
 	/* Setup methods */
 	s->del = del_gammap;
 	s->domap = domap;
+	s->inv_domap = inv_domap;
 	s->invdomap1 = invdomap1;
 
 	/* Now create everything */
+
+	s->cent[0] = d_gam->cent[0];
+	s->cent[1] = d_gam->cent[1];
+	s->cent[2] = d_gam->cent[2];
 
 	/* Grab the colorspace white and black points */
 	if (src_kbp) {
@@ -656,7 +662,12 @@ gammap *new_gammap(
 			free(s);
 			return NULL;
 		}
-		si_gam->intersect(si_gam, isi_gam, sc_gam);
+
+		if (si_gam->intersect(si_gam, isi_gam, sc_gam) != 0) {
+			fprintf(stderr,"gamut map: Colorspace and image gamuts are not compatible\n");
+			free(s);
+			return NULL;
+		}
 
 		if (src_kbp) {
 			if (si_gam->getwb(si_gam, NULL, NULL, NULL, s_ga_wp, NULL, s_ga_bp)) {
@@ -2355,7 +2366,7 @@ double *in
 	if (s->map != NULL) {
 		int e;
 
-		/* Clip out of range a, b proportionately */
+		/* Clip out of range a, b proportionately to cLUT grid */
 		if (rin[1] < s->imin[1] || rin[1] > s->imax[1]
 		 || rin[2] < s->imin[2] || rin[2] > s->imax[2]) {
 			double as = 1.0, bs = 1.0;
@@ -2446,6 +2457,72 @@ double *in
 		icmCpy3(out, in);
 	}
 }
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define MAXISOLN 20
+
+/* Apply the inverse gamut mapping to the given color value */
+static void inv_domap(
+gammap *s,
+double *out,
+double *in
+) {
+	double rin[3];
+	co cp[MAXISOLN];
+
+	rin[0] = in[0];
+	rin[1] = in[1];
+	rin[2] = in[2];
+
+	if (s->dbg) printf("inv_domap: got input %f %f %f\n",rin[0],rin[1],rin[2]);
+
+	/* If there is a 3D->3D mapping */
+	if (s->map != NULL) {
+		int i, nsoln;		/* Number of solutions found */
+		double bdist = -1.0;
+
+		cp[0].v[0] = rin[0];			/* Value to be inverted */
+		cp[0].v[1] = rin[1];
+		cp[0].v[2] = rin[2];
+
+		nsoln = s->map->rev_interp(
+			s->map,
+			RSPL_NEARCLIP,		/* Clip to nearest (faster than vector) */
+			MAXISOLN,					/* Maximum number of solutions allowed for */
+			NULL, 				/* No auxiliary input targets */
+			NULL,				/* Clip vector direction and length */
+			cp);				/* Input and output values */
+
+		nsoln &= RSPL_NOSOLNS;		/* Get number of solutions */
+
+		if (nsoln < 1)
+			error("gammap: Unexpected failure to find reverse solution for mapping lookup");
+
+		/* Pick the solution closest to the center of the gamut */
+		for (i = 0; i < nsoln; i++) {
+			double dist = icmNorm33sq(s->cent, cp[i].p);
+			if (dist < bdist) {
+				rin[0] = cp[i].p[0];
+				rin[1] = cp[i].p[1];
+				rin[2] = cp[i].p[2];
+				bdist = dist;
+			}
+		}
+
+		if (s->dbg) printf("inv_domap: after inverse 3D map %s\n\n",icmPdv(s->map->fdi, rin));
+	}
+
+	cp[0].p[0] = rin[0];
+	s->grey->interp(s->igrey, cp);		/* Inverse L map */
+	rin[0] = cp[0].v[0];
+	if (s->dbg) printf("inv_domap: after inverse L map %f %f %f\n",rin[0],rin[1],rin[2]);
+
+	icmMul3By3x4(out, s->igrot, rin);		/* Inverse Rotate */
+	if (s->dbg) printf("inv_domap: after inverse rotate %f %f %f\n",out[0],out[1],out[2]);
+}
+
+#undef MAXISOLN
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 

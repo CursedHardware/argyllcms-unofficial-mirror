@@ -12,16 +12,23 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
 #PREF_CCFLAGS 	+= $(CCPROFFLAG) ;		# Profile flags
 #PREF_LINKFLAGS	+= $(LINKPROFFLAG) ;    # Profile flags
 
-# Include all the sub-directory Jamfiles
+if [ GLOB . : thirdparty_licenses.txt ] {
+	ExeDoc = thirdparty_licenses.txt ;
+	InstallFile bin : $(ExeDoc) ;
+}
 
-# Compile date
-Always compiledate.h ;
-if [ GLOB $(PATH) : awk awk.exe ] {
+# Need compile date ?
+if $(NEED_COMPILE_DATE) = true && [ GLOB $(PATH) : awk awk.exe ] {
+	Always compiledate.h ;
 	GenFileNND compiledate.h : "awk 'BEGIN {srand();print \"#define COMPILEDATE \" srand()}' > compiledate.h" ; 
 } else {
 	# make sure compilation fails if there is no awk and compiledate.h is needed
-	GenFileNND compiledate.h : $(RM) compiledate.h ; 
+	if [ GLOB . : compiledate.h ] {
+		GenFileNND compiledate.rm : $(RM) compiledate.h ; 
+	}
 }
+
+# Include all the sub-directory Jamfiles
 
 SubInclude numlib ;
 SubInclude plot ;

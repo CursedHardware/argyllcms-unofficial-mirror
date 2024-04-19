@@ -8,13 +8,15 @@ PREF_LINKFLAGS	= $(LINKDEBUGFLAG) ;	# Link debugging flags
 
 #Products
 #Libraries = ;
-Executables = ArgyllCMS_install_USB ArgyllCMS_uninstall_USB ;
+Executables = ArgyllCMS_install_USB.exe ArgyllCMS_uninstall_USB.exe ;
 #Headers = ;
 
 #Install
-InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
+#InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
 #InstallFile $(DESTDIR)$(PREFIX)/h : $(Headers) ;
 #InstallLib  $(DESTDIR)$(PREFIX)/lib : $(Libraries) ;
+
+Depends install : [ NormDstTargets $(Executables) ] ;
 
 # USB driver un-installer
 if $(NT) {

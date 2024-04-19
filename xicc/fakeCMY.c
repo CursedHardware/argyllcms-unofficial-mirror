@@ -104,11 +104,7 @@ static void visect(
 		luo->lookup(luo, pout, res);
 }
 
-int
-main(
-	int argc,
-	char *argv[]
-) {
+int main(int argc, char *argv[]) {
 	int fa,nfa;				/* argument we're looking at */
 	int verb = 0;
 	double tlimit = -1.0;	/* Total ink limit */
@@ -134,16 +130,16 @@ main(
 	time_t clk = time(0);
 	struct tm *tsp = localtime(&clk);
 	char *atm = asctime(tsp); /* Ascii time */
-
 	int i, j;
 	
+
 	error_program = argv[0];
 
 	if (argc < 2)
 		usage("Not enough arguments");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -198,6 +194,7 @@ main(
 
 	if (fa >= argc || argv[fa][0] == '-') usage("Expected output .ti3 name");
 	strcpy(out_name,argv[fa++]);
+
 
 	/* Open up the file for reading */
 	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
@@ -257,6 +254,7 @@ main(
 	for (j = 0; j < 3; j++)
 		gc[j] = 0;
 			
+
 	/* Add CMY grid surface points */
 	for (;;) {	/* Generate all grid points */
 
@@ -496,4 +494,6 @@ main(
 
 	return 0;
 }
+
+
 

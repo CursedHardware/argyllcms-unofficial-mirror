@@ -51,7 +51,7 @@ if $(UNIX) {
 #Products
 Libraries = libinsttypes libdisptechs libinst libdisp libconv libinstapp ;
 Executables = dispwin synthcal dispread dispcal fakeread synthread
-              chartread spotread illumread ccxxmake spec2cie average oeminst ;
+              chartread spotread illumread ccxxmake average oeminst ;
 Headers = inst.h ;
 Samples = SOtele.sp linear.cal strange.cal ccxx.ti1 ;
 
@@ -241,7 +241,10 @@ Main fakeread : fakeread.c ;
 Main synthread : synthread.c ;
 
 # Add CIE values to a spectral reading file
-Main spec2cie : spec2cie.c ;
+if [ GLOB [ NormPaths . ] : spec2cie.c ]  {
+	Executables += spec2cie ;
+	Main spec2cie : spec2cie.c ;
+}
 
 # Average RGB or CMYK .ti3 files
 Main average : average.c ;
@@ -253,13 +256,23 @@ Main oeminst : oeminst.c : : : : oemarch vinflate inflate LzmaDec : libconv ;
 # Generate linear.cal example/diagnostic
 # (NoUpdate so that Cross Compile Win64 hack works)
 NNoUpdate linear.cal ;
-GenFileND linear.cal : synthcal [ NormPaths linear ] ;
+SYNTHCAL = synthcal ;
+if $(RUNNER) {
+	NDepends linear.cal : synthcal ;
+	SYNTHCAL = $(RUNNER) [ NormPaths synthcal ] ;
+}
+GenFileND linear.cal : $(SYNTHCAL) [ NormPaths linear ] ;
 NDepends exe : linear.cal ;	# Normally create it 
 
 # Generate strange.cal example/diagnostic
 # (NoUpdate so that Cross Compile Win64 hack works)
 NNoUpdate strange.cal ;
-GenFileND strange.cal : synthcal -s 0.7,1.0,0.9 -p 1.7,0.8,0.7 [ NormPaths strange ] ;
+SYNTHCAL = synthcal ;
+if $(RUNNER) {
+	NDepends strange.cal : synthcal ;
+	SYNTHCAL = $(RUNNER) [ NormPaths synthcal ] ;
+}
+GenFileND strange.cal : $(SYNTHCAL) -s 0.7,1.0,0.9 -p 1.7,0.8,0.7 [ NormPaths strange ] ;
 NDepends exe : strange.cal ;	# Normally create it 
 
 # Dumy ti3 file generator for testing

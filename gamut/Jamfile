@@ -30,7 +30,7 @@ Library libgamut : gamut.c ;
 # Gamut mapping library
 Library libgammap : gammap.c nearsmth.c ;
 
-LINKLIBS = libgammap libgamut ../rspl/librspl ../icc/libicc ../cgats/libcgats
+LINKLIBS = libgammap libgamut ../xicc/libxicc ../rspl/librspl ../icc/libicc ../cgats/libcgats
            ../plot/libplot ../numlib/libnum ../numlib/libui ../plot/libvrml ;
 
 # Utilities
@@ -41,10 +41,10 @@ Main viewgam : viewgam.c ;
 # Smoothed nearpoint test routine
 Main smthtest :  smthtest.c ;
 
-# Preliminary ICC V4 Reference Medium Gamut
+# ICC V4 Reference Medium Gamut
 Main GenRMGam : GenRMGam.c ;
 
-# Generate referenec medium gamut the kernel files
+# Generate reference medium gamut
 # (NoUpdate so that Cross Compile Win64 hack works)
 NNoUpdate RefMediumGamut.gam ;
 GenFile RefMediumGamut.gam : GenRMGam ;

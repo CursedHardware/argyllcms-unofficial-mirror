@@ -35,9 +35,34 @@ typedef enum {
 	vc_cut_sheet = 4	/* Transparencies on a Light Box */
 } ViewingCondition;
 
+/* Structure to convey viewing conditions */
+typedef struct {
+	ViewingCondition Ev;/* Enumerated Viewing Condition */
+	double Wxyz[3];		/* Reference/Adapted White XYZ (Y range 0.0 .. 1.0) */
+	double La;			/* Adapting/Surround Luminance cd/m^2 */
+	double Yb;			/* Relative Luminance of Background to reference white */
+	double Lv;			/* Luminance of white in the Image/Scene/Viewing field (cd/m^2) */
+						/* Ignored if Ev is set to other than vc_none */
+	double Yf;			/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
+	double Yg;			/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
+	double Gxyz[3];		/* The Glare white coordinates (ie the Ambient color) */
+						/* will be taken from Wxyz if Gxyz <= 0.0 */
+	int hk;				/* Flag, NZ to use Helmholtz-Kohlraush effect */
+	double hkscale;		/* [1.0] HK scaling factor */
+	double mtaf;		/* [0.0] Mid tone partial adapation factor from Wxyz to Wxyz2 0.0 .. 1.0 */
+	double Wxyz2[3];	/* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
+	char *desc;			/* Possible description of this VC */
+} icxViewCond;
+
 struct _icxcam {
 /* Public: */
 	void (*del)(struct _icxcam *s);	/* We're done with it */
+
+	/* Always returns 0 */
+	int (*set_view_vc)(
+		struct _icxcam *s,
+		icxViewCond *vc
+	);
 
 	/* Always returns 0 */
 	int (*set_view)(

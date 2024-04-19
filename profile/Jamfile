@@ -100,6 +100,10 @@ if [ GLOB [ NormPaths . ] : retargti3.c ]  {
 	Main retargti3 : retargti3.c ;
 }
 
+if [ GLOB [ NormPaths . ] : nmod6.c ]  {
+	Main nmod6 : nmod6.c ;
+}
+
 
 
 

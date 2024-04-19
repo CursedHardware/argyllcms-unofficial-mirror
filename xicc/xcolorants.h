@@ -48,9 +48,15 @@
    with dynamic colorant and colorant combination values.
    These would be initialised to defaults, but could then
    be added to at run time, to support import/export to
-   other color data formats, and coping with arbitrary raster
-   files etc.
+   other color data formats, and match arbitrary raster
+   file and ICC profile order etc.
 
+   Should add a colorant order structure + lib + created/dump
+   utility, + re-order function between two of them,
+   and then this can be given as argument to cctiff.
+   Would be nice to make cctiff auto re-order input file
+   if file format allows this.
+  
    Handling the "colorant" of non-device type color channels
    is also a challenge (ie., Lab, Hsv etc.)
 
@@ -236,7 +242,7 @@ inkmask icx_ink2primary_ink(inkmask mask);
 
 
 /* Given an ink combination mask and a single ink mask, */
-/* return the index number for that ink. */
+/* return the index number for that ink within that set. */
 /* Return -1 if mask1 not in mask */
 int icx_ink2index(inkmask mask, inkmask mask1);
 

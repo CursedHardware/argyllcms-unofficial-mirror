@@ -50,9 +50,6 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 
 #include "rspl_imp.h"
 #include "numlib.h"
@@ -177,9 +174,6 @@ opt_rspl_imp(
 	int i, e, f;
 //	int n;
 
-#if defined(__IBMC__) && defined(_M_IX86)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-#endif
 	/* set debug level */
 	s->debug = (flags >> 24);
 

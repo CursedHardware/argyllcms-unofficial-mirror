@@ -51,6 +51,13 @@
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /* A subset of icclib */
 
+#define SA_ERRM_SIZE 2000		/* Try and keep in sync with CGATS_ERRM_LENGTH */
+
+typedef struct {
+	int  c;            		/* Error code */
+	char m[SA_ERRM_SIZE];	/* Error message */
+} sa_Err;
+
 #ifndef MAX_CHAN
 # define MAX_CHAN 15
 #endif
@@ -129,6 +136,7 @@ void sa_Yxy2XYZ(double *out, double *in);
 
 void sa_Add3(double out[3], double in1[3], double in2[3]);
 
+#define icmErr sa_Err
 #define icColorSpaceSignature sa_ColorSpaceSignature
 #define icSigXYZData sa_SigXYZData
 #define icSigLabData sa_SigLabData

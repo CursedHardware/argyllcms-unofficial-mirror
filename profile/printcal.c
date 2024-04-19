@@ -51,8 +51,8 @@
 #include "rspl.h"
 #include "xicc.h"
 #include "plot.h"
+#include "vrml.h"
 #include "ui.h"
-
 
 #define RSPLFLAGS (0 /* | RSPL_2PASSSMTH | RSPL_EXTRAFIT2 */)
 
@@ -67,7 +67,7 @@
 
 #define CAL_RES 256		/* Resolution saved to .cal file */
 
-#define PRES 256		/* Plotting resolution */
+#define PRES 256		/* Plotting resolution (must be >= CAL_RES) */
 
 void usage(char *diag, ...) {
 	int i;
@@ -84,6 +84,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"usage: %s [-options] [prevcal] inoutfile\n",error_program);
 	fprintf(stderr," -v verbosity    Verbose mode\n");
 	fprintf(stderr," -p              Plot graphs.\n");
+	fprintf(stderr," -w              Save colorant 3D plot to inoutname_r%s and inoutname_c%s\n",vrml_ext(),vrml_ext());
 	fprintf(stderr," -i              Initial calibration, set targets, create .cal\n");
 	fprintf(stderr," -r              Re-calibrate against previous .cal and create new .cal\n");
 	fprintf(stderr," -e              Verify against previous .cal\n");
@@ -486,8 +487,8 @@ pcaltarg *new_pcaltarg() {
 
 /* A wedge sample value */
 typedef struct {
-	double inv;			/* Input value (cal table) */
-	double dev;			/* Device value */
+	double inv;			/* Input value (cal table, linear with index) */
+	double dev;			/* Device value (cal table = calibrated output) */
 	double XYZ[3];		/* XYZ value */
 	double Lab[3];		/* Lab value */
 	double del;			/* Absolute delta (to white) */
@@ -545,10 +546,29 @@ static double rspl_ilookup(rspl *r, double dir, double in) {
 	return pp[k].p[0];
 }
 
+/* Given a calibration table, lookup the value in it */
+static double interp_cal(wval *cvals, int n_cvals, double ival) {
+	int mi, n_cvals_1 = n_cvals-1;
+	double t, w, oval;
+
+	t = n_cvals * ival;
+	mi = (int)floor(t);			/* Grid coordinate */
+	if (mi < 0)					/* Limit to valid index range */
+		mi = 0;
+	else if (mi >= n_cvals_1)
+		mi = n_cvals_1-1;
+	w = t - (double)mi;	 		/* 1.0 - weight */
+
+	oval = (1.0 - w) * cvals[mi].dev + w * cvals[mi+1].dev;
+
+	return oval;
+}
+
 int main(int argc, char *argv[]) {
 	int fa,nfa,mfa;				/* current argument we're looking at */
 	int verb = 0;
-	int doplot = 0;
+	int doplot = 0;				/* nz to plot curves, 2 to plot raw Lab values as well */
+	int do3dplot = 0;			/* nz to save 3D plot of raw & calibrated colorant loci */
 	int initial = 0;			/* Do initial creation of cal target and calibration */
 	int recal = 0;				/* Do recalibrate/use cal target. */
 	int verify = 0;				/* Do verification */
@@ -591,8 +611,8 @@ int main(int argc, char *argv[]) {
 	int n_cvals;				/* Number of calibration curve values */
 	wval *cvals[MAX_CHAN];		/* Calibration curve tables */
 	rspl *tcurves[MAX_CHAN];	/* Tweak target curves */
-
 	int i, j;
+
 
 	/* Init pointers to NULL */
 	for (j = 0; j < MAX_CHAN; j++) {
@@ -642,7 +662,7 @@ int main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 1;		/* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -676,6 +696,10 @@ int main(int argc, char *argv[]) {
 					doplot = atoi(na);
 				} else
 					doplot = 1;				/* Plot various graphs */
+			}
+
+			else if (argv[fa][1] == 'w') {
+				do3dplot = 1;				/* Plot input in 3D */
 			}
 
 			else if (argv[fa][1] == 'i') {
@@ -846,6 +870,7 @@ int main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	smooth *= xsmooth;
 
 	if (!(   (initial && !recal && !verify && !imitate)
@@ -904,6 +929,7 @@ int main(int argc, char *argv[]) {
 		if (icg->find_kword(icg, 0, "SPECTRAL_BANDS") < 0)
 			error ("Requested spectral interpretation when data not available");
 	}
+
 
 	/* Get colorspace information from input CGATS file */
 	{
@@ -971,6 +997,8 @@ int main(int argc, char *argv[]) {
 				   calname,icx_inkmask2char(pct->devmask, 1),inname,icx_inkmask2char(devmask, 1)); 
 
 		/* Load the previous expected absolute DE response */
+		/* We use this to reproduce a calibrated response, even though absolute DE */
+		/* is not the parameter that is being linearized. */
 		/* It will be in the third table with other type "CAL" */
 		if (tcg->ntables >= 3 && tcg->t[2].tt == tt_other && tcg->t[0].oi == 0) {
 			int ti;
@@ -1410,6 +1438,35 @@ int main(int argc, char *argv[]) {
 			}
 			do_plot(xx, yy[0], yy[1], yy[2], PRES);
 		}
+	}
+
+	/* Create 3D plot of raw colorant loci */
+	if (do3dplot) {
+		char vname[MAXNAMEL+3] = "";
+		vrml *wrl;
+		int doaxes = 0;
+		int devres = 21;
+
+		strcpy(vname, baname);
+		strcat(vname, "_r");
+
+		if ((wrl = new_vrml(vname, doaxes, vrml_lab)) == NULL)
+			error("new_vrml failed for '%s%s'",vname,vrml_ext());
+
+		for (j = 0; j < devchan; j++) {
+			double last[3];
+
+			for (i = 0; i < devres; i++) {
+				co tp;	/* Test point */
+				tp.p[0] = i/(double)(devres-1);
+				raw[j]->interp(raw[j], &tp);
+				if (i > 0) {
+					wrl->add_cone(wrl, last, tp.v, NULL, 20/(devres-1.0));
+				}
+				icmCpy3(last, tp.v);
+			}
+		}
+		wrl->del(wrl);		/* Write file and delete */
 	}
 
 	/* Create a RSPL of absolute deltaE and relative deltaE '94 */ 
@@ -1978,7 +2035,7 @@ int main(int argc, char *argv[]) {
 	
 				printf("Target curves plot:\n");
 	
-				for (i = 0; i < (PRES-1); i++) {
+				for (i = 0; i < PRES; i++) {
 					co tp;	/* Test point */
 					double pp = i/(PRES-1.0);
 	
@@ -2118,6 +2175,83 @@ int main(int argc, char *argv[]) {
 			              PRES, 0);
 		}
 
+		/* Plot the expected calibrated relative deltaE '94 */
+		if (doplot) {
+			double xx[PRES];
+			double yy[10][PRES];
+
+			printf("Expected calibrated output relative dE94 plot:\n");
+
+			for (j = 0; j < 10 && j < devchan; j++) {
+				double prev[3], tot = 0.0;
+
+				for (i = 0; i < PRES; i++) {
+					double x = i/(PRES-1.0);
+					co tp;	/* Test point */
+
+					tp.p[0] = interp_cal(cvals[j], n_cvals, x);
+					raw[j]->interp(raw[j], &tp);
+
+					if (i == 0) {
+						prev[0] = tp.v[0];
+						prev[1] = tp.v[1];
+						prev[2] = tp.v[2];
+					} else {
+						tot += icmCIE94(tp.v, prev);
+						prev[0] = tp.v[0];
+						prev[1] = tp.v[1];
+						prev[2] = tp.v[2];
+					}
+					xx[i] = x;
+					yy[j][i] = tot; 
+				}
+			}
+
+			do_plot10(xx, devchan > 3 ? yy[3] : NULL,	/* Black */
+			              devchan > 1 ? yy[1] : NULL,	/* Red */
+			              devchan > 4 ? yy[4] : NULL,	/* Green */
+			              devchan > 0 ? yy[0] : NULL,	/* Blue */
+			              devchan > 2 ? yy[2] : NULL,	/* Yellow */
+			              devchan > 5 ? yy[5] : NULL,	/* Purple */
+		                  devchan > 6 ? yy[6] : NULL,	/* Brown */
+		                  devchan > 7 ? yy[7] : NULL,	/* Orange */
+		                  devchan > 8 ? yy[8] : NULL,	/* Grey */
+		                  devchan > 9 ? yy[9] : NULL,	/* White */
+			              PRES, 0);
+		}
+
+		/* Create 3D plot of calibrated colorant loci */
+		if (do3dplot) {
+			char vname[MAXNAMEL+3] = "";
+			vrml *wrl;
+			int doaxes = 0;
+			int devres = 21;
+	
+			strcpy(vname, baname);
+			strcat(vname, "_c");
+	
+			if ((wrl = new_vrml(vname, doaxes, vrml_lab)) == NULL)
+				error("new_vrml failed for '%s%s'",vname,vrml_ext());
+	
+			for (j = 0; j < devchan; j++) {
+				double last[3];
+
+				for (i = 0; i < devres; i++) {
+					co tp;	/* Test point */
+					double x;
+
+					x = i/(double)(devres-1);
+					tp.p[0] = interp_cal(cvals[j], n_cvals, x);
+					raw[j]->interp(raw[j], &tp);
+					if (i > 0) {
+						wrl->add_cone(wrl, last, tp.v, NULL, 20/(devres-1.0));
+					}
+					icmCpy3(last, tp.v);
+				}
+			}
+			wrl->del(wrl);		/* Write file and delete */
+		}
+
 		/* Write out an Argyll .CAL file */
 		if (dowrite) {
 			cgats *ocg;						/* output cgats structure */
@@ -2196,7 +2330,7 @@ int main(int argc, char *argv[]) {
 			/* Add a third table which is the expected absolute DE response */
 			/* of the calibrated device. */
 			ocg->add_table(ocg, tt_other, 0);	/* Add a table for RAMDAC values */
-			ocg->add_kword(ocg, 2, "DESCRIPTOR", "Argyll Output Calibration Expected DE Response",NULL);
+			ocg->add_kword(ocg, 2, "DESCRIPTOR", "Argyll Output Calibration Expected Absolute DE Response",NULL);
 			ocg->add_kword(ocg, 2, "ORIGINATOR", "Argyll printcal", NULL);
 			atm[strlen(atm)-1] = '\000';	/* Remove \n from end */
 			ocg->add_kword(ocg, 2, "CREATED",atm, NULL);
@@ -2332,6 +2466,8 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 
 

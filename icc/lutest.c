@@ -57,7 +57,7 @@ void error(char *fmt, ...), warning(char *fmt, ...);
 #undef TEST_APXLS	/* [und] test the cLut ICM_CLUT_SET_APXLS option */
 #undef TESTLIN1		/* [und] test linear in curves */
 #undef TESTLIN2		/* [und] test linear clut (fails with Lab) */
-#undef TESTLIN3		/* [und] test linear out curves */
+#undef TESTLIN3		/* [und] test linear out curves (makes Lab == XYZ response) */
 
 #undef IGNORE_WRITE_FORMAT_ERRORS	/* [und] warn rather than error on write format check */
 

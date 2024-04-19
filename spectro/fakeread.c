@@ -184,13 +184,14 @@ int main(int argc, char *argv[])
 	char *xyzfname[3] = { "XYZ_X", "XYZ_Y", "XYZ_Z" };
 	char *labfname[3] = { "LAB_L", "LAB_A", "LAB_B" };
 
+
 	error_program = "Fakeread";
 	if (argc < 3)
 		usage("Too few arguments");
 
 	/* Process the arguments */
 	mfa = 2;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -438,6 +439,7 @@ int main(int argc, char *argv[])
 		strcat(outname,"_r");
 	strcat(outname,".ti3");
 
+
 	rand32(seed);		/* Init seed */
 
 	if (revlookup && (
@@ -502,6 +504,7 @@ int main(int argc, char *argv[])
 	if (revlookup && !inti3) {
 		error("reverse lookup expects .ti3 file as input");
 	}
+
 
 	/* Deal with separation */
 	if (dosep) {
@@ -1489,5 +1492,7 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 

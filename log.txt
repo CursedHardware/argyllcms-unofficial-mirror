@@ -2,11 +2,50 @@
 Argyll CMS change log
 =====================
 
-Not included yet:
-----------------
+Version 3.2.0 17th April 2024
+-------------
 
-* Started adding comms for Lumagen Radiance detection.
+ * Added extra diagnostics to printcal.
 
+ * Added colprof -nI option, that adds inverse gamut mapping to
+   Perceptual and Saturation A2B tables, if they are being created.
+   This is not recommended for source profiles, since it
+   handicaps true gamut mapping, but may be a workaround
+   to faulty Adobe Lightroom BPC for Perceptual intent in output prodfiles.
+
+ * Added error message for ColorMunki spectro sensor
+   internal cable being disconnected.
+
+ * Fixed bug in Appearance B2A conversion that appeared in V3.0 release.
+
+Version 3.1.2 29th February 2024 (private release)
+------------- 
+
+ * Fixed crash in chartread strip reading when given
+   faulty .ti2 file.
+
+ * Tweaked i1d3 AIO adaptive integration time
+   to reduce measure time to be more comparable to
+   just using Rev A commands.
+
+ * Re-worked ARGYLL_NOT_INTERACTIVE stdin to work much better on
+   MSWin when connected to a pipe. Removed code that
+   empties stdin before expecting use input when ARGYLL_NOT_INTERACTIVE.
+
+ * Fixed OS X dispwin -c etc.
+
+ * Fixed colprof IGNORE_DISP_ZEROS heuristic so that it doesn't
+   reject OLED red measurements that have a Z value of 0.0.
+
+Version 3.1.1 17th January 2024 (private release)
+-------------
+
+* Added -H option to colprof to allow setting the charTargetTag to given
+  string, rather than automatically filling with .ti3 data.
+
+* Changed instrument monitoring thread debug messages to only
+  be shown on -D9, so they don't interfere with messages shown
+  at -D8.
 
 Version 3.1.0  1st December 2023
 -------------
@@ -22,7 +61,7 @@ Version 3.1.0  1st December 2023
   resulted in bumpy black generation. (Only occured when compiled
   using recent gcc with code optimization.)
 
-* Changed ICC profile serialization of pure ASCII text tags
+* Changed ICC profile serialization of pure ASCII text tags to
   emit a warning rather than error if they are fed non-ASCII utf8 input.
 
 * Made ICC code a little more robust against bad profiles.

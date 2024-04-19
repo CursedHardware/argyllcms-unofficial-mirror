@@ -40,10 +40,6 @@ RSPL_FILES="
 	../rspl/rspl1.c
 	"
 
-USB_FILES="
-	../usb/driver/driver_api.h
-	"
-
 SPECTRO_FILES="
 	License2.txt
 	spotread.c
@@ -135,6 +131,8 @@ SPECTRO_FILES="
 	usbio.h
 	usbio.c
 	usbio_nt.c
+	usbio_w0.c
+	usbio_dk.c
 	usbio_ox.c
 	usbio_lx.c
 	rspec.h
@@ -145,9 +143,10 @@ SPECTRO_FILES="
 	base64.c
 	xrga.h
 	xrga.c
+	driver_api.h
 	"
 
-FILES=" $H_FILES $CGATS_FILES $NUMLIB_FILES $RSPL_FILES $XICC_FILES $USB_FILES $SPECTRO_FILES "
+FILES=" $H_FILES $CGATS_FILES $NUMLIB_FILES $RSPL_FILES $XICC_FILES $SPECTRO_FILES "
 
 rm -f instlib.zip
 rm -rf _zipdir

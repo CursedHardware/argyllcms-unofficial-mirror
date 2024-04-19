@@ -199,24 +199,6 @@ struct _icxClip {
 	double  ocent[MXDO];			/* Default center of clut output gamut used if cm == NULL */
 }; typedef struct _icxClip icxClip;
 
-/* Structure to convey viewing conditions */
-typedef struct {
-	ViewingCondition Ev;/* Enumerated Viewing Condition */
-	double Wxyz[3];		/* Reference/Adapted White XYZ (Y range 0.0 .. 1.0) */
-	double La;			/* Adapting/Surround Luminance cd/m^2 */
-	double Yb;			/* Relative Luminance of Background to reference white */
-	double Lv;			/* Luminance of white in the Image/Scene/Viewing field (cd/m^2) */
-						/* Ignored if Ev is set to other than vc_none */
-	double Yf;			/* Flare as a fraction of the reference white (Y range 0.0 .. 1.0) */
-	double Yg;			/* Glare as a fraction of the adapting/surround (Y range 0.0 .. 1.0) */
-	double Gxyz[3];		/* The Glare white coordinates (ie the Ambient color) */
-						/* will be taken from Wxyz if Gxyz <= 0.0 */
-	double hkscale;		/* [1.0] HK scaling factor */
-	double mtaf;		/* [0.0] Mid tone partial adapation factor from Wxyz to Wxyz2 0.0 .. 1.0 */
-	double Wxyz2[3];	/* Mid tone Adapted White XYZ (Y range 0.0 .. 1.0) */
-	char *desc;			/* Possible description of this VC */
-} icxViewCond;
-
 #define XICC_DEFAULT_GLARE 5	/* Default glare in % */
 
 /* Method of black point adaptation */
@@ -674,6 +656,8 @@ struct _profxinf {
 
 	char *copyright;		/* Copyrigh text, NULL for default */
 
+	char *chartarget;		/* CharTaret text, NULL for none */
+
 	/* Attribute flags */
 	int transparency;		/* NZ for Trasparency, else Reflective */
 	int matte;				/* NZ for Matte, else Glossy */
@@ -695,9 +679,9 @@ struct _profxinf {
 int xicc_enum_viewcond(
 xicc *p,			/* Expanded profile to get white point (May be NULL if desc NZ) */
 icxViewCond *vc,	/* Viewing parameters to return, May be NULL if desc is nz */
-int no,				/* Enumeration to return, -1 for default, -2 for none */
+int no,				/* Enumeration to return, -1 for default, -2 for none = use *as */
 char *as,			/* String alias to number, NULL if none */
-int desc,			/* NZ - Just return a description of this enumeration in vc */
+int desc,			/* NZ - Just return a description and index of this enumeration in vc */
 double *wp			/* Provide XYZ white point if xicc is NULL */
 );
 

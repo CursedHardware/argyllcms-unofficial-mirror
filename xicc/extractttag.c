@@ -72,13 +72,14 @@ main(int argc, char *argv[]) {
 	void *buf = NULL;
 	int rv = 0;
 	
+
 	error_program = argv[0];
 
 	if (argc < 3)
 		usage("Too few parameters");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -127,6 +128,7 @@ main(int argc, char *argv[]) {
     if (fa >= argc || argv[fa][0] == '-') usage("Missing output filename");
     strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
 
+
 	/* - - - - - - - - - - - - - - - */
 
 	/* Open up the file for reading */
@@ -150,6 +152,7 @@ main(int argc, char *argv[]) {
 	} else if (ro->ttype != icSigTextType) {
 		error("Tag isn't TextType or UnknownType");
 	}
+
 
 	if (docal) {
 		cgatsFile *cgf;
@@ -216,3 +219,5 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+

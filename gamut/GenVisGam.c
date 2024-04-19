@@ -11,10 +11,8 @@
 #include <math.h>
 #include "numlib.h"
 #include "icc.h"
+#include "cgats.h"
 #include "gamut.h"
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 
 /* 2 degree spectrum locus in xy coordinates */
 /* nm, x, y, Y CMC */

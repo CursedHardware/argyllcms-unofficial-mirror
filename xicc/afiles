@@ -25,14 +25,10 @@ iccjpeg.h
 iccjpeg.c
 xfit.h
 xfit.c
-xdgb.h
-xdgb.c
 xspect.h
 xspect.c
 specplot.c
 specsubsamp.c
-xdevlin.h
-xdevlin.c
 example.sp
 xicclu.c
 iccgamut.c

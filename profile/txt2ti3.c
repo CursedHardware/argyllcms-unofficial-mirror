@@ -148,13 +148,14 @@ int main(int argc, char *argv[])
 	double mxsum = -1.0;	/* Maximim sum of inks found in file */
 	int mxsumix = 0;
 
+
 	error_program = "txt2ti3";
 
 	if (argc <= 1)
 		usage("Too few arguments");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -241,6 +242,7 @@ int main(int argc, char *argv[])
 		default:
 			usage("Wrong number of filenames");
 	}
+
 
 	if (out2) {
 		strcpy (outname2, outname);
@@ -582,6 +584,7 @@ int main(int argc, char *argv[])
 
 	if (ciename[0] == '\000' && specname[0] == '\000')
 		error("Input file doesn't contain either CIE or spectral data");
+
 
 	/* Setup output cgats file */
 	ocg = new_cgats();	/* Create a CGATS structure */
@@ -1073,4 +1076,6 @@ static int trans(char *dst, char *src) {
 
 	return 0;
 }
+
+
 

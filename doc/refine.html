@@ -40,6 +40,7 @@
 
 
 
+
       Verbose</tt><tt><br>
     </tt><tt>
       &nbsp;-c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -51,10 +52,12 @@ Create
 
 
 
+
       initial abstract correction profile</tt><tt><br>
     </tt><tt>
       &nbsp;-g&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Don't
+
 
 
 
@@ -77,11 +80,13 @@ Aim
 
 
 
+
       for white point relative match rather than absolute</tt><tt><br>
     </tt><tt> &nbsp;-f [illum]&nbsp;&nbsp;&nbsp; Use Fluorescent
       Whitening Agent compensation [opt. simulated inst. illum.:</tt><tt><br>
     </tt><tt>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
 
 
 
@@ -104,6 +109,7 @@ Aim
 
 
 
+
       A, C, D50 (def.), D50M2, D65, F5, F8, F10 or file.sp</tt><tt><br>
     </tt><tt> &nbsp;-o observ&nbsp;&nbsp;&nbsp;&nbsp; Choose CIE
       Observer for spectral data:</tt><tt><br>
@@ -117,18 +123,19 @@ Aim
 
 
 
+
       1964_10, 2012_2 (def.), 2012_10, S&amp;B 1955_2, J&amp;V 1978_2 or
       file.cmf</tt><tt><br>
+      
 
-
-    </tt><tt> &nbsp;cietarget&nbsp;&nbsp;&nbsp;&nbsp; Target CIE or
+    </tt><tt>&nbsp;cietarget&nbsp;&nbsp;&nbsp;&nbsp; Target CIE or
       spectral values, CGATS file (e.g. .ti3)</tt><tt><br>
     </tt><tt> &nbsp;ciecurrent&nbsp;&nbsp;&nbsp; Actual CIE or spectral
       values, CGATS file (e.g. .ti3)</tt><tt><br>
     </tt><tt> &nbsp;[outdevicc]&nbsp;&nbsp; Output device ICC profile to
       set gamut limit (not used if -g)</tt><tt><br>
-    </tt><tt> &nbsp;[inabs]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      Previous abstract correction ICC profile (not used if -c)</tt><tt><br>
+    </tt><tt> &nbsp;[inabs]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Previous
+      abstract correction ICC profile (not used if -c)</tt><tt><br>
     </tt><tt> &nbsp;outabs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       Created/refined abstract correction ICC profile</tt><br>
     <h3>Usage Details</h3>
@@ -218,8 +225,9 @@ Aim
     given <a href="File_Formats.html#.cmf">.cmf</a> file.<br>
     <br>
     
- If both CIE and spectral values are present in
-    the input files, the CIE values will be used by default. Using the <span
+
+    If both CIE and spectral values are present in the input files, the
+    CIE values will be used by default. Using the <span
       style="font-weight: bold;">-i</span>, <span style="font-weight:
       bold;">-o</span> or <span style="font-weight: bold;">-f</span>
     flag will force spectral values to be used. The the <span
@@ -229,6 +237,7 @@ Aim
     <br>
     <span style="font-style: italic; font-weight: bold;">cietarget</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Is
+
 
 
 
@@ -262,6 +271,7 @@ If
 
 
 
+
     the <span style="font-weight: bold;">-g</span> flag is not used,
     then the output device ICC profile should be supplied here, to allow
     <span style="font-weight: bold;">refine</span> to limit its
@@ -269,6 +279,7 @@ If
     <br>
     &nbsp;[<span style="font-weight: bold; font-style: italic;">inabs</span>]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 After
+
 
 
 
@@ -284,6 +295,7 @@ After
     <br>
     &nbsp;<span style="font-weight: bold; font-style: italic;">outabs</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 The
+
 
 
 
@@ -364,6 +376,7 @@ The
 
 
 
+
       </span>or <span style="font-weight: bold;">target_proofer.icm</span>,
       with the addition of the "-p fix1.icm" option to specify the
       abstract correction profile be applied.<br>
@@ -383,6 +396,7 @@ The
       <span style="font-weight: bold;"><span style="font-weight: bold;"></span></span><br>
       <span style="font-weight: bold;"><span style="font-weight: bold;">&nbsp;</span></span>We
 can
+
 
 
 
@@ -423,6 +437,7 @@ can
       Rounds of improvements can be continues by looping back to <span
         style="font-weight: bold;">&gt;&gt;&gt;</span>, being careful to
       increment the names of the <span style="font-weight: bold;">fixN.icm</span>,&nbsp;
+
 
 
 

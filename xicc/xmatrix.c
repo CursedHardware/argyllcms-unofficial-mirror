@@ -54,9 +54,23 @@
 
 #define XSHAPE_GAMTHR	   0.01		/* Input threshold for linear slope below gamma power */
 
-#undef DEBUG			/* Extra printfs */
-#undef DEBUG_PLOT		/* Plot curves */
-#define G_DEB 0			/* g_deb default value */ 
+#undef DEBUG			/* [und] Extra printfs */
+#undef DEBUG_PLOT		/* [und] Plot curves */
+#undef DEBUG_SPEC 		/* [und] Debug some specific cases */
+#define G_DEB 0			/* [und] g_deb default value */ 
+
+/* Debug some specific cases (fwd_relpcs_outpcs, bwd_outpcs_relpcs) */
+#ifdef DEBUG_SPEC
+# undef DBS
+# ifdef CNDTRACE
+#  define DBS(xxx) if (p->trace) printf xxx ;
+# else
+#  define DBS(xxx) printf xxx ;
+# endif
+#else
+# undef DBS
+# define DBS(xxx) 
+#endif
 
 /* ========================================================= */
 /* Forward and Backward Matrix type conversion */
@@ -149,13 +163,21 @@ double *out, double *in) {
 	icxLuMatrix *p = (icxLuMatrix *)pp;
 
 	if (is == icSigLabData && p->natpcs == icSigXYZData) {
+		DBS(("Matrix_fwd_relpcs_outpcs: Lab in = %s\n", icmPdv(p->inputChan, in)));
 		icmLab2XYZ(&icmD50, out, in);
+		DBS(("Matrix_fwd_relpcs_outpcs: XYZ = %s\n", icmPdv(p->outputChan, out)));
 		icxLuMatrixFwd_abs(p, out, out);
+		DBS(("Matrix_fwd_relpcs_outpcs: abs XYZ = %s\n", icmPdv(p->outputChan, out)));
 	} else if (is == icSigXYZData && p->natpcs == icSigLabData) {
+		DBS(("Matrix_fwd_relpcs_outpcs: XYZ in = %s\n", icmPdv(p->inputChan, in)));
 		icmXYZ2Lab(&icmD50, out, in);
+		DBS(("Matrix_fwd_relpcs_outpcs: Lab = %s\n", icmPdv(p->outputChan, out)));
 		icxLuMatrixFwd_abs(p, out, out);
+		DBS(("Matrix_fwd_relpcs_outpcs: abs Lab = %s\n", icmPdv(p->outputChan, out)));
 	} else {
+		DBS(("Matrix_fwd_relpcs_outpcs: rel = %s\n", icmPdv(p->inputChan, in)));
 		icxLuMatrixFwd_abs(p, out, in);
+		DBS(("Matrix_fwd_relpcs_outpcs: abs = %s\n", icmPdv(p->outputChan, out)));
 	}
 }
 
@@ -271,11 +293,15 @@ icColorSpaceSignature os,		/* Output space, XYZ or Lab */
 double *out, double *in) {
 	icxLuMatrix *p = (icxLuMatrix *)pp;
 
-	icxLuMatrixFwd_abs(p, out, in);
+	DBS(("Matrix_bwd_outpcs_relpcs: rel = %s\n", icmPdv(p->outputChan, in)));
+	icxLuMatrixBwd_abs(p, out, in);
+	DBS(("Matrix_bwd_outpcs_relpcs: abs = %s\n", icmPdv(p->inputChan, out)));
 	if (os == icSigXYZData && p->natpcs == icSigLabData) {
 		icmLab2XYZ(&icmD50, out, out);
-	} else if (os == icSigXYZData && p->natpcs == icSigLabData) {
+		DBS(("Matrix_bwd_outpcs_relpcs: XYZ = %s\n", icmPdv(p->inputChan, out)));
+	} else if (os == icSigLabData && p->natpcs == icSigXYZData) {
 		icmXYZ2Lab(&icmD50, out, out);
+		DBS(("Matrix_bwd_outpcs_relpcs: Lab = %s\n", icmPdv(p->inputChan, out)));
 	}
 }
 
@@ -371,9 +397,7 @@ int                   dir			/* 0 = fwd, 1 = bwd */
 		else
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
-		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale,
-		                 p->vc.mtaf, p->vc.Wxyz2);
+		p->cam->set_view_vc(p->cam, &p->vc);
 	} else {
 		p->cam = NULL;
 	}

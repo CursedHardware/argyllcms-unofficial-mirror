@@ -20,8 +20,13 @@
     </small><small style="font-family: monospace;">&nbsp;<a href="#p">-p</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;
       &nbsp; Plot graphs.<br>
+      &nbsp;<a moz-do-not-send="true" href="#w">-w</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      Save colorant 3D plot to inoutname_r.x3d.html and
+      inoutname_c.x3d.html<br>
       &nbsp;<a href="#i">-i</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
+
+
 
 
       &nbsp; &nbsp; &nbsp;&nbsp; Initial calibration, set targets,
@@ -34,6 +39,8 @@
       style="font-family: monospace;">&nbsp;<a href="#e">-e</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;
 &nbsp;
+
+
 
 
       &nbsp; &nbsp;&nbsp; Verify against previous .cal<br>
@@ -65,9 +72,13 @@ Set
 initial
 
 
+
+
         maximum device % target (override auto)</tt><tt><br>
       </tt></small><small><span style="font-family: monospace;"><small>&nbsp;<a
             href="#m">-m# percent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
           Set initial dev target to % of auto maximum<br>
@@ -77,6 +88,8 @@ initial
         &nbsp;<a href="#t">-t# percent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Set
 initial
+
+
 
 
         50% transfer curve percentage target<br style="font-family:
@@ -90,11 +103,15 @@ g,
 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
+
+
           Second channel</span><br style="font-family: monospace;">
         <span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 y,
 b,
 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
 
 
           Third channel</span><br style="font-family: monospace;">
@@ -104,10 +121,14 @@ k,&nbsp;&nbsp;&nbsp;
 Fourth
 
 
+
+
           channel, etc.<br>
           &nbsp;<a href="#a">-a</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Create
 an
+
+
 
 
           Adobe Photoshop .AMP file as well as a .cal<br
@@ -119,6 +140,8 @@ Base
 name
 
 
+
+
           of previous .cal file for recal or verify.</span><br
           style="font-family: monospace;">
         <span style="font-family: monospace;">&nbsp;</span><a
@@ -126,6 +149,8 @@ name
           style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Base
 name
+
+
 
 
           of input .ti3 file, output .cal file</span><br>
@@ -144,6 +169,14 @@ name
     calibration is created. The channels will be plotted in the graph
     colors: Blue, Red, Yellow, Black, Green, Purple, Brown, Orange,
     Grey, White.<br>
+    <br>
+    <a name="w"></a><span style="font-weight: bold;">-w</span> Save
+    colorant 3D plot to inoutname_r.x3d.html and inoutname_c.x3d.html.
+    The first plot is the uncalibrated colorant response, with each cone
+    representing a 5% increment of raw device values. The second plot is
+    the calibrated and maximum device value limited response, with each
+    cone representing 5% increments of the calibrated device values.
+    Both these plots are in L*a*b* space.<br>
     <br>
     <a name="i"></a><span style="font-weight: bold;">-i</span> Select
     initial calibration mode. Initial calibration mode allows setting
@@ -230,7 +263,7 @@ name
     colorant value reaches the point of diminishing returns, while the <span
       style="font-weight: bold;">-x</span> parameter allows this default
     to be overridden. The <span style="font-weight: bold;">-x</span>
-    paramater can be used multiple times, once for each channel that is
+    parameter can be used multiple times, once for each channel that is
     being set. The <span style="font-weight: bold;">-x</span> should be
     followed by the channel number between 0 and 15, or the aliases <span
       style="font-weight: bold;">r</span>, <span style="font-weight:
@@ -287,12 +320,12 @@ name
     default is to create a calibration curve that results in a perfectly
     even change in output for each change in the calibrated device
     value, as measured by steps in delta E94. The <span
-      style="font-weight: bold;">-x</span> parameter allows setting a
+      style="font-weight: bold;">-t</span> parameter allows setting a
     target curve above or below the perfectly visual linear, by setting
     the aim value at 50% input. An aim higher than 50% will cause that
     channel to become more intense by the 50% mark, while a value lower
     than 50% will cause the channel to become less intense by the 50%
-    mark than perfectly linear.The <span style="font-weight: bold;">-x</span>
+    mark than perfectly linear.The <span style="font-weight: bold;">-t</span>
     should be followed by the channel number between 0 and 15, or the
     aliases <span style="font-weight: bold;">r</span>, <span
       style="font-weight: bold;">g</span> or <span style="font-weight:
@@ -324,6 +357,8 @@ name
     test chart on the <span style="text-decoration: underline;">non-color
 
 
+
+
       managed</span>, <span style="text-decoration: underline;">non-calibrated</span>
     device, and measuring it. The test chart consists of step wedges for
     each of the device primary colors, from the media white to full
@@ -332,6 +367,8 @@ name
     For the initial calibration (<span style="font-weight: bold;">-i</span>),
 the
 range
+
+
 
 
     of device values to be used and the shape of the target

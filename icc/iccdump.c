@@ -24,10 +24,10 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <string.h>
+#include <time.h>
 #include "icc.h"
 
 void error(char *fmt, ...), warning(char *fmt, ...);
-
 
 void usage(void) {
 	fprintf(stderr,"Dump an ICC file in human readable form, V%s\n",ICCLIB_VERSION_STR);
@@ -73,6 +73,7 @@ main(int argc, char *argv[]) {
 	icc *icco;
 	int rv = 0;
 	
+
 	if (argc < 2)
 		usage();
 

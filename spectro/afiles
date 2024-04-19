@@ -1,3 +1,6 @@
+afiles
+gfiles
+ifiles
 Readme.txt
 IntsLib_Readme.txt
 instlib.txt
@@ -6,9 +9,6 @@ instlib.api.txt
 License.txt
 License2.txt
 License3.txt
-addk.txt
-afiles
-ifiles
 Jamfile
 chartread.c
 dispread.c
@@ -94,7 +94,6 @@ ex1.h
 smcube.c
 smcube.h
 cubecal.h
-spec2cie.c
 average.c
 rspec.h
 rspec.c

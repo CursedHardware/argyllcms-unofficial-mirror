@@ -535,7 +535,7 @@ munki_code munki_imp_init(munki *p) {
 
 	a1logd(p->log,3, "minintcount %d, min_int_time = %f\n", m->minintcount, m->min_int_time);
 
-	/* Get the Chip ID */
+	/* Get the sensor Chip ID */
 	if ((ev = munki_getchipid(p, m->chipid)) != MUNKI_OK)
 		return ev; 
 
@@ -9209,8 +9209,15 @@ munki_code munki_parse_eeprom(munki *p, unsigned char *buf, unsigned int len) {
 #ifndef FAKE_EEPROM				/* Get [und] EEPROM data from munki_fake_eeprom.h */
 	/* Check that the chipid matches the calibration */
 	for (i = 0; i < 8; i++) {
-		if (chipid[i] != m->chipid[i])
-			return MUNKI_HW_CALIBMATCH;
+		if (chipid[i] != m->chipid[i]) {
+			for (i = 0; i < 8; i++) {
+				if (m->chipid[i] != 0xff)
+					break;
+			}
+			if (i < 8)
+				return MUNKI_HW_CALIBMATCH;
+			return MUNKI_HW_NOSENSOR;
+		}
 	}
 #endif
 

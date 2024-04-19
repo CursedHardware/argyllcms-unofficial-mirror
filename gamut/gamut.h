@@ -397,6 +397,7 @@ struct _gamut {
 	                              int doaxes, int docusps); /* Write to a VRML .wrl/.x3d file */
 	int (*write_gam)(struct _gamut *s, char *filename);		/* Write to a CGATS .gam file */
 	int (*read_gam)(struct _gamut *s, char *filename);		/* Read from a CGATS .gam file */
+	int (*read_gam_fp)(struct _gamut *s, cgatsFile *fp, char *filename);	/* Read using fp */
 
 	int (*write_trans_vrml)(struct _gamut *s, char *filename, /* Write transformed VRML/X3D .wrl */
 		int doaxes, int docusps, void (*transform)(void *cntx, double out[3], double in[3]), /* with xform */

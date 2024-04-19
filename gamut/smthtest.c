@@ -25,14 +25,12 @@
 #include <fcntl.h>
 #include <string.h>
 #include <math.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
 #include "rspl.h"
+#include "cgats.h"
 #include "gamut.h"
 #include "nearsmth.h"
 #include "vrml.h"
@@ -120,10 +118,6 @@ main(int argc, char *argv[]) {
 	gammapweights xweights[14];
 
 	int i;
-
-#if defined(__IBMC__) && defined(_M_IX86)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-#endif
 
 	error_program = argv[0];
 

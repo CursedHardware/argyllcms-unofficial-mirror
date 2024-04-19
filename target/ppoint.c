@@ -31,9 +31,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include "numlib.h"
 #include "rspl.h"
 #include "sort.h"
@@ -749,11 +746,6 @@ void *od				/* context for Perceptual function */
 
 	if ((s = (ppoint *)calloc(sizeof(ppoint), 1)) == NULL)
 		error ("ppoint: malloc failed");
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	if (di > MXPD)
 		error ("ppoint: Can't handle di %d",di);

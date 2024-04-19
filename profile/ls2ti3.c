@@ -124,13 +124,14 @@ int main(int argc, char *argv[]) {
 	int ndchan = 3;			/* Number of device channels, 0 = no device, RGB = 3, CMYK = 4 */
 	cgats_set_elem *setel;	/* Array of set value elements */
 
+
 	error_program = "ls2ti3";
 
 	if (argc < 3)
 		usage("Too few arguments");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -164,6 +165,7 @@ int main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage("output basename not found");
 	strncpy(outname,argv[fa++],MAXNAMEL-4); outname[MAXNAMEL-4] = '\000';
 	strcat(outname,".ti3");
+
 
     if ((ifp = fopen(inname, "r")) == NULL)
 		error("Unable to read '%s'",inname);
@@ -221,6 +223,7 @@ int main(int argc, char *argv[]) {
 
 	if ((patches = calloc(npat, sizeof(patch))) == NULL)
 		error("malloc failed");
+
 
 	/* Read all the patches */
 	node = mxmlFindElement(data, data, "patch", NULL, NULL, MXML_DESCEND_FIRST);
@@ -375,6 +378,8 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 
 

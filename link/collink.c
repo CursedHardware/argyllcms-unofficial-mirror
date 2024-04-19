@@ -1933,6 +1933,7 @@ main(int argc, char *argv[]) {
 	profxinf xpi;				/* Extra profile information */
 	int i;
 
+
 	error_program = argv[0];
 	check_if_not_interactive();
 	memset((void *)&xpi, 0, sizeof(profxinf));	/* Init extra profile info to defaults */
@@ -2653,6 +2654,7 @@ main(int argc, char *argv[]) {
 	}
 
 
+
 #ifdef NEVER
 	if (li.in.bt1886) {
 		printf("~1 bt1886 flag = %d\n",li.in.bt1886);
@@ -2781,6 +2783,7 @@ main(int argc, char *argv[]) {
 #endif
 		}
 	}
+
 
 	/* Set some implied flags for 3dLuts */
 	if (li.tdlut) {
@@ -5426,6 +5429,8 @@ int write_cube_3DLut(clink *li, icc *icc, char *fname) {
 
 	return 0;
 }
+
+
 
 
 

@@ -43,7 +43,6 @@
 #include "counters.h"
 #include "vrml.h"
 
-
 static void diag_gamut(icxLuBase *p, double detail, int doaxes,
                        double tlimit, double klimit, char *outname);
 
@@ -145,13 +144,14 @@ main(int argc, char *argv[]) {
 	icColorSpaceSignature pcsor = icSigLabData;		/* Default */
 	icmLookupOrder    order  = icmLuOrdNorm;		/* Default */
 	
+
 	error_program = argv[0];
 
 	if (argc < 2)
 		usage("Too few parameters");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -387,6 +387,9 @@ main(int argc, char *argv[]) {
 						usage("Unrecognised parameters after -cm");
 				} else
 					usage("Unrecognised parameters after -c");
+
+				/* Make sure we output perceptual space */
+				pcsor = icxSigJabData;
 			}
 			else 
 				usage("Unknown flag");
@@ -518,7 +521,7 @@ main(int argc, char *argv[]) {
 #ifdef NEVER
 	printf("~1 output space flags = 0x%x\n",fl);
 	printf("~1 output space intent = %s\n",icx2str(icmRenderingIntent,intent));
-	printf("~1 output space pcs = %s\n",icx2str(icmColorSpaceSignature,pcsor));
+	printf("~1 output space pcs = %s\n",icx2str(icmColorSpaceSig,pcsor));
 	printf("~1 output space viewing conditions =\n"); xicc_dump_viewcond(&vc);
 	printf("~1 output space inking =\n"); xicc_dump_inking(&ink);
 #endif

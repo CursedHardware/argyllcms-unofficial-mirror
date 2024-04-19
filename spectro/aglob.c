@@ -62,6 +62,9 @@
 #include "aglob.h"
 
 /*
+	NOTE :- do we need this info now that we are setting manifest
+	to use the 65001 code page ??
+
 	For MSWin should convert spath to UTF16 and call
 	wide version of FindFirstFileW with  "\\?\" pre-pended to
 	the path. Convert results back to UTF8. (No Nt2K support ?)

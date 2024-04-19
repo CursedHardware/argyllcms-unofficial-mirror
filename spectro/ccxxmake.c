@@ -79,7 +79,6 @@
 #ifdef ENABLE_USB
 # include "spyd2.h"
 #endif
-
 #if defined (NT)
 #include <conio.h>
 #endif
@@ -276,12 +275,13 @@ int main(int argc, char *argv[]) {
 	int uflag = 0;						/* usage flag */
 	int rv;
 
+
 	set_exe_path(argv[0]);				/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
 	/* Process the arguments */
 	mfa = 0;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -623,6 +623,7 @@ int main(int argc, char *argv[]) {
 	if (fa >= argc)
 		usage(uflag | 0,"Output filname expected");
 
+
 	strncpy(outname,argv[fa++],MAXNAMEL-1); outname[MAXNAMEL-1] = '\000';
 	if (strrchr(outname, '.') == NULL)	/* no extension */
 		strcat(outname, doccss ? ".ccss" : ".ccmx");
@@ -634,6 +635,7 @@ int main(int argc, char *argv[]) {
 
 	if (dtinfo == NULL)
 		error("Display technology (-t) must be set");
+
 
 	/* CCSS: See if we're working from a .ti3 file */
 	if (doccss && innames[0][0] != '\000') {
@@ -1340,7 +1342,7 @@ int main(int argc, char *argv[]) {
 					dr->fake2 = -1;
 
 				/* Test the CRT with all of the test points */
-				if ((rv = dr->read(dr, rdcols, npat, 1, npat, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, rdcols, npat, 1, npat, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("disprd returned error code %d\n",rv);
 				}
@@ -1525,7 +1527,7 @@ int main(int argc, char *argv[]) {
 
 			if (c == '4' || c == 0x3) {		/* Exit */
 				if (!saved) {
-					printf("Not saved yet, are you sure ? (y/n): "); fflush(stdout);
+					printf("Not saved yet, are you sure ? (y/n): %s",fl_end); do_fflush();
 					empty_con_chars();
 					c = next_con_char();
 					printf("\n");
@@ -1596,6 +1598,8 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 
 

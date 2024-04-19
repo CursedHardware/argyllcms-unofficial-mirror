@@ -663,7 +663,7 @@ static struct {
 	{ "i1Display3",         { 0x1abfae03, 0xf25ac8e8 }, i1d3_disppro,  i1d3_wacom_dc },
 	{ "i1Display3",         { 0x828c43e9, 0xcbb8a8ed }, i1d3_disppro,  i1d3_tpa_1 },
 	{ "i1Display3",         { 0xe8d1a980, 0xd146f7ad }, i1d3_disppro,  i1d3_barco },
-	{ "i1Display3",			{ 0x171ae295, 0x2e5c7664 }, i1d3_disppro,  i1d3_crysta },
+	{ "i1Display3",         { 0x171ae295, 0x2e5c7664 }, i1d3_disppro,  i1d3_crysta },
 	{ "i1Display3",         { 0x64d8c546, 0x4b24b4a7 }, i1d3_disppro,  i1d3_viewsonic_xri1 },
 	{ NULL }, { NULL } 
 };
@@ -1740,8 +1740,10 @@ i1d3_take_emis_measurement(
 		a1logd(p->log,3,"Got %f %f %f raw, %f %f %f Hz\n",rmeas[0],rmeas[1],rmeas[2],rgb[0],rgb[1],rgb[2]);
 
 		for (i = 0; i < 3; i++) {
-			if (rgb[i] > I1D3_SAT_FREQ)
+			if (rgb[i] > I1D3_SAT_FREQ) {
+				p->th_en = isth;
 				return i1d3_interp_code((inst *)p, I1D3_TOOBRIGHT);
+			}
 		}
 	}
 
@@ -2192,10 +2194,10 @@ i1d3_take_aio_measurement(
 				break;
 			}
 
-			/* If there could be 0.25% quantization error */
-			if (count < 200.0) {
+			/* If there could be 0.5% quantization error */
+			if (count < 100.0) {
 				/* Compute a target integration time */
-				double tt = p->inttime * 200.0/(count > 0.0 ? count : 1.0);
+				double tt = p->inttime * 100.0/(count > 0.0 ? count : 1.0);
 				if (tt > int2)
 					int2 = tt;
 			}
@@ -2873,7 +2875,7 @@ static int i1d3_diff_thread(void *pp) {
 		/* is timing critical */
 		if (p->th_en) {
 //a1logd(p->log,3,"Diffuser thread loop debug = %d\n",p->log->debug);
-			rv = i1d3_get_diffpos(p, &pos, p->log->debug < 8 ? 1 : 0); 
+			rv = i1d3_get_diffpos(p, &pos, p->log->debug <= 8 ? 1 : 0); 
 			if (p->th_term) {
 				p->th_termed = 1;
 				break;
@@ -4646,14 +4648,14 @@ static void create_unlock_response(unsigned int *k, unsigned char *c, unsigned c
 		sr[15] = ((co[0] >> 24) & 0xff) - s0;
 	}
 
-	/* The OEM driver sets the resonse to random bytes, */
+	/* The OEM driver sets the response to random bytes, */
 	/* but we don't need to do this, since the device doesn't */
 	/* look at them. We could add random bytes if an instrument */
 	/* update were to reject zero bytes. */
 	for (i = 0; i < 64; i++)
 		r[i] = 0;
 
-	/* The actual resonse is 16 bytes at offset 24 in the response buffer. */
+	/* The actual response is 16 bytes at offset 24 in the response buffer. */
 	/* The OEM driver xor's challenge byte 2 with response bytes 4..63, but */
 	/* since the instrument doesn't look at them, we only do this to the actual */
 	/* response. */

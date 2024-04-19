@@ -4,7 +4,7 @@
  * the AtoB1 table, and also correct the neutral
  * axis of the BtoA0 and BtoA2 tables.
  *
- * This only works with profiles with icSigLut16Type & icSigLut8Type Luts
+ * Currently this only works with profiles with icSigLut16Type & icSigLut8Type Luts.
  *
  * Author:  Graeme W. Gill
  * Date:    9/7/00
@@ -305,6 +305,7 @@ main(int argc, char *argv[]) {
 	int intsep = 0;			/* Not implemented in xicc yet ??? */
 	int rv = 0;
 
+
 	error_program = argv[0];
 	check_if_not_interactive();
 
@@ -312,7 +313,7 @@ main(int argc, char *argv[]) {
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -441,6 +442,7 @@ main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
 
+
 	/* Open up the profile for reading */
 	if ((rd_fp = new_icmFileStd_name(&err, in_name,"r")) == NULL)
 		error ("Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
@@ -473,6 +475,7 @@ main(int argc, char *argv[]) {
     	if (rh->pcs != icSigLabData)
 			error("Profile is not using a PCS of Lab - can't cope with this yet");
 	}
+
 
 	if (verb && inking == 5) {
 		double tL;
@@ -826,4 +829,6 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 

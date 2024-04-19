@@ -294,7 +294,8 @@
 	 1-5 = Application internals at increasing level of detail
 	 2-6 = Driver level.(overlaps app & coms)
 	 6-7 = high level communications
-	 8-9 = low level communications.
+	 8   = low level communications.
+	 9   = low level communications including polling threads.
 	
 	Warning is a serious internal fault that is going to be ignored at the
 	point it is noticed, but may explain any unexpected behaviour.
@@ -415,8 +416,14 @@ extern void verbose(int level, char *fmt, ...);
 extern int ret_null_on_malloc_fail;
 
 extern void check_if_not_interactive();
+extern void do_fflush();
 extern int not_interactive;
+#ifdef NT
+extern DWORD stdin_type;			/* FILE_TYPE_CHAR, FILE_TYPE_PIPE or assume file */ 
+#endif
+
 extern char cr_char;
+extern char *fl_end;
 
 /* =========================================================== */
 
@@ -914,6 +921,12 @@ void write_FLT64_be(ORD8 *p, double d);
 void write_FLT64_le(ORD8 *p, double d);
 
 /*******************************************/
+/* Some bit functions */
+
+/* Return number of set bits */
+int count_set_bits(unsigned int val);
+
+/*******************************************/
 
 /* Sleep for the given number of msec */
 void msec_sleep(unsigned int msec);
@@ -954,6 +967,12 @@ char *debPfv(int di, float *p);
 #define isNFinite(x) ( isNan(x) || (x) < DBL_MIN || DBL_MAX < (x))
 #define isFinite(x) (!isNFinite(x))
 #endif
+
+/*******************************************/
+/* Dev. diagnostic logging to C:/Users/Public/log.txt */
+
+extern FILE *a_diag_fp;
+void a_diag_log(char *fmt, ...);
 
 /*******************************************/
 double gamma_func(double x);

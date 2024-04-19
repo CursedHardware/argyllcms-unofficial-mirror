@@ -32,7 +32,7 @@
 
 void usage(void) {
 	fprintf(stderr,"Translate colors through an MPP profile, V1.00\n");
-	fprintf(stderr,"Author: Graeme W. Gill\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: mpplu [-v] [-f func] [-i intent] [-o order] profile\n");
 	fprintf(stderr," -v            Verbose\n");
 	fprintf(stderr," -f function   f = forward, b = backwards\n");
@@ -100,13 +100,14 @@ main(int argc, char *argv[]) {
 
 	icColorSpaceSignature pcsor = icSigLabData;	/* Default */
 	
+
 	error_program = argv[0];
 
 	if (argc < 2)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -315,6 +316,7 @@ main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(prof_name,argv[fa]);
 
+
 	if ((mppo = new_mpp()) == NULL)
 		error ("Creation of MPP object failed");
 
@@ -346,6 +348,7 @@ main(int argc, char *argv[]) {
 			error("Spectral profile needed for custom illuminant, observer or FWA");
 		error("Error setting illuminant, observer, or FWA");
 	}
+
 
 	if (test != 0) {
 		printf("!!!!! Running special test code no %d !!!!!\n",test);
@@ -1245,6 +1248,8 @@ printf("#############################################\n\n\n\n\n\n\n\n");
 
 	snap2gamut(&rs, out);
 }
+
+
 
 
 

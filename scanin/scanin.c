@@ -150,8 +150,7 @@ usage(void) {
 	}
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int fa,nfa;					/* current argument we're looking at */
 	static char tiffin_name[MAXNAMEL+1] = { 0 };	/* TIFF Input file name (.tif) */
 	static char datin_name[MAXNAMEL+4+1] = { 0 };	/* Data input name (.cie/.q60) */
@@ -188,13 +187,14 @@ int main(int argc, char *argv[])
 	char *errm;
 	int pnotscan = 0;		/* Number of patches that wern't scanned */
 
-	if (argc <= 1)
-		usage();
 
 	error_program = argv[0];
 
+	if (argc <= 1)
+		usage();
+
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')		/* Look for any flags */
 			{
@@ -348,6 +348,7 @@ int main(int argc, char *argv[])
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strncpy(tiffin_name,argv[fa],MAXNAMEL); tiffin_name[MAXNAMEL] = '\000';
 
+
 	/* Create a desination file path and name */
 	if (datout_name[0] == '\000'		/* Not been overridden */
 	 && (flags & SI_BUILD_REF) == 0
@@ -497,6 +498,7 @@ int main(int argc, char *argv[])
 
 	/* -------------------------- */
 	/* Do the operation */
+
 
 	if ((sr = do_scanrd(
 		flags,			/* option flags */
@@ -1478,3 +1480,5 @@ void fix_it8(char *o, char *i) {
 }
 
 /********************************************************************************/
+
+

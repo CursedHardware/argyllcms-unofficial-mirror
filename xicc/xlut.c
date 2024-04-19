@@ -1700,6 +1700,7 @@ double *in			/* Vector of input values */
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 /* Given a nominated output PCS (ie. Absolute, Jab etc.), convert it in the bwd */
 /* direction into a relative XYZ or Lab PCS value */
 /* (This is used in generating gamut compression in B2A tables) */
@@ -1827,7 +1828,6 @@ alloc_icxLuLut(
 	p->inv_out_abs  = icxLuLut_inv_out_abs;
 
 	p->clut_locus   = icxLuLut_clut_aux_locus;
-
 
 	/* Setup all the rspl analogs of the icc Lut */
 	/* NOTE: We assume that none of this relies on the flag settings, */
@@ -2185,9 +2185,7 @@ fprintf(stderr,"~1 Internal optimised 4D separations not yet implemented!\n");
 		else
 			xicc_enum_viewcond(xicp, &p->vc, -1, NULL, 0, NULL);	/* Use a default */
 		p->cam = new_icxcam(cam_default);
-		p->cam->set_view(p->cam, p->vc.Ev, p->vc.Wxyz, p->vc.La, p->vc.Yb, p->vc.Lv,
-		                 p->vc.Yf, p->vc.Yg, p->vc.Gxyz, XICC_USE_HK, p->vc.hkscale,
-		                 p->vc.mtaf, p->vc.Wxyz2);
+		p->cam->set_view_vc(p->cam, &p->vc);
 	} else {
 		p->cam = NULL;
 	}

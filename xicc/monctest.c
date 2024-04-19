@@ -20,9 +20,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <math.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -96,11 +93,6 @@ int main() {
 	int np = SHAPE_ORDS;					/* Number of harmonics */
 
 	error_program = "monctest";
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 #ifdef NORMONLY
 	if ((p = new_mcv_noos()) == NULL)

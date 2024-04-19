@@ -79,14 +79,15 @@
 #include <conio.h>
 #endif
 
+
 /* Deal with an instrument error. */
 /* Return 0 to retry, 1 to abort */
 static int ierror(inst *it, inst_code ic) {
 	int ch;
 	empty_con_chars();
-	printf("Got '%s' (%s) error.\nHit Esc or Q to give up, any other key to retry:",
-	       it->inst_interp_error(it, ic), it->interp_error(it, ic));
-	fflush(stdout);
+	printf("Got '%s' (%s) error.\nHit Esc or Q to give up, any other key to retry:%s",
+	       it->inst_interp_error(it, ic), it->interp_error(it, ic), fl_end);
+	do_fflush();
 	ch = next_con_char();
 	printf("\n");
 	if (ch == 0x03 || ch == 0x1b || ch == 'q' || ch == 'Q')	/* Escape, ^C or Q */
@@ -282,8 +283,7 @@ usage(char *diag, ...) {
 	exit(1);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int i,j;
 	int fa, nfa, mfa;				/* current argument we're looking at */
 	int verb = 0;
@@ -322,6 +322,7 @@ int main(int argc, char *argv[])
 	int    nacc = 0;				/* Number accumulated */
 	ipatch val;						/* Value read */
 
+
 	set_exe_path(argv[0]);			/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
@@ -334,7 +335,7 @@ int main(int argc, char *argv[])
 
 	/* Process the arguments */
 	mfa = 0;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -423,6 +424,7 @@ int main(int argc, char *argv[])
 			break;
 	}
 
+
 	/* Get the output spectrum file name argument */
 	if (fa >= argc)
 		usage(NULL);
@@ -454,6 +456,7 @@ int main(int argc, char *argv[])
 			printf("(Found '%s' file and loaded it)\n",tname);
 		}
 	}
+
 
 	/* Until the measurements are done, or we give up */
 	for (;;) {
@@ -796,10 +799,10 @@ int main(int argc, char *argv[])
 					error("Unexpected choice");
 			}
 			if (uswitch)
-				printf("Hit ESC or Q to abort, or instrument switch or any other key to take a reading: ");
+				printf("Hit ESC or Q to abort, or instrument switch or any other key to take a reading: %s",fl_end);
 			else
-				printf("Hit ESC or Q to abort, any any other key to take a reading: ");
-			fflush(stdout);
+				printf("Hit ESC or Q to abort, any any other key to take a reading: %s",fl_end);
+			do_fflush();
 
 			if ((cap2 & inst2_xy_locate) && (cap2 & inst2_xy_position)) {
 
@@ -916,7 +919,7 @@ int main(int argc, char *argv[])
 			} else if ((rv & inst_mask) == inst_coms_fail) {
 				empty_con_chars();
 				printf("\nIlluminant measure failed due to communication problem.\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				continue;
 
 			/* Some other fatal error */
@@ -1303,6 +1306,8 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 
 

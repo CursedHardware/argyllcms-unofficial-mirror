@@ -1055,6 +1055,7 @@ main(int argc, char *argv[]) {
 	jpeg_std_error(&jerr);
 	jerr.error_exit = jpeg_error;
 
+
 	/* Process the arguments */
 	for(fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
@@ -1255,6 +1256,7 @@ main(int argc, char *argv[]) {
 			break;
 		}
 	}
+
 
 	/* The last two "profiles" are actually the input and output TIFF/JPEG filenames */
 	/* Unwind them */
@@ -1509,6 +1511,7 @@ main(int argc, char *argv[]) {
 			dojpg = 1;
 
 	}
+
 
 
 	/* - - - - - - - - - - - - - - - */
@@ -2384,4 +2387,6 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 

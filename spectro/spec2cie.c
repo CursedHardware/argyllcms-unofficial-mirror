@@ -62,9 +62,6 @@
 
 
 #include <stdio.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include "aconfig.h"
 #include "numlib.h"
 #include "cgats.h"
@@ -155,11 +152,6 @@ main(int argc, char *argv[])
 	int ti;							/* Field index */
 	char *kw;
 	int i, j, jj, k;
-
-#if defined(__IBMC__)
-	_control87 (EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87 (EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	if (argc < 3)
 		usage ();

@@ -275,7 +275,7 @@ static char *sfx(cxfctx *p, char *key) {
 
 void usage(char *diag, ...) {
 	fprintf(stderr,"cxf2ti3\n");
-	fprintf(stderr,"Author: Graeme W. Gill\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	if (diag != NULL) {
 		va_list args;
 		fprintf(stderr,"  Diagnostic: ");
@@ -337,11 +337,12 @@ main(int argc, char *argv[]) {
 	int got_created = 0;
 	int nsetel = 0;
 
+
 	error_program = "CxF2ti3";
 
 	/* Process the arguments */
 	mfa = 2;						/* Minium final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -393,6 +394,7 @@ main(int argc, char *argv[]) {
 
 	g_log->verb = verb;
 	g_log->debug = debug;
+
 
 	/* - - - - - - - - - - - - */
 
@@ -463,6 +465,7 @@ main(int argc, char *argv[]) {
 	/* Field we always want */
 	fix_id = ocg->add_field(ocg, 0, "SAMPLE_ID", nqcs_t);
 	nsetel++;
+
 
 	/* - - - - - - - - - - - - */
 
@@ -1035,6 +1038,8 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 
 

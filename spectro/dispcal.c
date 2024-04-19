@@ -18,6 +18,7 @@
 
 /* This is the third version of the program. */
 
+
 /* TTBD
 
 	Would be good to automaticall invoke -k0 if this display looks
@@ -1475,7 +1476,7 @@ static int meas_ramdac_prec(int base, disprd *dr) {
 		ttt[n].r = ttt[n].g = ttt[n].b = ii/(double)(65535);
 	}
 
-	if ((rv = dr->read(dr, ttt, 17, 1, 17, 1, 0, instNoClamp)) != 0) {
+	if ((rv = dr->read(dr, ttt, 17, 1, 17, 1, 0, instNoClamp, 0)) != 0) {
 		warning("display read failed with '%s'\n",disprd_err(rv));
 		return 0;
 	}
@@ -1488,7 +1489,7 @@ static int meas_ramdac_prec(int base, disprd *dr) {
 		for (n = 0; n < 17; n++)
 			t2[n] = ttt[n];
 
-		if ((rv = dr->read(dr, t2, 17, 1, 17, 1, 0, instNoClamp)) != 0) {
+		if ((rv = dr->read(dr, t2, 17, 1, 17, 1, 0, instNoClamp, 0)) != 0) {
 			warning("display read failed with '%s'\n",disprd_err(rv));
 			return 0;
 		}
@@ -1762,6 +1763,7 @@ int main(int argc, char *argv[]) {
 	int errc;							/* Return value from new_disprd() */
 	calx x;								/* Context for calibration solution */
 
+
 	set_exe_path(argv[0]);				/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
@@ -1812,7 +1814,7 @@ int main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 1;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')		/* Look for any flags */
 			{
@@ -2271,6 +2273,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
+
 	if (bkhack && bkbright > 0.0) {
 		error("Can't use -b black point hack and set target black brightness");
 	}
@@ -2361,6 +2364,7 @@ int main(int argc, char *argv[]) {
 			error("Chosen ChromeCasts (%d) is outside list (1..%d)\n",ccdisp,i);
 		ccid = ccids[ccdisp-1];
 	}
+
 
 	if (docalib) {
 		if ((rv = disprd_calibration(ipath, fc, ditype, -1, 0, tele, ambient, nadaptive, nocal, disp,
@@ -2458,7 +2462,7 @@ int main(int argc, char *argv[]) {
 		double cgamma, w[3], wp[2];
 		int sigbits = 0;	/* Number of significant bits in VideoLUT/display/instrument */
 
-		if ((rv = dr->read(dr, tcols, 3, 1, 3, 1, 0, instClamp)) != 0) {
+		if ((rv = dr->read(dr, tcols, 3, 1, 3, 1, 0, instClamp, 0)) != 0) {
 			dr->del(dr);
 			error("display read failed with '%s'\n",disprd_err(rv));
 		} 
@@ -3148,7 +3152,7 @@ int main(int argc, char *argv[]) {
 		
 				printf("Doing some initial measurements\n");
 				/* Do an initial set of readings to set 1% output mark */
-				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				} 
@@ -3175,7 +3179,7 @@ int main(int argc, char *argv[]) {
 				for (ff = 0;; ff ^= 1) {
 					double dir;			/* Direction to adjust brightness */
 					double sv[3], val1;				/* Scaled values */
-					if ((rv = dr->read(dr, tcols+1, 1, 0, 0, 1, ' ',instClamp)) != 0) {
+					if ((rv = dr->read(dr, tcols+1, 1, 0, 0, 1, ' ',instClamp, 0)) != 0) {
 						if (rv == 4)
 							break;			/* User is done with this adjustment */
 						dr->del(dr);
@@ -3225,7 +3229,7 @@ int main(int argc, char *argv[]) {
 						{ 0.0, 1.0, 0.0 },
 						{ 0.0, 0.0, 1.0 }
 					};
-					if ((rv = dr->read(dr, ccols, 3, 0, 0, 1, 0, instClamp)) != 0) {
+					if ((rv = dr->read(dr, ccols, 3, 0, 0, 1, 0, instClamp, 0)) != 0) {
 						dr->del(dr);
 						error("display read failed with '%s'\n",disprd_err(rv));
 					}
@@ -3242,7 +3246,7 @@ int main(int argc, char *argv[]) {
 					rgbch = 1;
 				}
 				/* Do an initial set of readings to set full output mark */
-				if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				}
@@ -3301,7 +3305,7 @@ int main(int argc, char *argv[]) {
 					double bdir, terr;
 					int bx = 0;
 					
-					if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, ' ', instClamp)) != 0) {
+					if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, ' ', instClamp, 0)) != 0) {
 						if (rv == 4)
 							break;			/* User is done with this adjustment */
 						dr->del(dr);
@@ -3423,7 +3427,7 @@ int main(int argc, char *argv[]) {
 		
 				printf("Doing some initial measurements\n");
 				/* Do an initial set of readings to set full output mark */
-				if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				}
@@ -3449,7 +3453,7 @@ int main(int argc, char *argv[]) {
 				for (ff = 0;; ff ^= 1) {
 					double dir;			/* Direction to adjust brightness */
 					
-					if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, ' ', instClamp)) != 0) {
+					if ((rv = dr->read(dr, tcols, 1, 0, 0, 1, ' ', instClamp, 0)) != 0) {
 						if (rv == 4)
 							break;			/* User is done with this adjustment */
 						dr->del(dr);
@@ -3496,7 +3500,7 @@ int main(int argc, char *argv[]) {
 						{ 0.0, 1.0, 0.0 },
 						{ 0.0, 0.0, 1.0 }
 					};
-					if ((rv = dr->read(dr, ccols, 3, 0, 0, 1, 0, instClamp)) != 0) {
+					if ((rv = dr->read(dr, ccols, 3, 0, 0, 1, 0, instClamp, 0)) != 0) {
 						dr->del(dr);
 						error("display read failed with '%s'\n",disprd_err(rv));
 					}
@@ -3513,7 +3517,7 @@ int main(int argc, char *argv[]) {
 					rgbch = 1;
 				}
 				/* Do an initial set of readings to set 1% output mark */
-				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				}
@@ -3563,7 +3567,7 @@ int main(int argc, char *argv[]) {
 					double bdir, terr;
 					int bx = 0;
 					
-					if ((rv = dr->read(dr, tcols+1, 1, 0, 0, 1, ' ', instClamp)) != 0) {
+					if ((rv = dr->read(dr, tcols+1, 1, 0, 0, 1, ' ', instClamp, 0)) != 0) {
 						if (rv == 4)
 							break;			/* User is done with this adjustment */
 						dr->del(dr);
@@ -3661,7 +3665,7 @@ int main(int argc, char *argv[]) {
 				printf("Doing check measurements\n");
 
 				/* Do an initial set of readings to set 1% output mark */
-				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols, 3, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				}
@@ -3682,7 +3686,7 @@ int main(int argc, char *argv[]) {
 				tar1 = 0.01 * tcols[2].XYZ[1];
 
 				/* Read the 1% value */
-				if ((rv = dr->read(dr, tcols+3, 1, 0, 0, 1, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, tcols+3, 1, 0, 0, 1, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				}
@@ -3884,7 +3888,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		/* Read the patches without clamping */
-		if ((rv = dr->read(dr, base, 9, 1, 9, 1, 0, instNoClamp)) != 0) {
+		if ((rv = dr->read(dr, base, 9, 1, 9, 1, 0, instNoClamp, 0)) != 0) {
 			dr->del(dr);
 			error("display read failed with '%s'\n",disprd_err(rv));
 		} 
@@ -4024,7 +4028,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		/* Read the patches */
-		if ((rv = dr->read(dr, cols, isteps * 4, 1, isteps * 4, 1, 0, instClamp)) != 0) {
+		if ((rv = dr->read(dr, cols, isteps * 4, 1, isteps * 4, 1, 0, instClamp, 0)) != 0) {
 			free(cols); free(asrgb[0]); free(asrgb[1]); free(asrgb[2]); free(asrgb[3]);
 			dr->del(dr);
 			error("display read failed with '%s'\n",disprd_err(rv));
@@ -4210,7 +4214,7 @@ int main(int argc, char *argv[]) {
 				set[0].b = v[2];
 			}
 
-			if ((rv = dr->read(dr, set, 1, i+1, nn+3, 1, 0, instClamp)) != 0) {
+			if ((rv = dr->read(dr, set, 1, i+1, nn+3, 1, 0, instClamp, 0)) != 0) {
 				dr->del(dr);
 				error("display read failed with '%s'\n",disprd_err(rv));
 			} 
@@ -4426,7 +4430,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					80.0,					/* Display is 80 cd/m^2 */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0, 1.0, 0.0, NULL);
+					0, 1.0, 0.0, NULL);		/* No HK */
 				break;
 
 			case gt_Rec709:
@@ -4437,7 +4441,7 @@ int main(int argc, char *argv[]) {
 					0.2,					/* Background relative to reference white */
 					1000.0/3.1415,			/* Luminance of white in the Image field (cd/m^2) */
 			        0.0, 0.01, x.nwh,		/* 0% flare and 1% glare same white point */
-					0, 1.0, 0.0, NULL);
+					0, 1.0, 0.0, NULL);		/* No HK */
 				break;
 
 			default:
@@ -4450,7 +4454,7 @@ int main(int argc, char *argv[]) {
 			0.2,				/* Background relative to reference white */
 			x.twh[1],			/* Target white level (cd/m^2) */
 	        0.0, 0.01, x.nwh,	/* 0% flare and 1% glare same white point */
-			0, 1.0, 0.0, NULL);
+			0, 1.0, 0.0, NULL);	/* No HK */
 
 		/* Compute the normalisation values */
 		x.svc->XYZ_to_cam(x.svc, Jab, x.nwh);		/* Relative white point */
@@ -4701,7 +4705,7 @@ int main(int argc, char *argv[]) {
 				set[0].id = NULL;
 
 				/* Read patches (no auto cr in case we repeat last patch) */
-				if ((rv = dr->read(dr, set, 1, rsteps-i, rsteps, 0, 0, instClamp)) != 0) {
+				if ((rv = dr->read(dr, set, 1, rsteps-i, rsteps, 0, 0, instClamp, 0)) != 0) {
 					dr->del(dr);
 					error("display read failed with '%s'\n",disprd_err(rv));
 				} 
@@ -4814,9 +4818,9 @@ int main(int argc, char *argv[]) {
 						set[2].b = asgrey.s[i].rgb[2] + dd;
 						set[2].id = NULL;
 
-						if ((rv = dr->read(dr, set, 1, rsteps-i, rsteps, 0, 0, instClamp)) != 0
-						 || (rv = dr->read(dr, set+1, 1, rsteps-i, rsteps, 0, 0, instClamp)) != 0
-						 || (rv = dr->read(dr, set+2, 1, rsteps-i, rsteps, 0, 0, instClamp)) != 0) {
+						if ((rv = dr->read(dr, set, 1, rsteps-i, rsteps, 0, 0, instClamp, 0)) != 0
+						 || (rv = dr->read(dr, set+1, 1, rsteps-i, rsteps, 0, 0, instClamp, 0)) != 0
+						 || (rv = dr->read(dr, set+2, 1, rsteps-i, rsteps, 0, 0, instClamp, 0)) != 0) {
 							dr->del(dr);
 							error("display read failed with '%s'\n",disprd_err(rv));
 						} 
@@ -6056,5 +6060,7 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 

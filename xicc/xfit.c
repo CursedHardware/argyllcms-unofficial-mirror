@@ -19,18 +19,19 @@
  * TTBD:
  *
 #ifdef PRIVATE
- *		[ This is probably key to fixing L*a*b* B2A black bumpiness ?. ]
+ *		[ This is probably key to fixing L*a*b* B2A black bumpiness ??. ]
  *
  *		Need to create something similar to this for B2A tables, device link
  *		creation and imdi creation, rather than using the existing per
- *		channel curves or their inverses. Would also be nice to add grid sizing
+ *		channel curves or their inverses. Call it pchfit ?
+ *		Would also be nice to add grid sizing
  *		to cover just gamut range ? - just spec. it as parameter.
  *
  *		!! This might eliminate any need for dividing transforms into
- *		per-channel/core/per-channel parts !!
+ *		per-channel/core/per-channel parts in icc !!
  *
  *		Might work just as well as this xfit code if we create prelim cLUT
- *		and use this new routine to create input & output values ?
+ *		and use this new routine to create input & output values ? (worth testing, but not essential).
  *
  *		Idea would be to treat target transform as a black box, plus any needed
  *		conversions	from device to PCS.
@@ -42,7 +43,8 @@
  *		Run set of device input values through ->Lab, and then create
  *		smart non-mon curve fit. Make it smart by first fitting
  *		power curve from black end vs. normal curve, picking best
- *		and then fitting higher orders from that choice.
+ *		and then fitting higher orders from that choice (or fix curves to be auto smart
+ *		about fitting curves ?)
  *
  *		For the output curve the aim would be to create a non-extreme
  *		mapping that makes the output space more linear mixing.
@@ -51,12 +53,15 @@
  *		Lab would be a L* to Y curve, device would be device to XYZ curves,
  *		then add mod curve to improve additive behavior.
  *
- *		Optimization target would be sampling pints along the neutral + 
+ *		Optimization target would be sampling points along the neutral + 
  *		primary axes. Use adaptive point sampling to arrive at (say) 50-100 point
- *		along each axis roughly evenly spaced. The smart non-mon curves 
+ *		along each axis roughly evenly spaced.
+ *		Or take cLUT grid res as parameter, and make test points center points
+ *      of critical color vectors cells ?
+ *      The smart non-mon curves 
  *		that minimizes interleave linear interp errors between points on each axis.
  *		Need to make a*b* space symetrical about zero.
- *		Also need to trat non diagonal device spaces specially ?
+ *		Also need to treat non diagonal device spaces specially ?
  *
 #endif
  *

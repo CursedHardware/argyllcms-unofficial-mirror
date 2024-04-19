@@ -479,6 +479,19 @@ make_input_icc(
 		wo->allocate(wo);				/* Allocate space */
 		strcpy(wo->desc, dst);			/* Copy the string in */
 	}
+	/* Char Target Tag: */
+	if (xpi != NULL && xpi->chartarget != NULL) {
+		icmText *wo;
+
+		if ((wo = (icmText *)wr_icco->add_tag(
+		           wr_icco, icSigCharTargetTag,	icSigTextType)) == NULL) 
+			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+
+		wo->count = strlen(xpi->chartarget) + 1;	/* Get size */
+		wo->allocate(wo);							/* Allocate space */
+		strcpy(wo->desc, xpi->chartarget);			/* Copy the string in */
+
+	}
 
 	if (isLut == 0) {	/* shaper + matrix type */
 
@@ -559,7 +572,7 @@ make_input_icc(
 		FILE *fp;
 
 		if ((wo = (icmText *)wr_icco->add_tag(
-		           wr_icco, icmMakeTag('t','a','r','g'), icSigTextType)) == NULL) 
+		           wr_icco, icmMakeTag('D','e','v','D'), icSigTextType)) == NULL) 
 			error("add_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
 
 #if defined(O_BINARY) || defined(_O_BINARY)
@@ -584,11 +597,14 @@ make_input_icc(
 
 		/* Duplicate for compatibility */
 		if (wr_icco->link_tag(
-		         wr_icco, icmMakeTag('D','e','v','D'), icmMakeTag('t','a','r','g')) == NULL) 
+		         wr_icco, icmMakeTag('C','I','E','D'), icmMakeTag('D','e','v','D')) == NULL) 
 			error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
-		if (wr_icco->link_tag(
-		         wr_icco, icmMakeTag('C','I','E','D'), icmMakeTag('t','a','r','g')) == NULL) 
-			error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+
+		if (xpi == NULL || xpi->chartarget == NULL) {
+			if (wr_icco->link_tag(
+			         wr_icco, icSigCharTargetTag, icmMakeTag('D','e','v','D')) == NULL) 
+				error("link_tag failed: %d, %s",wr_icco->e.c,wr_icco->e.m);
+		}
 	}
 
 	if ((npat = icg->t[0].nsets) <= 0)

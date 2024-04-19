@@ -22,12 +22,11 @@
  *  When there is a strip misread, should offer the option
  *	of skipping the strip.
  *
- *
- *	Should an a -X [xl] mode that reads a simple list of readings
+ *	Should add an -X [xl] mode that reads a simple list of readings
  *  from a file.
  *
  *	Someone reported that XY mode (spectroscan) didn't work for one paper
- *  orientation ?
+ *  orientation ??
  *
  *  Should fix XY chart read to also allow interruption/save/resume,
  *  just like the strip reading code.
@@ -59,7 +58,8 @@
 
 #define COMPORT 1		/* Default com port 1..4 */
 
-#undef TEST_EVENT_CALLBACK      /* Report async event callbacks, and implement beep prompt there. */
+#undef TEST_EVENT_CALLBACK	/* [und] Test code - report async event callbacks, and implement  */
+							/*       beep prompt there. */
 
 #undef USESTRDELTA		/* [Und] Use patch delta's for correlation rather than match DE */
 						/* Doesn't seem to work as well. Why ? */
@@ -114,6 +114,7 @@
 #if defined (NT)
 #include <conio.h>
 #endif
+
 
 #ifdef NEVER    /* Not currently used */
 
@@ -170,7 +171,7 @@ static double xyzLabcorr(double *pat0, double *ref0,
 }
 #endif
 
-/* A chart read color structure */
+/* A chart read color structure. */
 /* This can hold all representations simultaniously */
 typedef struct {
 	char *id;					/* Id string (e.g. "1") */
@@ -208,6 +209,166 @@ static int b62_int(char *p) {
 	return rv;
 }
 
+
+/* And save the current results */
+static void save_ti3(
+	instType atype,			/* Instrument used to read the chart */
+	int displ,				/* 1 = Use display emissive mode, 2 = display bright rel. */
+							/* 3 = display white rel. */
+	int trans,				/* Use transmission mode */
+	xcalstd ucalstd,		/* X-Rite calibration standard actually used */
+	inst_opt_filter fe,		/* Optional filter */
+	int dolab,				/* 1 = Save CIE as Lab, 2 = Save CIE as XYZ and Lab */
+	int npat,				/* Total valid patches */
+	int nchan,				/* Number of device chanels */
+	chcol *cols,			/* Internal storage of all the patch colors */
+	int wpat,				/* Set to index of white patch for display */
+	char *outname,			/* Output cgats file base name */
+	cgats *ocg				/* output cgats structure */
+) {
+	int i, j;
+	int nrpat;				/* Number of read patches */
+	int vpix = 0;			/* Valid patch index, if nrpatch > 0 */
+	int nsetel = 0;
+	double nn[3] = { 1.0, 1.0, 1.0 };
+	cgats_set_elem *setel;	/* Array of set value elements */
+
+	/* Note what instrument the chart was read with */
+	ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", inst_name(atype) , NULL);
+
+	/* X-Rite calibration standard (If reflective mode) */
+	if (displ == 0 && trans == 0 && ucalstd != xcalstd_none) 
+		ocg->add_kword(ocg, 0, "DEVCALSTD",xcalstd2str(ucalstd), NULL);
+
+	if (fe == inst_opt_filter_pol)
+		ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "POLARIZED", NULL);
+	else if (fe == inst_opt_filter_D65)
+		ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "D65", NULL);
+	else if (fe == inst_opt_filter_UVCut)
+		ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "UVCUT", NULL);
+
+	/* Count patches actually read */
+	for (nrpat = i = 0; i < npat; i++) {
+		if (cols[i].rr) {
+			vpix = i;
+			nrpat++;
+		}
+	}
+
+	/* If we've used a display white relative mode, record the absolute white */
+	if (displ == 2 || displ == 3) {
+		char buf[100];
+
+		if (cols[wpat].rr == 0) {
+			error("Can't compute white Y relative display values without reading a white test patch");
+		}
+		sprintf(buf,"%f %f %f", cols[wpat].XYZ[0], cols[wpat].XYZ[1], cols[wpat].XYZ[2]);
+		ocg->add_kword(ocg, 0, "LUMINANCE_XYZ_CDM2",buf, NULL);
+
+		/* Normalise to white Y 100 */
+		if (displ == 2) {
+			nn[0] = 100.0 / cols[wpat].XYZ[1];
+			nn[1] = 100.0 / cols[wpat].XYZ[1];
+			nn[2] = 100.0 / cols[wpat].XYZ[1];
+		/* Normalise to the white point */
+		} else {
+			nn[0] = 100.0 * icmD50.X / cols[wpat].XYZ[0];
+			nn[1] = 100.0 * icmD50.Y / cols[wpat].XYZ[1];
+			nn[2] = 100.0 * icmD50.Z / cols[wpat].XYZ[2];
+		}
+	}
+
+	nsetel += 1;		/* For id */
+	nsetel += 1;		/* For loc */
+	nsetel += nchan;	/* For device values */
+	nsetel += 3;		/* For XYZ or Lab */
+	if (dolab == 2)
+		nsetel += 3;	/* For XYZ and Lab */
+
+	/* If we have spectral information, output it too */
+	if (nrpat > 0 && cols[vpix].sp.spec_n > 0) {
+		char buf[100];
+
+		nsetel += cols[vpix].sp.spec_n;		/* Spectral values */
+		sprintf(buf,"%d", cols[vpix].sp.spec_n);
+		ocg->add_kword(ocg, 0, "SPECTRAL_BANDS",buf, NULL);
+		sprintf(buf,"%f", cols[vpix].sp.spec_wl_short);
+		ocg->add_kword(ocg, 0, "SPECTRAL_START_NM",buf, NULL);
+		sprintf(buf,"%f", cols[vpix].sp.spec_wl_long);
+		ocg->add_kword(ocg, 0, "SPECTRAL_END_NM",buf, NULL);
+
+		/* Generate fields for spectral values */
+		for (i = 0; i < cols[vpix].sp.spec_n; i++) {
+			int nm;
+	
+			/* Compute nearest integer wavelength */
+			nm = (int)(cols[vpix].sp.spec_wl_short + ((double)i/(cols[vpix].sp.spec_n-1.0))
+			            * (cols[vpix].sp.spec_wl_long - cols[vpix].sp.spec_wl_short) + 0.5);
+			
+			sprintf(buf,"SPEC_%03d",nm);
+			ocg->add_field(ocg, 0, buf, r_t);
+		}
+	}
+
+	if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL)
+		error("Malloc failed!");
+
+	/* Overwrite any existing sets */
+	ocg->t[0].nsets = 0;
+
+	/* Write out the patch info to the output CGATS file */
+	for (i = 0; i < npat; i++) {
+		int k = 0;
+
+		if (cols[i].rr == 0					/* If this patch wasn't read */
+		 || strcmp(cols[i].id, "0") == 0)	/* or it is a padding patch. */
+			continue;			/* Skip it */
+
+		setel[k++].c = cols[i].id;
+		setel[k++].c = cols[i].loc;
+		
+		for (j = 0; j < nchan; j++)
+			setel[k++].d = 100.0 * cols[i].dev[j];
+
+		if (dolab == 0 || dolab == 2) {
+			setel[k++].d = cols[i].XYZ[0] * nn[0];
+			setel[k++].d = cols[i].XYZ[1] * nn[1];
+			setel[k++].d = cols[i].XYZ[2] * nn[2];
+		}
+		if (dolab == 1 || dolab == 2) {
+			double lab[3];
+			double xyz[3];
+
+			xyz[0] = cols[i].XYZ[0] * nn[0]/100.0;
+			xyz[1] = cols[i].XYZ[1] * nn[1]/100.0;
+			xyz[2] = cols[i].XYZ[2] * nn[2]/100.0;
+			icmXYZ2Lab(&icmD50, lab, xyz);
+			setel[k++].d = lab[0];
+			setel[k++].d = lab[1];
+			setel[k++].d = lab[2];
+		}
+
+		/* Check that the spectral matches, in case we're resuming */
+		if (   cols[i].sp.spec_n != cols[vpix].sp.spec_n
+			|| fabs(cols[i].sp.spec_wl_short - cols[vpix].sp.spec_wl_short) > 0.01
+			|| fabs(cols[i].sp.spec_wl_long - cols[vpix].sp.spec_wl_long) > 0.01 ) {
+			error("The resumed spectral type seems to have changed!");
+		}
+
+		for (j = 0; j < cols[i].sp.spec_n; j++) {
+			setel[k++].d = cols[i].sp.spec[j];
+		}
+
+		ocg->add_setarr(ocg, 0, setel);
+	}
+
+	free(setel);
+
+	if (ocg->write_name(ocg, outname))
+		error("Write error : %s",ocg->e.m);
+}
+
+
 #ifdef TEST_EVENT_CALLBACK
 void test_event_callback(void *cntx, inst_event_type event) {
 	a1logd(g_log,0,"Got event_callback with 0x%x\n",event);
@@ -222,9 +383,9 @@ void test_event_callback(void *cntx, inst_event_type event) {
 static int ierror(inst *it, inst_code ic) {
 	int ch;
 	empty_con_chars();
-	printf("Got '%s' (%s) error.\nHit Esc or 'q' to give up, any other key to retry:",
-	       it->inst_interp_error(it, ic), it->interp_error(it, ic));
-	fflush(stdout);
+	printf("Got '%s' (%s) error.\nHit Esc or 'q' to give up, any other key to retry:%s",
+	       it->inst_interp_error(it, ic), it->interp_error(it, ic),fl_end);
+	do_fflush();
 	ch = next_con_char();
 	printf("\n");
 	if (ch == 0x03 || ch == 0x1b || ch == 'q' || ch == 'Q')	/* ^C, Escape or Q */
@@ -290,6 +451,8 @@ a1log *log			/* verb, debug & error log */
 	int skipp = 0;		/* Initial strip readings to skip */
 	int	nextrap = 0;	/* Number of extra patches for max and min */
 	int ch;
+	char *pfname = NULL;
+
 
 	if (xtern == 0) {		/* Use instrument values */
 
@@ -301,6 +464,8 @@ a1log *log			/* verb, debug & error log */
 
 		if ((it = new_inst(ipath, 0, log, DUIH_FUNC_AND_CONTEXT)) == NULL) {
 			printf("Unknown, inappropriate or no instrument detected\n");
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 
@@ -313,6 +478,8 @@ a1log *log			/* verb, debug & error log */
 			printf("Establishing communications with instrument failed with message '%s' (%s)\n",
 			       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 			it->del(it);
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 
@@ -321,6 +488,8 @@ a1log *log			/* verb, debug & error log */
 			printf("Initialising instrument failed with message '%s' (%s)\n",
 			       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 			it->del(it);
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 
@@ -357,6 +526,8 @@ a1log *log			/* verb, debug & error log */
 					printf("Need transmission reading capability,\n");
 					printf("and instrument doesn't support it\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 
@@ -368,6 +539,8 @@ a1log *log			/* verb, debug & error log */
 						printf("Need emissive spot or strip reading capability\n");
 						printf("and instrument doesn't support it\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 				} else {
@@ -376,6 +549,8 @@ a1log *log			/* verb, debug & error log */
 						printf("Need emissive reading capability\n");
 						printf("and instrument doesn't support it\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 				}
@@ -385,6 +560,8 @@ a1log *log			/* verb, debug & error log */
 					printf("Need reflection spot, strip, xy or chart reading capability,\n");
 					printf("and instrument doesn't support it\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
@@ -397,12 +574,16 @@ a1log *log			/* verb, debug & error log */
 					if ((ix = inst_get_disptype_index(it, ditype, 0)) < 0) {
 						printf("Setting display type ix %d failed\n",ix);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 		
 					if ((rv = it->set_disptype(it, ix)) != inst_ok) {
 						printf("Setting display type ix %d not supported by instrument\n",ix);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 				} else
@@ -422,12 +603,16 @@ a1log *log			/* verb, debug & error log */
 				if ((cx = new_ccmx()) == NULL) {
 					printf("\nnew_ccmx failed\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 				if (cx->read_ccmx(cx,ccxxname) == 0) {
 					if ((cap2 & inst2_ccmx) == 0) {
 						printf("\nInstrument doesn't have Colorimeter Correction Matrix capability\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					if ((rv = it->col_cor_mat(it, cx->dtech, cx->cc_cbid, cx->matrix)) != inst_ok) {
@@ -435,6 +620,8 @@ a1log *log			/* verb, debug & error log */
 					     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 						cx->del(cx);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					cx->del(cx);
@@ -446,6 +633,8 @@ a1log *log			/* verb, debug & error log */
 					if ((cs = new_ccss()) == NULL) {
 						printf("\nnew_ccss failed\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					if (cs->read_ccss(cs,ccxxname)) {
@@ -453,12 +642,16 @@ a1log *log			/* verb, debug & error log */
 					     	       ccxxname, cs->e.c, cs->e.m);
 						cs->del(cs);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					if ((cap2 & inst2_ccss) == 0) {
 						printf("\nInstrument doesn't have Colorimeter Calibration Spectral Sample capability\n");
 						cs->del(cs);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					if ((rv = it->get_set_opt(it, inst_opt_set_ccss_obs, obType, custObserver)) != inst_ok) {
@@ -466,6 +659,8 @@ a1log *log			/* verb, debug & error log */
 					     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 						cs->del(cs);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					if ((rv = it->col_cal_spec_set(it, cs->dtech, cs->samples, cs->no_samp)) != inst_ok) {
@@ -473,6 +668,8 @@ a1log *log			/* verb, debug & error log */
 					     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 						cs->del(cs);
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					ccssset = 1;
@@ -486,6 +683,8 @@ a1log *log			/* verb, debug & error log */
 					printf("\nSetting CCSS observer failed with error :'%s' (%s)\n",
 				     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
@@ -495,6 +694,8 @@ a1log *log			/* verb, debug & error log */
 				if ((rv = it->get_set_opt(it, inst_opt_set_filter, fe)) != inst_ok) {
 					printf("Setting requested filter not supported by instrument\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
@@ -515,6 +716,8 @@ a1log *log			/* verb, debug & error log */
 					printf("\nGetting instrument battery status failed with error :'%s' (%s)\n",
 			       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 				printf("The battery charged level is %.0f%%\n",batstat * 100.0);
@@ -527,6 +730,8 @@ a1log *log			/* verb, debug & error log */
 						printf("\nSetting patch consistency tolerance to %f failed with error :'%s' (%s)\n",
 				       	       scan_tol, it->inst_interp_error(it, ev), it->interp_error(it, ev));
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 				} else {
@@ -582,6 +787,8 @@ a1log *log			/* verb, debug & error log */
 						printf("Getting saved reading status failed with error :'%s' (%s)\n",
 				       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 
@@ -596,6 +803,8 @@ a1log *log			/* verb, debug & error log */
 							printf("Getting saved chart details failed with error :'%s' (%s)\n",
 					       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 
@@ -624,6 +833,8 @@ a1log *log			/* verb, debug & error log */
 							printf("Getting saved sheet details failed with error :'%s' (%s)\n",
 					       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 
@@ -646,6 +857,8 @@ a1log *log			/* verb, debug & error log */
 							printf("Getting saved strip details failed with error :'%s' (%s)\n",
 					       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 
@@ -662,6 +875,8 @@ a1log *log			/* verb, debug & error log */
 							printf("Getting saved spot details failed with error :'%s' (%s)\n",
 					       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 
@@ -750,6 +965,8 @@ a1log *log			/* verb, debug & error log */
 				printf("\nSetting instrument mode failed with error :'%s' (%s)\n",
 			     	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 				it->del(it);
+				if (pfname != NULL)
+					free(pfname);
 				return -1;
 			}
 			it->capabilities(it, &cap, &cap2, &cap3);
@@ -789,6 +1006,8 @@ a1log *log			/* verb, debug & error log */
 		if (rv != inst_ok) {
 			free(vals);
 			it->del(it);
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 
@@ -812,6 +1031,7 @@ a1log *log			/* verb, debug & error log */
 			scols[i]->rr = 1;		/* Has been read */
 		}
 		free(vals);
+
 
 	/* -------------------------------------------------- */
 	/* !!! Hmm. Should really allow user to navigate amongst the sheets, */
@@ -846,6 +1066,7 @@ a1log *log			/* verb, debug & error log */
 
 		/* For each pass (==sheet) */
 		for (sheet = 1, pai = sti = 0; pis[sheet-1] != 0; sheet++) {
+			int isti = sti;	/* Initial sti */
 			int paist;		/* Passes in current Strip (== columns in current sheet) */ 
 			int rnpatch;	/* Rounded up (inc. padding) Patches in current pass (sheet) */
 			int npatch;		/* Patches in pass (sheet), excluding padding */
@@ -892,7 +1113,7 @@ a1log *log			/* verb, debug & error log */
 				printf("Please place sheet %d of %d on table, then\n",sheet, nsheets);
 			} else
 				printf("\nPlease remove previous sheet, then place sheet %d of %d on table, then\n",sheet, nsheets);
-				printf("hit return to continue, Esc or 'q' to give up"); fflush(stdout);
+				printf("hit return to continue, Esc or 'q' to give up%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					for (k = 0; k < 3; k++) {
@@ -902,6 +1123,8 @@ a1log *log			/* verb, debug & error log */
 							free(sn[k]);
 					}
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			printf("\n");
@@ -924,6 +1147,8 @@ a1log *log			/* verb, debug & error log */
 							free(sn[k]);
 					}
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
@@ -948,6 +1173,8 @@ a1log *log			/* verb, debug & error log */
 							free(sn[k]);
 					}
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 
@@ -956,7 +1183,7 @@ a1log *log			/* verb, debug & error log */
 					empty_con_chars();
 					printf("\nUsing the XY table controls, locate patch %s%s with the sight,\n",
 					        pn[ll], sn[ll]);
-					printf("then hit return to continue, Esc or 'q' to give up"); fflush(stdout);
+					printf("then hit return to continue, Esc or 'q' to give up%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							for (k = 0; k < 3; k++) {
@@ -966,6 +1193,8 @@ a1log *log			/* verb, debug & error log */
 									free(sn[k]);
 							}
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 					printf("\n");
@@ -985,6 +1214,8 @@ a1log *log			/* verb, debug & error log */
 								free(sn[k]);
 						}
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 				}
@@ -1005,6 +1236,8 @@ a1log *log			/* verb, debug & error log */
 							free(sn[k]);
 					}
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 
@@ -1074,6 +1307,8 @@ a1log *log			/* verb, debug & error log */
 						free(sn[k]);
 				}
 				it->del(it);
+				if (pfname != NULL)
+					free(pfname);
 				return -1;
 			}
 
@@ -1095,6 +1330,7 @@ a1log *log			/* verb, debug & error log */
 				scols[sti]->rr = 1;		/* Has been read */
 			}
 
+
 			if (cap2 & inst2_xy_holdrel) {
 
 				/* Release table and reset head */
@@ -1113,13 +1349,15 @@ a1log *log			/* verb, debug & error log */
 							free(sn[k]);
 					}
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
 
 			pai += paist;		/* Tracj next first pass in strip */
 			rpat -= npatch;		/* Track remaining patches */
-		}	/* Next pass */
+		}	/* Next pass/sheet */
 
 		for (k = 0; k < 3; k++) {
 			if (pn[k] != NULL)
@@ -1129,7 +1367,7 @@ a1log *log			/* verb, debug & error log */
 		}
 		free(vals);
 
-		printf("\nPlease remove last sheet from table\n"); fflush(stdout);
+		printf("\nPlease remove last sheet from table\n");
 
 	/* -------------------------------------------------- */
 	} else if (rmode == 1) {	/* For strip mode, simply read each strip */
@@ -1138,7 +1376,7 @@ a1log *log			/* verb, debug & error log */
 		int incflag = 0;		/* 0 = no change, 1 = increment, 2 = inc unread, */
 								/* -1 = decrement, -2 = done */
 		int stix;				/* Strip index */
-		int pai;				/* Current pass in current strip */
+		int pai;				/* Current pass/row in current strip */
 		int oroi;				/* Overall row index */
 
 		if (
@@ -1154,6 +1392,8 @@ a1log *log			/* verb, debug & error log */
 				printf("\nCalibration failed with error :'%s' (%s)\n",
 	       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 				it->del(it);
+				if (pfname != NULL)
+					free(pfname);
 				return -1;
 			}
 		}
@@ -1176,12 +1416,16 @@ a1log *log			/* verb, debug & error log */
 		} else {
 			printf("\nNo reasonable trigger mode available for this instrument\n");
 			it->del(it);
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 		if (rv != inst_ok) {
 			printf("\nSetting trigger mode failed with error :'%s' (%s)\n",
 	       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 			it->del(it);
+			if (pfname != NULL)
+				free(pfname);
 			return -1;
 		}
 
@@ -1214,7 +1458,8 @@ a1log *log			/* verb, debug & error log */
 		if (pis[0] != 0 && scols[0]->rr != 0)
 			incflag = 2;
 
-		for (oroi = stix = pai = 0;pis[0] != 0;) {
+		/* Until we're done reading patches */
+		for (oroi = stix = pai = 0; pis[0] != 0;) {
 			char *nn = NULL;	/* Pass name */
 			int guide;
 			chcol **scb;
@@ -1228,11 +1473,13 @@ a1log *log			/* verb, debug & error log */
 			if (incflag > 0) {
 				int s_oroi = oroi;
 
-				/* Until we get to an unread pass */
+				/* Increment 1 or we get to an unread pass */
 				for (;;) {
 					oroi++;
-					if (++pai >= pis[stix]) {		/* Carry */
-						if (pis[++stix] == 0) {		/* Carry */
+					if ((oroi * stipa) >= npat
+					 || ++pai >= pis[stix]) {		/* Carry to next strip */
+						if ((oroi * stipa) >= npat
+						 || pis[++stix] == 0) {		/* Circle back to first strip & row */ 
 							stix = 0;
 							oroi = 0;
 						}
@@ -1240,7 +1487,7 @@ a1log *log			/* verb, debug & error log */
 					}
 //printf("~1 stix = %d, pis[stix] = %d, oroi = %d, rr %d\n",stix, pis[stix],oroi,scols[oroi * stipa]->rr);
 					// Note we aren't protecting agains a bodgy pis[] value
-					if (incflag == 1 || scols[oroi * stipa]->rr == 0 || oroi == s_oroi)
+					if (incflag == 1 || oroi == s_oroi || scols[oroi * stipa]->rr == 0)
 						break;
 				}
 
@@ -1279,18 +1526,18 @@ a1log *log			/* verb, debug & error log */
 			for (;;) {	/* Until we give up reading this row */
 
 				/* Read a strip pass */
-				printf("\nReady to read strip pass %s%s\n",nn, done ? " (!! ALL ROWS READ !!)" : scols[oroi *stipa]->rr ? " (This row has been read)" : "" );
+				printf("\nReady to read strip pass %s%s\n",nn, done ? " (!! ALL ROWS READ !!)" : scols[oroi * stipa]->rr ? " (This row has been read)" : "" );
 				printf("Press 'f' to move forward, 'b' to move back, 'n' for next unread,\n");
 				printf(" 'd' when done, Esc or 'q' to quit without saving.\n");
 				
 				if (uswitch == 1) {
-					printf("Trigger instrument switch to start reading,");
+					printf("Trigger instrument switch to start reading.%s",fl_end);
 				} else if (uswitch == 2) {
-					printf("Trigger instrument switch or any other key to start:");
+					printf("Trigger instrument switch or any other key to start:%s",fl_end);
 				} else {
-					printf("Press any other key to start:");
+					printf("Press any other key to start:%s",fl_end);
 				}
-				fflush(stdout);
+				do_fflush();
 				if ((rv = it->read_strip(it, "STRIP", stipa+nextrap, nn, guide, plen, glen, tlen, vals)) != inst_ok
 				 && (rv & inst_mask) != inst_user_trig) {
 
@@ -1333,9 +1580,9 @@ a1log *log			/* verb, debug & error log */
 
 								/* Not all rows have been read */
 								empty_con_chars();
-								printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: ",
-								       scols[i]->id, scols[i]->loc);
-								fflush(stdout);
+								printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: %s",
+								       scols[i]->id, scols[i]->loc, fl_end);
+								do_fflush();
 								ch = next_con_char();
 								printf("\n");
 								if (ch == 'y' || ch == 'Y') {
@@ -1349,12 +1596,15 @@ a1log *log			/* verb, debug & error log */
 						} else if (keyc & DUIH_ABORT) {
 							empty_con_chars();
 							printf("\n\nStrip read stopped at user request!\n");
-							printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+							printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end);
+							do_fflush();
 							if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 								printf("\n");
 								if (nn != NULL) free(nn);
 								free(vals);
 								it->del(it);
+								if (pfname != NULL)
+									free(pfname);
 								return -1;
 							}
 							printf("\n");
@@ -1373,6 +1623,8 @@ a1log *log			/* verb, debug & error log */
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						continue;
@@ -1388,28 +1640,33 @@ a1log *log			/* verb, debug & error log */
 							bad_beep();
 						empty_con_chars();
 						printf("\nStrip read failed due to misread (%s)\n",it->interp_error(it, rv));
-						printf("Hit Esc to give up, any other key to retry:"); fflush(stdout);
+						printf("Hit Esc to give up, any other key to retry%s:",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						printf("\n");
 						continue;
+
 					/* Deal with a communications error */
 					} else if ((rv & inst_mask) == inst_coms_fail) {
 						if (cap2 & inst2_no_feedback)
 							bad_beep();
 						empty_con_chars();
 						printf("\nStrip read failed due to communication problem.\n");
-						printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+						printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						printf("\n");
@@ -1433,22 +1690,27 @@ a1log *log			/* verb, debug & error log */
 								if (nn != NULL) free(nn);
 								free(vals);
 								it->del(it);
+								if (pfname != NULL)
+									free(pfname);
 								return -1;
 							}
 						}
 						continue;
+
+					/* Some other error. Treat it as fatal */
 					} else {
-						/* Some other error. Treat it as fatal */
 						if (cap2 & inst2_no_feedback)
 							bad_beep();
 						printf("\nStrip read failed due unexpected error :'%s' (%s)\n",
 				       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
-						printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+						printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						printf("\n");
@@ -1486,7 +1748,7 @@ a1log *log			/* verb, debug & error log */
 						hoff = 1;
 					}
 
-					/* Explor the rows */
+					/* Explore the rows */
 					for (choroi = 0; choroi < totpa; choroi++) {
 
 						/* Explore strip direction */
@@ -1567,6 +1829,8 @@ a1log *log			/* verb, debug & error log */
 							}
 						}
 					}
+
+
 					if (emit_warnings != 0 && rand && boroi != oroi) {	/* Looks like the wrong strip */
 						char *mm = NULL;
 						mm = paix->aix(paix, boroi);
@@ -1578,13 +1842,15 @@ a1log *log			/* verb, debug & error log */
 							bad_beep();
 						empty_con_chars();
 						printf("\n(Warning) Seem to have read strip pass %s rather than %s!\n",mm,nn);
-						printf("Hit Return to use it anyway, any other key to retry, Esc or 'q' to give up:"); fflush(stdout);
+						printf("Hit Return to use it anyway, any other key to retry, Esc or 'q' to give up:%s",fl_end); do_fflush();
 						free(mm);
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						if (ch != 0x0d && ch != 0x0a) { 			/* !(CR or LF) */
@@ -1608,12 +1874,14 @@ a1log *log			/* verb, debug & error log */
 							bad_beep();
 						empty_con_chars();
 						printf("\nThere is at least one patch with an very unexpected response! (DeltaE %f)\n",werror);
-						printf("Hit Return to use it anyway, any other key to retry, Esc or  'q' to give up:"); fflush(stdout);
+						printf("Hit Return to use it anyway, any other key to retry, Esc or  'q' to give up:%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							if (nn != NULL) free(nn);
 							free(vals);
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						if (ch != 0x0d && ch != 0x0a) { 			/* !Cr */
@@ -1637,6 +1905,7 @@ a1log *log			/* verb, debug & error log */
 				}
 			}
 
+			/* Save the strip values so that they are returned. */
 			if (nn != NULL)		/* Finished with strip alpha index */
 				free(nn);
 			nn = NULL;
@@ -1669,6 +1938,8 @@ a1log *log			/* verb, debug & error log */
 				scb[i]->rr = 1;		/* Has been read */
 			}
 			incflag = 2;		/* Skip to next unread */
+
+
 		}		/* Go around to read another row */
 		free(vals);
 
@@ -1692,6 +1963,8 @@ a1log *log			/* verb, debug & error log */
 					printf("\nCalibration failed with error :'%s' (%s)\n",
 		       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 			}
@@ -1711,12 +1984,16 @@ a1log *log			/* verb, debug & error log */
 			} else {
 				printf("\nNo reasonable trigger mode available for this instrument\n");
 				it->del(it);
+				if (pfname != NULL)
+					free(pfname);
 				return -1;
 			}
 			if (rv != inst_ok) {
 				printf("\nSetting trigger mode failed with error :'%s' (%s)\n",
 		       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 				it->del(it);
+				if (pfname != NULL)
+					free(pfname);
 				return -1;
 			}
 
@@ -1783,10 +2060,10 @@ a1log *log			/* verb, debug & error log */
 						break;
 				}
 			} else if (incflag == 4) {		/* Goto specific patch */
-				printf("\nEnter patch to go to: "); fflush(stdout);
+				printf("\nEnter patch to go to: %s",fl_end); do_fflush();
 
 				/* Read in the next line from stdin. */
-				if (fgets(buf, 200, stdin) == NULL) {
+				if (con_fgets(buf, 200) == NULL) {
 					printf("Error - unrecognised input\n");
 				} else {
 					int opix = pix;
@@ -1833,11 +2110,11 @@ a1log *log			/* verb, debug & error log */
 				printf("  'f' to move forward, 'F' move forward 10,\n");
 				printf("  'b' to move back, 'B; to move back 10,\n");
 				printf("  'n' for next unread, 'g' to goto patch,\n");
-				printf("  'd' when done, 'q' to abort, then press <return>: ");
-				fflush(stdout);
+				printf("  'd' when done, 'q' to abort, then press <return>: %s",fl_end);
+				do_fflush();
 	
 				/* Read in the next line from stdin. */
-				if (fgets(buf, 200, stdin) == NULL) {
+				if (con_fgets(buf, 200) == NULL) {
 					printf("Error - unrecognised input\n");
 					continue;
 				}
@@ -1866,10 +2143,10 @@ a1log *log			/* verb, debug & error log */
 				printf("    'd' when done,       'k' to calibrate, <esc> to abort,\n");
 
 				if (uswitch)
-					printf("    Instrument switch,   <return> or <space> to read:");
+					printf("    Instrument switch,   <return> or <space> to read:%s",fl_end);
 				else
-					printf("    <return> or <space> to read:");
-				fflush(stdout);
+					printf("    <return> or <space> to read:%s",fl_end);
+				do_fflush();
 
 				rv = it->read_sample(it, "SPOT", &val, 1);
 
@@ -1899,10 +2176,12 @@ a1log *log			/* verb, debug & error log */
 					} else if (keyc & DUIH_ABORT) {
 						empty_con_chars();
 						printf("\n\nSpot read stopped at user request!\n");
-						printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+						printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 						printf("\n");
@@ -1919,6 +2198,8 @@ a1log *log			/* verb, debug & error log */
 					ev = inst_handle_calibrate(it, inst_calt_needed, inst_calc_none, NULL, NULL, 0);
 					if (ev != inst_ok) {	/* Abort or fatal error */
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					continue;
@@ -1928,10 +2209,12 @@ a1log *log			/* verb, debug & error log */
 						bad_beep();
 					empty_con_chars();
 					printf("\nStrip read failed due to misread (%s)\n",it->interp_error(it, rv));
-					printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					printf("\n");
@@ -1942,10 +2225,12 @@ a1log *log			/* verb, debug & error log */
 						bad_beep();
 					empty_con_chars();
 					printf("\nStrip read failed due to communication problem.\n");
-					printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					printf("\n");
@@ -1967,6 +2252,8 @@ a1log *log			/* verb, debug & error log */
 						       it->inst_interp_error(it, rv), it->interp_error(it, rv));
 #endif /* DEBUG */
 							it->del(it);
+							if (pfname != NULL)
+								free(pfname);
 							return -1;
 						}
 					}
@@ -1979,10 +2266,12 @@ a1log *log			/* verb, debug & error log */
 						bad_beep();
 					printf("\nPatch read failed due unexpected error :'%s' (%s)\n",
 			       	       it->inst_interp_error(it, rv), it->interp_error(it, rv));
-					printf("Hit Esc or 'q' to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or 'q' to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						it->del(it);
+						if (pfname != NULL)
+							free(pfname);
 						return -1;
 					}
 					printf("\n");
@@ -1992,10 +2281,12 @@ a1log *log			/* verb, debug & error log */
 	
 			if (ch == 'q' || ch == 0x1b || ch == 0x03) {	/* q or Esc or ^C */
 				empty_con_chars();
-				printf("\nAbort ? - Are you sure ? [y/n]:"); fflush(stdout);
+				printf("\nAbort ? - Are you sure ? [y/n]:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 'y' || ch == 'Y') {
 					printf("\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 				printf("\n");
@@ -2006,6 +2297,8 @@ a1log *log			/* verb, debug & error log */
 				ev = inst_handle_calibrate(it, inst_calt_available, inst_calc_none, NULL, NULL, 0);
 				if (ev != inst_ok) {	/* Abort or fatal error */
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 				continue;
@@ -2038,12 +2331,14 @@ a1log *log			/* verb, debug & error log */
 
 				/* Not all patches have been read */
 				empty_con_chars();
-				printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: ",
-				       scols[i]->id, scols[i]->loc);
-				fflush(stdout);
+				printf("\nDone ? - At least one unread patch (%s, %s), Are you sure [y/n]: %s",
+				       scols[i]->id, scols[i]->loc, fl_end);
+				do_fflush();
 				if ((ch = next_con_char()) == 0x1b) {
 					printf("\n");
 					it->del(it);
+					if (pfname != NULL)
+						free(pfname);
 					return -1;
 				}
 				printf("\n");
@@ -2115,11 +2410,6 @@ a1log *log			/* verb, debug & error log */
 				scols[pix]->rr = 1;		/* Has been read */
 				printf(" Patch read OK\n");
 
-#ifndef SALONEINSTLIB
-				if (doplot && val.sp.spec_n > 0)
-					xspect_plot_w(&val.sp, NULL, NULL, 0);
-#endif
-
 				/* Advance to next patch. */
 				incflag = 1;
 
@@ -2127,13 +2417,12 @@ a1log *log			/* verb, debug & error log */
 				continue;
 			}
 
+
 			/* Sanity check value */
 			if (incflag && emit_warnings != 0 && accurate_expd != 0) {
 				double werror = 0.0;
 
-				if (val.XYZ_v == 0)
-					error("Instrument didn't return XYZ value");
-				werror = xyzLabDE(1.0, val.XYZ, scols[pix]->eXYZ);
+				werror = xyzLabDE(1.0, scols[pix]->XYZ, scols[pix]->eXYZ);
 
 				/* Arbitrary threshold. Good seems about 15-35, bad 95-130 */
 				if (werror >= 30.0) {
@@ -2155,12 +2444,14 @@ a1log *log			/* verb, debug & error log */
 	/* clean up */
 	if (it != NULL)
 		it->del(it);
+	if (pfname != NULL)
+		free(pfname);
 	return 0;
 }
 
 void
 usage() {
-	icompaths *icmps;
+	icompaths *icmps = NULL;
 	inst2_capability cap2 = 0;
 	fprintf(stderr,"Read Target Test Chart, Version %s\n",ARGYLL_VERSION_STR);
 	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
@@ -2215,7 +2506,7 @@ usage() {
 	}
 	fprintf(stderr," -T ratio        Modify strip patch consistency tolerance by ratio\n");
 	fprintf(stderr," -S              Suppress wrong strip & unexpected value warnings\n");
-//	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
+//	fprintf(stderr," -Y U            Test i1pro2 UV measurement mode\n");
 	fprintf(stderr," -W n|h|x        Override serial port flow control: n = none, h = HW, x = Xon/Xoff\n");
 #ifndef SALONEINSTLIB
 	fprintf(stderr," -P              Plot spectral if patch by patch\n");
@@ -2294,6 +2585,7 @@ int main(int argc, char *argv[]) {
 	int fi;						/* Colorspace index */
 	double plen = 7.366, glen = 2.032, tlen = 18.8;	/* Patch, gap and trailer length in mm */
 
+
 	set_exe_path(argv[0]);		/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
@@ -2302,7 +2594,7 @@ int main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 1;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {		/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -2527,6 +2819,7 @@ int main(int argc, char *argv[]) {
 				if (na == NULL)
 					usage();
 			
+
 				/* ~~~ i1pro2 test code ~~~ */
 				if (na[0] == 'U') {
 					uvmode = 1;
@@ -2547,6 +2840,7 @@ int main(int argc, char *argv[]) {
 	strcat(inname,".ti2");
 	strcpy(outname,argv[fa]);
 	strcat(outname,".ti3");
+
 
 	/* See if there is an environment variable ccxx */
 	if (ccxxname[0] == '\000') {
@@ -2854,6 +3148,7 @@ int main(int argc, char *argv[]) {
 			error("%s",cal->e.m);
 	}
 
+
 	/* If the user hasn't overridden it, get any calibration in the .ti2 */
 	if (cal == NULL) {			/* No user supplied calibration info */
 		int oi, tab;
@@ -3064,157 +3359,16 @@ int main(int argc, char *argv[]) {
 	                trans, emis, displ, ditype, fe, scalstd, &ucalstd, nocal, disbidi, highres,
 		            ccxxname, obType, custObserver,
 	                scan_tol, pbypatch, xtern, spectral, uvmode, accurate_expd,
-	                emit_warnings, doplot, g_log) == 0) {
+	                emit_warnings, doplot,
+		            g_log) == 0) {
+
 		/* And save the result */
-
-		int nrpat;				/* Number of read patches */
-		int vpix = 0;			/* Valid patch index, if nrpatch > 0 */
-		int nsetel = 0;
-		cgats_set_elem *setel;	/* Array of set value elements */
-
-		/* Note what instrument the chart was read with */
-		ocg->add_kword(ocg, 0, "TARGET_INSTRUMENT", inst_name(atype) , NULL);
-
-		/* X-Rite calibration standard (If reflective mode) */
-		if (displ == 0 && trans == 0 && ucalstd != xcalstd_none) 
-			ocg->add_kword(ocg, 0, "DEVCALSTD",xcalstd2str(ucalstd), NULL);
-
-		if (fe == inst_opt_filter_pol)
-			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "POLARIZED", NULL);
-		else if (fe == inst_opt_filter_D65)
-			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "D65", NULL);
-		else if (fe == inst_opt_filter_UVCut)
-			ocg->add_kword(ocg, 0, "INSTRUMENT_FILTER", "UVCUT", NULL);
-
-		/* Count patches actually read */
-		for (nrpat = i = 0; i < npat; i++) {
-			if (cols[i].rr) {
-				vpix = i;
-				nrpat++;
-			}
-		}
-
-		/* If we've used a display white relative mode, record the absolute white */
-		if (displ == 2 || displ == 3) {
-			double nn[3];
-			char buf[100];
-
-			if (cols[wpat].rr == 0) {
-				error("Can't compute white Y relative display values without reading a white test patch");
-			}
-			sprintf(buf,"%f %f %f", cols[wpat].XYZ[0], cols[wpat].XYZ[1], cols[wpat].XYZ[2]);
-			ocg->add_kword(ocg, 0, "LUMINANCE_XYZ_CDM2",buf, NULL);
-
-			/* Normalise to white Y 100 */
-			if (displ == 2) {
-				nn[0] = 100.0 / cols[wpat].XYZ[1];
-				nn[1] = 100.0 / cols[wpat].XYZ[1];
-				nn[2] = 100.0 / cols[wpat].XYZ[1];
-			/* Normalise to the white point */
-			} else {
-				nn[0] = 100.0 * icmD50.X / cols[wpat].XYZ[0];
-				nn[1] = 100.0 * icmD50.Y / cols[wpat].XYZ[1];
-				nn[2] = 100.0 * icmD50.Z / cols[wpat].XYZ[2];
-			}
-
-			for (i = 0; i < npat; i++) {
-				if (cols[i].rr) {
-					cols[i].XYZ[0] *= nn[0];
-					cols[i].XYZ[1] *= nn[1];
-					cols[i].XYZ[2] *= nn[2];
-				}
-			}
-		}
-
-		nsetel += 1;		/* For id */
-		nsetel += 1;		/* For loc */
-		nsetel += nchan;	/* For device values */
-		nsetel += 3;		/* For XYZ or Lab */
-		if (dolab == 2)
-			nsetel += 3;	/* For XYZ and Lab */
-
-		/* If we have spectral information, output it too */
-		if (nrpat > 0 && cols[vpix].sp.spec_n > 0) {
-			char buf[100];
-
-			nsetel += cols[vpix].sp.spec_n;		/* Spectral values */
-			sprintf(buf,"%d", cols[vpix].sp.spec_n);
-			ocg->add_kword(ocg, 0, "SPECTRAL_BANDS",buf, NULL);
-			sprintf(buf,"%f", cols[vpix].sp.spec_wl_short);
-			ocg->add_kword(ocg, 0, "SPECTRAL_START_NM",buf, NULL);
-			sprintf(buf,"%f", cols[vpix].sp.spec_wl_long);
-			ocg->add_kword(ocg, 0, "SPECTRAL_END_NM",buf, NULL);
-
-			/* Generate fields for spectral values */
-			for (i = 0; i < cols[vpix].sp.spec_n; i++) {
-				int nm;
-		
-				/* Compute nearest integer wavelength */
-				nm = (int)(cols[vpix].sp.spec_wl_short + ((double)i/(cols[vpix].sp.spec_n-1.0))
-				            * (cols[vpix].sp.spec_wl_long - cols[vpix].sp.spec_wl_short) + 0.5);
-				
-				sprintf(buf,"SPEC_%03d",nm);
-				ocg->add_field(ocg, 0, buf, r_t);
-			}
-		}
-
-		if ((setel = (cgats_set_elem *)malloc(sizeof(cgats_set_elem) * nsetel)) == NULL)
-			error("Malloc failed!");
-
-		/* Write out the patch info to the output CGATS file */
-		for (i = 0; i < npat; i++) {
-			int k = 0;
-
-			if (cols[i].rr == 0					/* If this patch wasn't read */
-			 || strcmp(cols[i].id, "0") == 0)	/* or it is a padding patch. */
-				continue;			/* Skip it */
-
-			setel[k++].c = cols[i].id;
-			setel[k++].c = cols[i].loc;
-			
-			for (j = 0; j < nchan; j++)
-				setel[k++].d = 100.0 * cols[i].dev[j];
-
-			if (dolab == 0 || dolab == 2) {
-				setel[k++].d = cols[i].XYZ[0];
-				setel[k++].d = cols[i].XYZ[1];
-				setel[k++].d = cols[i].XYZ[2];
-			}
-			if (dolab == 1 || dolab == 2) {
-				double lab[3];
-				double xyz[3];
-
-				xyz[0] = cols[i].XYZ[0]/100.0;
-				xyz[1] = cols[i].XYZ[1]/100.0;
-				xyz[2] = cols[i].XYZ[2]/100.0;
-				icmXYZ2Lab(&icmD50, lab, xyz);
-				setel[k++].d = lab[0];
-				setel[k++].d = lab[1];
-				setel[k++].d = lab[2];
-			}
-
-			/* Check that the spectral matches, in case we're resuming */
-			if (   cols[i].sp.spec_n != cols[vpix].sp.spec_n
-				|| fabs(cols[i].sp.spec_wl_short - cols[vpix].sp.spec_wl_short) > 0.01
-				|| fabs(cols[i].sp.spec_wl_long - cols[vpix].sp.spec_wl_long) > 0.01 ) {
-				error("The resumed spectral type seems to have changed!");
-			}
-
-			for (j = 0; j < cols[i].sp.spec_n; j++) {
-				setel[k++].d = cols[i].sp.spec[j];
-			}
-
-			ocg->add_setarr(ocg, 0, setel);
-		}
-
-		free(setel);
-
-		if (ocg->write_name(ocg, outname))
-			error("Write error : %s",ocg->e.m);
+		save_ti3(atype, displ, trans, ucalstd, fe, dolab, npat, nchan, cols, wpat, outname, ocg);
 	}
 
 	free(scols);
-	icmps->del(icmps);
+	if (icmps != NULL)
+		icmps->del(icmps);
 	free(pis);
 	saix->del(saix);
 	paix->del(paix);
@@ -3224,5 +3378,7 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 

@@ -122,13 +122,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -142,8 +140,6 @@
 #include "rspl.h"
 #include "sort.h"
 #include "ui.h"
-
-#include <stdarg.h>
 
 /* Convert inches into mm */
 #define inch2mm(xx) ((xx) * 25.4)
@@ -2333,16 +2329,16 @@ int *p_npat			/* Return number of patches including padding */
 	lpprow = rem + nextrap;				/* Patches in last row of last strip of last page */
 
 	if (verb) {
-		fprintf(stderr,"Patches = %d\n",npat);
-		fprintf(stderr,"Test patches per row = %d\n",tpprow);
+		fprintf(stdout,"Patches = %d\n",npat);
+		fprintf(stdout,"Test patches per row = %d\n",tpprow);
 		if (sppage == 1)
-			fprintf(stderr,"Rows per page = %d, patches per page = %d\n",rppstrip, pppage);
+			fprintf(stdout,"Rows per page = %d, patches per page = %d\n",rppstrip, pppage);
 		else
-			fprintf(stderr,"Strips per page = %d, rows per partial strip = %d, patches per page = %d\n",sppage, rppstrip, pppage);
+			fprintf(stdout,"Strips per page = %d, rows per partial strip = %d, patches per page = %d\n",sppage, rppstrip, pppage);
 		if (tidrows > 0)
-			fprintf(stderr,"Target ID rows in first page = %d\n", tidrows);
-		fprintf(stderr,"Rows in last strip = %d, patches in last row = %d\n", lrpstrip, lpprow-nextrap);
-		fprintf(stderr,"Total pages needed = %d\n",npages);
+			fprintf(stdout,"Target ID rows in first page = %d\n", tidrows);
+		fprintf(stdout,"Rows in last strip = %d, patches in last row = %d\n", lrpstrip, lpprow-nextrap);
+		fprintf(stdout,"Total pages needed = %d\n",npages);
 	}
 
 	if (padlrow) {		/* Add in extra padding patches */
@@ -2961,11 +2957,7 @@ void usage(char *diag, ...) {
 	exit(1);
 	}
 
-int
-main(argc,argv)
-int argc;
-char *argv[];
-{
+int main(int argc, char *argv[]) {
 	int fa, nfa, mfa;		/* argument we're looking at */
 	int verb = 0;
 	int hflag = 0;			/* Hexagon patches for SS, high density for CM */
@@ -3028,13 +3020,9 @@ char *argv[];
 	double plen, glen, tlen;/* Patch, gap and trailer length in mm */
 	char *bp, buf[500];		/* general sprintf buffer */
 
+
 	error_program = "printtarg";
 	check_if_not_interactive();
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	if (argc <= 1)
 		usage("Not enough arguments");
@@ -3054,7 +3042,7 @@ char *argv[];
 
 	/* Process the arguments */
 	mfa = 1;						/* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -3359,6 +3347,7 @@ char *argv[];
 	strcat(inname,".ti1");
 	strcat(outname,".ti2");
 
+
 	if (calname[0] != '\000') {
 		if ((cal = new_xcal()) == NULL)
 			error("new_xcal failed");
@@ -3543,6 +3532,7 @@ char *argv[];
 		free(bident);
 	} else
 		error ("Input file keyword COLOR_REPS has unknown value");
+
 
 	/* Load up the pre-defined density extreme spacer colors */
 	{
@@ -4491,6 +4481,8 @@ void et_clear(void) {
 	et.patches = NULL;
 	et.npatches = 0;
 }
+
+
 
 
 

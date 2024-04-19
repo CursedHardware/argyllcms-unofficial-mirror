@@ -34,9 +34,6 @@
 #ifdef __sun
 #include <unistd.h>
 #endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "aconfig.h"
 #include "numlib.h"
 #include "counters.h"
@@ -1196,6 +1193,8 @@ icxViewCond *vc		/* Viewing parameters to return */
 	double Yf = -1.0;		/* Flare relative luminance to Lv */
 	double Yg = -1.0;		/* Glare relative luminance to La */
 	double Gxyz[3] = {-1.0, -1.0, -1.0};	/* Glare color */
+	int hk = XICC_USE_HK;
+	double hkscale = 1.0;
     icTechnologySignature tsig = icMaxEnumTechnology; /* Technology Signature */
     icProfileClassSignature devc = icMaxEnumClass;
 	int trans = -1;		/* Set to 0 if not transparency, 1 if it is */
@@ -1351,6 +1350,8 @@ icxViewCond *vc		/* Viewing parameters to return */
 		vc->Gxyz[0] = Gxyz[0];	
 		vc->Gxyz[1] = Gxyz[1];	
 		vc->Gxyz[2] = Gxyz[2];	
+		vc->hk = hk;
+		vc->hkscale = hkscale;
 		return 0;
 	}
 
@@ -1589,7 +1590,7 @@ xicc *p,			/* Expanded profile to get white point (May be NULL if desc NZ) */
 icxViewCond *vc,	/* Viewing parameters to return, May be NULL if desc is nz */
 int no,				/* Enumeration to return, -1 for default, -2 for none */
 char *as,			/* String alias to number, NULL if none */
-int desc,			/* NZ - Just return a description of this enumeration in vc */
+int desc,			/* NZ - Just return a description and index of this enumeration in vc */
 double *wp			/* Provide XYZ white point if xicc is NULL or no White point tag */
 ) {
 
@@ -1609,7 +1610,7 @@ double *wp			/* Provide XYZ white point if xicc is NULL or no White point tag */
 		} else {
 	
 #ifdef NEVER
-			// ~8 this doesn't allow for ICCV4 style media chromatic adapation */
+			// ~8 this doesn't allow for ICCV4 style media chromatic adapation
 			pp = p->pp;
 			if ((whitePointTag = (icmXYZArray *)pp->read_tag(pp, icSigMediaWhitePointTag)) != NULL
 	   	      && whitePointTag->ttype == icSigXYZType && whitePointTag->count >= 1) {
@@ -1653,7 +1654,8 @@ double *wp			/* Provide XYZ white point if xicc is NULL or no White point tag */
 		vc->Gxyz[1] = vc->Wxyz[1];
 		vc->Gxyz[2] = vc->Wxyz[2];
 
-		/* Default HK scaling factor = none */
+		/* Default HK scaling factor = full */
+		vc->hk = XICC_USE_HK;
 		vc->hkscale = 1.0;
 
 		/* Default Mid tone partial adapation factor = none */
@@ -1932,6 +1934,7 @@ icxViewCond *vc
 	printf("  Flare to image ratio = %f\n",vc->Yf);
 	printf("  Glare to adapting/surround ratio = %f\n",vc->Yg);
 	printf("  Flare color = %f %f %f\n",vc->Gxyz[0], vc->Gxyz[1], vc->Gxyz[2]);
+	printf("  HK enabled = %d\n",vc->hk);
 	printf("  HK scaling = %f\n",vc->hkscale);
 	printf("  Mid tone partial adapation factor = %f\n",vc->mtaf);
 	if (vc->mtaf > 0.0)
@@ -2419,7 +2422,7 @@ icxGMappingIntent *gmi	/* Gamut Mapping parameters to return */
 /* Return NULL on error or no cal */
 xcal *xiccReadCalTag(icc *p) {
 	xcal *cal = NULL;
-	icTagSignature sig = icmMakeTag('t','a','r','g');
+	icTagSignature sig = icSigCharTargetTag;
 	icmText *ro;
 	int oi, tab;
 

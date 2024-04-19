@@ -243,6 +243,7 @@ main(int argc, char *argv[]) {
 	warning("xicc/xicclu.c !!!! special rspl gamut sest code is compiled in !!!!\n");
 #endif
 
+
 	error_program = argv[0];
 
 	if (argc < 2)
@@ -743,6 +744,7 @@ main(int argc, char *argv[]) {
 	if (fa >= argc || argv[fa][0] == '-') usage("Expecting profile file name");
 	strncpy(prof_name,argv[fa],MAXNAMEL); prof_name[MAXNAMEL] = '\000';
 
+
 	if (slocwarn) {
 		if ((chlp = chrom_locus_poligon(0, icxOT_CIE_1931_2, 0)) == NULL)
 			error("chrom_locus_poligon failed");
@@ -1096,6 +1098,7 @@ main(int argc, char *argv[]) {
 		outs = ins = cal->colspace;
 		outn = inn = cal->devchan;
 	}
+
 
 	/* Sanity check */
 	if (absmeas && ins != icSigXYZData && outs != icSigXYZData) {
@@ -1494,4 +1497,6 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 

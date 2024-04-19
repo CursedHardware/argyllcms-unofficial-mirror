@@ -99,13 +99,14 @@ int main(int argc, char *argv[]) {
 
 	int i, j, n;
 
+
 	error_program = "average";
 
 	if (argc < 2)
 		usage("Too few arguments (%d, minimum is 2)",argc-1);
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -182,6 +183,7 @@ int main(int argc, char *argv[]) {
 		error("Must be at least one input and one output file specified");
 
 	ninps--;	/* Number of inputs */
+
 
 	/* Open and read each input file, and create output file */
 	for (n = 0; n <= ninps; n++) {
@@ -348,6 +350,7 @@ int main(int argc, char *argv[]) {
 	if ((setel = (cgats_set_elem *)malloc(
 	     sizeof(cgats_set_elem) * inps[0].c->t[0].nfields)) == NULL)
 		error("Malloc failed!");
+
 
 	/* If averaging values within the one file */
 	if (ninps == 1) {
@@ -703,5 +706,7 @@ static void geommed(double res[3], double vals[][3], int nvals) {
 
 //printf("~1 geomm = %f %f %f\n", res[0], res[1], res[2]);
 }
+
+
 
 

@@ -24,8 +24,8 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
-#include "gamut.h"
 #include "cgats.h"
+#include "gamut.h"
 #include "vrml.h"
 
 /* 
@@ -42,7 +42,6 @@
 #undef DEBUG
 
 #undef HALF_HACK /* 27.0 */		/* Crude cutting plane */
-
 
 void usage(char *diag, ...) {
 	fprintf(stderr,"View gamuts Version %s\n",ARGYLL_VERSION_STR);
@@ -177,6 +176,8 @@ main(int argc, char *argv[]) {
 	vrml *wrl;
 	char out_name[MAXNAMEL+1+10];
 	char iout_name[MAXNAMEL+1] = "\000";;
+
+
 	if (argc < 3)
 		usage("Too few arguments, got %d expect at least 2",argc-1);
 

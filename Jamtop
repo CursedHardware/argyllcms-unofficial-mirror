@@ -4,9 +4,9 @@
 
 Echo "Argyll Jamtop has been read" ;
 
-# Development config.
-if [ GLOB $(TOP) : JamPrivate ] {
-	include $(TOP)/JamPrivate ;
+# Extra config.
+if [ GLOB $(TOP) : JamExtra ] {
+	include $(TOP)/JamExtra ;
 }
 
 # Default install base directory is same directory as Jamtop,

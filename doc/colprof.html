@@ -28,53 +28,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       &nbsp; &nbsp; &nbsp; &nbsp; Verbose mode<br>
       &nbsp;<a href="#A">-A "manufacturer"</a>&nbsp; Set the
       manufacturer description string<br>
@@ -92,15 +45,27 @@
     </tt><tt>&nbsp;<a href="colprof.html#Zi">-Z prsa</a>&nbsp;
       &nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Default intent:
       Perceptual, Rel. Colorimetric, Saturation, Abs. Colorimetric<br>
+      
 
-
-    </tt><tt> </tt><tt>&nbsp;<a href="#q">-q lmhu</a> &nbsp;&nbsp;
+      &nbsp;</tt><tt></tt><tt><a href="#q">-q lmhu</a> &nbsp;&nbsp;
       &nbsp; &nbsp; &nbsp;&nbsp;&nbsp; Table resolution - Low, Medium
       (def), High, Ultra<br>
       &nbsp;<a href="#b">-b [lmhun]</a>&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;
       &nbsp; Low quality B2A table - or specific B2A quality or none for
       input device<br>
-      &nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    </tt><tt>&nbsp;<a href="#ni">-ni</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -223,8 +188,20 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       &nbsp; &nbsp; &nbsp; &nbsp; Don't create output (PCS) shaper
-      curves<br>
+      curves</tt><tt><br>
     </tt><tt>&nbsp;<a href="#nc">-nc</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
       Don't put the input .ti3 data in the profile</tt><tt><br>
@@ -269,8 +246,32 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       l = Lab cLUT (def.), x = XYZ cLUT,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -291,8 +292,32 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       g = gamma+matrix, s = shaper+matrix, m = matrix only,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -358,6 +383,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       If input profile, auto scale WP to allow extrapolation</tt><br>
     <tt><tt>&nbsp;<a href="colprof.html#ua">-ua</a>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
@@ -366,8 +403,8 @@
     </tt><tt> </tt><tt>&nbsp;<a href="#uc">-uc</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;
       &nbsp;&nbsp; If input profile, clip cLUT values above WP<br>
-      &nbsp;</tt><tt><a href="#u_scale">-u <span
-          style="font-style: italic;">scale</span></a>
+      &nbsp;</tt><tt><a href="#u_scale">-u <span style="font-style:
+          italic;">scale</span></a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; If input
       profile, scale media white point by scale</tt><tt><br>
     </tt><tt> </tt><tt>&nbsp;</tt><tt><a href="#R">-R</a></tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -377,6 +414,18 @@ white
 1.0,
 black
 and
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -470,8 +519,32 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       Display Black Point override hack<br>
       &nbsp;<a href="#V">-V demphasis</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -565,6 +638,18 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       M0, M1, M2, </tt><tt>A, C, D50 (def.), D50M2, D65, F5, F8, F10 or
       file.sp ]</tt><tt><br>
     </tt><tt>&nbsp;<a href="#i">-i <i>illum</i></a>&nbsp;&nbsp; &nbsp;
@@ -576,71 +661,22 @@ and
       &nbsp;<a href="#o">-o <i>observ</i></a>&nbsp; &nbsp; &nbsp;
       &nbsp; &nbsp; Choose CIE Observer for spectral data:<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 </tt><tt>(def.)</tt><tt>,
-      1964_10, 2012_2, 2012_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2 or
-      file.cmf<br>
+      &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1931_2 (def.), 1964_10, 2012_2,
+      2012_10, S&amp;B 1955_2, shaw, J&amp;V 1978_2 or file.cmf<br>
       &nbsp;<a href="#r">-r avgdev</a> &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
       Average deviation of device+instrument readings as a percentage
       (default 0.5%)<br>
       &nbsp;<a href="#s">-s src.icm|cperc</a> &nbsp; Apply gamut mapping
       to output profile perceptual B2A table for given source, or
       compression percentage<br>
+      
+
       &nbsp;<a href="#S">-S src.icm|experc</a>&nbsp; Apply gamut mapping
       to output profile perceptual and saturation B2A table, or
       expansion percentage<br>
-      &nbsp;<a href="#nP">-nP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      &nbsp;</tt><tt><a href="#nP">-nP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 
 
@@ -655,61 +691,12 @@ and
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       Use colormetric source gamut to make output profile saturation
-      table<br>
+      table</tt><br>
+    <tt><tt><tt><tt>&nbsp;<a href="#nI" moz-do-not-send="true">-n</a>I
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;
+            &nbsp; Apply inverse gamut mapping to perc and sat A2B
+            tables</tt></tt></tt><br>
       &nbsp;<a href="#g">-g src.gam</a>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use source image gamut
       as well for output profile gamut mapping<br>
@@ -719,58 +706,6 @@ and
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Override gamut mapping
       intent for output profile perceptual table:<br>
       &nbsp;<a href="#T">-T intent</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -795,6 +730,18 @@ and
       &nbsp;&nbsp;&nbsp;&nbsp; p - Perceptual (Preferred) [ICC
       Perceptual]<br>
     </tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -881,6 +828,18 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         lp - Luminance Preserving Perceptual</tt><br>
     </tt><tt> </tt><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ms - Saturation<br>
@@ -936,8 +895,32 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       rl - White Point Matched Colorimetric (Lab)<br>
       &nbsp;<a href="#c">-c viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1057,8 +1040,32 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       either an enumerated choice, or a parameter<br>
       &nbsp;<a href="#d">-d viewcond</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1178,8 +1185,32 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       either an enumerated choice, or a parameter:value change<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1298,11 +1329,35 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       Enumerated Viewing Conditions:<br>
     </tt><tt>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
       &nbsp; </tt><tt><tt>pc - Critical print evaluation environment
         (ISO-3664 P1)</tt><tt><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1347,6 +1402,18 @@ and
       &nbsp; &nbsp;&nbsp;&nbsp; s:surround n = auto, a = average, m =
       dim, d = dark,<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1476,6 +1543,18 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         g:glare&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Glare light % of
         ambient (default 5)</span><br style="font-family: monospace;">
       <span style="font-family: monospace;">&nbsp; &nbsp; &nbsp; &nbsp;
@@ -1497,6 +1576,18 @@ and
               effect scale factor (default 1.0)<br>
             </span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
             &nbsp;&nbsp; </span><span style="font-family: monospace;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1587,9 +1678,36 @@ and
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       Create gamut gammap_p.x3d.html and gammap_s.x3d.html diagostics<br>
+    </tt><tt><tt>&nbsp;<a href="#H" moz-do-not-send="true">-H "Char
+          Target"</a> &nbsp;&nbsp;&nbsp; Override the default
+        CharTargetTag string</tt><br>
     </tt><tt>&nbsp;<a href="#O">-O outputfile</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Override
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1719,7 +1837,7 @@ Override
     set Absolute colorimetric. Some CMM's will use this to determine the
     default intent that they will use.<br>
     <br>
-
+    
 
     <a name="q"></a> The <b>-q</b> parameter sets the level of effort
     and/or resolution in the resulting profile. For table based profiles
@@ -1830,71 +1948,27 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     device and CIE/spectral sample data and calibration curves used to
     create a profile is stored in the <span style="font-weight: bold;">'targ'</span>
-    text tag in the resulting ICC profile. To suppress this and make the
-    resulting profile smaller, use the <span style="font-weight: bold;">-nc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    </span>flag. <span style="font-weight: bold;">Note</span> that this
-    will then preclude final calibrated device value ink limits from
-    being computed for the resulting profile in subsequent use (ie. <a
-      href="collink.html">collink</a>, <a href="xicclu.html">xicclu</a>
+    text tag in the resulting ICC profile, as well as duplicate tag
+    names <b>'DevD'</b> and <b>'CIED'. </b>To suppress this and make
+    the resulting profile smaller, use the <span style="font-weight:
+      bold;">-nc </span>flag. <span style="font-weight: bold;">Note</span>
+    that this will then preclude final calibrated device value ink
+    limits from being computed for the resulting profile in subsequent
+    use (ie. <a href="collink.html">collink</a>, <a href="xicclu.html">xicclu</a>
     etc.).<br>
     <br>
     <a name="k"></a> -<b>k</b> parameter sets the target level of black
@@ -1929,6 +2003,18 @@ the
     <tt> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0 K &nbsp; |
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;enpo<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2048,8 +2134,32 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;/<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2168,8 +2278,32 @@ the
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;/<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2238,6 +2372,18 @@ the
       stpo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1.0<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2373,13 +2519,12 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     cLUT tags and fallback shaper/matrix tags for situations in which
     the profile needs to work with Applications or CMMs that don't
     support cLUT. To help diagnose this situation.<br>
-    <b>-aY</b> will create a similar profile for Display devices,
-    but the matrix will have&nbsp; dummy values that deliberately
+    <b>-aY</b> will create a similar profile for Display devices, but
+    the matrix will have&nbsp; dummy values that deliberately
     interchanges Red, Green and Blue channels, so that it is obvious if
     the cLUT tables are not being used. <br>
+    
 
-
-    <br>
     For RGB input or display profiles, a simpler type of profile using
     either a gamma curves or a general shaper curves, combined with a
     matrix can be created, although such a profile cannot support
@@ -2531,61 +2676,6 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       Violet</span> spectral content, otherwise FWA compensation won't
     work properly. This means you ideally need to measure your
     illuminant spectrum using an instrument that can measure down to
@@ -2706,7 +2796,6 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     observer or <span style="font-weight: bold;">shaw</span> observer
     may give slightly better results than the <b>1931_2</b> observer.<br>
     <br>
-    <br>
     <a name="r"></a> The <b>-r</b> parameter specifies the average
     deviation of device+instrument readings from the perfect, noiseless
     values as a percentage. Knowing the uncertainty in the reproduction
@@ -2744,6 +2833,7 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     flag can be used, and the saturation intent will use the same table
     as the perceptual intent.<br>
     <br>
+    
     There are two ways of specifying a source gamut 1) Specify a
     specific source ICC profile or 2) Specify a general compression of
     the output gamut as a percentage. With the second choice, incoming
@@ -2767,7 +2857,9 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     with only an A2B0 and B2A0 tag. If a source gamut is specified, then
     an ICC Version 2.4.0 profile will be created with a full complement
     of B2A tags to support all intents.<br>
-    <br>
+    
+    
+
     The source gamut is created from the corresponding intent table of
     the provided profile to the output table being created. A TIFF or
     JPEG file containing an embedded ICC profile may be supplied as the
@@ -2821,7 +2913,28 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     gamut to be taken from the source profile colorimetric table
     instead, causing the saturation gamut mapping created for the
     saturation table to be from the natural source colorspace gamut to
-    the output space gamut.<small><span style="font-family: monospace;"></span></small><br>
+    the output space gamut.<br>
+    <br>
+    <a name="nI"></a><span style="font-weight: bold;">-nI</span>: By
+    default all the A2B (i.e. device to PCS) tables created in a cLUT
+    type profile will be <b>Colorimetric</b> intent, even when
+    Perceptual and Saturation gamut mapped B2A (i.e. PCS to device)
+    tables are created. This is so the profile can be used as a source
+    profile for true gamut mapping. In some situations though, CMMs that
+    make use of these profiles may assume that Perceptual and Saturation
+    A2B tables are the complement of the B2A tables, and incorporate the
+    inverse gamut mapping in them. In particular <b>Adobe Lightroom BPC</b>
+    (Black Point Compensation) may misbehave if it used with Perceptual
+    or Saturation intent if the destination profile doesn't use inverse
+    gamut mapping in its A2B tables, so a workaround may be to <u>create
+
+
+      the destination profiles with the </u><u><b>-nI</b></u>. In
+    general it is <b><i>not</i></b> advisable to use <b>-nI</b> for
+    profiles that will be used as source profiles for creating true
+    gamut mapping, because the size of the source gamut becomes lost,
+    and the gamut mapping can then only result in a Saturation style
+    compression and expansion, even when Perceptual intent is desired.<br>
     <br>
     <a name="g"></a>The <span style="font-weight: bold;">-g</span> flag
     and its argument allow the use of a specific source gamut instead of
@@ -2925,6 +3038,22 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     illustrate the gamut mappings generated for the perceptual and
     saturation intent tables.<br>
     <br>
+    <a name="H"></a>Normally the device and CIE/spectral sample data and
+    calibration curves used to create a profile is stored in the <span
+      style="font-weight: bold;">'targ'</span> text tag in the resulting
+    ICC profile, as well as duplicate tag names <b>'DevD'</b> and <b>'CIED'.
+
+
+
+    </b>The <b>-H</b> parameter overrides this and sets the <span
+      style="font-weight: bold;">'targ'</span> text to the given
+    argument. The <b>'DevD'</b> and <b>'CIED'</b> tags will still
+    contain the sample data. <span style="font-weight: bold;">Note</span>
+    that using this option will preclude final calibrated device value
+    ink limits from being computed for the resulting profile in
+    subsequent use (ie. <a href="collink.html" moz-do-not-send="true">collink</a>,
+    <a href="xicclu.html" moz-do-not-send="true">xicclu</a> etc.).<br>
+    <br>
     <a name="O"></a>The <span style="font-weight: bold;">-O</span>
     parameter allows the output file name &amp; extension to be
     specified independently of the final parameter basename. Note that
@@ -2939,11 +3068,6 @@ White&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb
     parameter will override this default.<br>
     <br>
     For information on typical usage, see the <a href="Scenarios.html">Typical
-
-
-
-
-
 
 
 

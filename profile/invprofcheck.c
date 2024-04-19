@@ -83,7 +83,7 @@
 
 void usage(void) {
 	fprintf(stderr,"Check fwd to bwd relative transfer of an ICC file, Version %s\n",ARGYLL_VERSION_STR);
-	fprintf(stderr,"Author: Graeme W. Gill\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: invprofcheck [-] profile.icm\n");
 	fprintf(stderr," -v [level]   verbosity level (default 1), 2 to print each DE\n");
 	fprintf(stderr," -l limit     set total ink limit (estimate by default)\n");
@@ -104,10 +104,6 @@ void usage(void) {
 }
 
 static void DE2RGB(double *out, double in);
-
-#if defined(__IBMC__) && defined(_M_IX86)
-void bug_workaround(int *co) { };			/* Workaround optimiser bug */
-#endif
 
 int
 main(
@@ -134,13 +130,14 @@ main(
 	icRenderingIntent intent = icRelativeColorimetric;	/* Default */
 	vrml *wrl = NULL;
 
+
 	error_program = "invprofcheck";
 
 	if (argc < 2)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -272,6 +269,7 @@ main(
 		xl = out_name + strlen(out_name);
 	xl[0] = '\000';								/* Remove extension */
 
+
 	/* Open up the file for reading */
 	if ((rd_fp = new_icmFileStd_name(&err,in_name,"r")) == NULL)
 		error ("Read: Can't open file '%s' (0x%x, '%s')",in_name,err.c,err.m);
@@ -282,6 +280,7 @@ main(
 	/* Read the header and tag list */
 	if ((rv = icco->read(icco,rd_fp,0)) != 0)
 		error ("Read: %d, %s",rv,icco->e.m);
+
 
 	/* Check the forward lookup against the bwd function */
 	{
@@ -560,5 +559,7 @@ static void DE2RGB(double *out, double in) {
 	}
 //printf("~1 returning rgb %f %f %f\n",out[0],out[1],out[2]);
 }
+
+
 
 

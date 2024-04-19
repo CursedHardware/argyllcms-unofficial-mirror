@@ -17,6 +17,36 @@
     <h3>For a <span style="text-decoration: underline;">complete</span>
       and more detailed list of changes, please see the <a
         href="../log.txt">log.txt</a> file.</h3>
+    <h1>[V3.1.0 -&gt; V3.2.0] 17th April 2024</h1>
+    <ul>
+      <li>Added extra diagnostics to printcal.</li>
+      <li>Added colprof -nI option, that adds inverse gamut mapping to
+        Perceptual and Saturation A2B tables, if they are being created.
+        This is not recommended for source profiles, since it handicaps
+        true gamut mapping, but may be a workaround to faulty Adobe
+        Lightroom BPC for Perceptual intent in output profiles.</li>
+      <li>Added error message for ColorMunki spectro sensor internal
+        cable being disconnected.</li>
+      <li>Fixed bug in Appearance B2A conversion that appeared in V3.0
+        release.</li>
+      <li>Fixed crash in chartread strip reading when given faulty .ti2
+        file.</li>
+      <li>Tweaked i1d3 AIO adaptive integration time to reduce measure
+        time to be more comparable to just using Rev A commands.</li>
+      <li>Re-worked ARGYLL_NOT_INTERACTIVE stdin to work much better on
+        MSWin when connected to a pipe. Removed code that empties stdin
+        before expecting use input when ARGYLL_NOT_INTERACTIVE.</li>
+      <li>Fixed OS X dispwin -c etc.</li>
+      <li>Fixed colprof IGNORE_DISP_ZEROS heuristic so that it doesn't
+        reject OLED red measurements that have a Z value of 0.0.</li>
+      <li>Added -H option to colprof to allow setting the charTargetTag
+        to given string, rather than automatically filling with .ti3
+        data.</li>
+      <li>Changed instrument monitoring thread debug messages to only be
+        shown on -D9, so they don't interfere with messages shown at
+        -D8.<br>
+      </li>
+    </ul>
     <h1>[V3.0.2 -&gt; V3.1.0] 1st December 2023</h1>
     <ul>
       <li>Added MSWindows USB uninstaller and libwdi based installer
@@ -27,8 +57,8 @@
       <li>Fixed bug in CMYK profile B2A table creation that sometimes
         resulted in bumpy black generation. (Only occurred when compiled
         using recent gcc with code optimization.)</li>
-      <li>Changed ICC profile serialization of pure ASCII text tags emit
-        a warning rather than error if they are fed non-ASCII utf8
+      <li>Changed ICC profile serialization of pure ASCII text tags to
+        emit a warning rather than error if they are fed non-ASCII utf8
         input.</li>
       <li>Made ICC code a little more robust against bad profiles.
         (Thanks to David Hoyt).</li>
@@ -43,7 +73,7 @@
     </ul>
     <ul>
     </ul>
-    <h1>[V3.0.0 -&gt; V3.0.2] 23rd October 2023</h1>
+    <h1>[V3.0.0 -&gt; V3.0.2]&nbsp; 23rd October 2023</h1>
     <ul>
       <li>Fix #include &lt;ctype.h&gt; in spectro/conv.c <br>
       </li>
@@ -1541,6 +1571,8 @@
 
 
 
+
+
         </span>for systems with &gt; 3Gig Ram.</li>
       <li>Add support for the Eye-One Monitor spectrometer.</li>
       <li>Added -L option to <span style="font-weight: bold;">printtarg</span>
@@ -1555,6 +1587,8 @@
     Various bug fixes, the main ones being:<br>
     <ul>
       <li>Fixed some <span style="font-weight: bold;">colprof </span>performance
+
+
 
 
 

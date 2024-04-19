@@ -24,9 +24,6 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
-//#if defined(__IBMC__) && defined(_M_IX86)
-//#include <float.h>
-//#endif
 
 #include "rspl_imp.h"
 #include "numlib.h"

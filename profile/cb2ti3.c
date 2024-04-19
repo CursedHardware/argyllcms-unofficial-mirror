@@ -67,30 +67,26 @@ int main(int argc, char *argv[])
 
 	error_program = "cb2ti3";
 
+
 	if (argc <= 1)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++)
-		{
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
-		if (argv[fa][0] == '-')		/* Look for any flags */
-			{
+		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
 
 			if (argv[fa][2] != '\000')
 				na = &argv[fa][2];		/* next is directly after flag */
-			else
-				{
-				if ((fa+1) < argc)
-					{
-					if (argv[fa+1][0] != '-')
-						{
+			else {
+				if ((fa+1) < argc) {
+					if (argv[fa+1][0] != '-') {
 						nfa = fa + 1;
 						na = argv[nfa];		/* next is seperate non-flag argument */
-						}
 					}
 				}
+			}
 
 			if (argv[fa][1] == '?')
 				usage();
@@ -99,10 +95,10 @@ int main(int argc, char *argv[])
 				verb = 1;
 			else 
 				usage();
-			}
-		else
+		} else
 			break;
-		}
+	}
+
 
 	/* Get the file name argument */
 	if (fa >= argc || argv[fa][0] == '-') usage();
@@ -204,6 +200,7 @@ int main(int argc, char *argv[])
 	ocg->add_field(ocg, 0, "XYZ_Y", r_t);
 	ocg->add_field(ocg, 0, "XYZ_Z", r_t);
 
+
 	/* Write out the patch info to the output CGATS file */
 	for (i = 0; i < npat; i++) {
 		char id[100];
@@ -239,6 +236,8 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 
 

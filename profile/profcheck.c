@@ -101,8 +101,7 @@ typedef struct {
 	double min, max;	/* Bin range */
 } hbin;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int fa,nfa;				/* current argument we're looking at */
 	int verb = 0;
 	int cie94 = 0;
@@ -152,10 +151,6 @@ int main(int argc, char *argv[])
 	int isLab = 0;				/* 0 if input is XYZ, 1 if input is Lab */
 	int devchan = 0;			/* Number of device chanels */
 
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	error_program = "profcheck";
 
@@ -163,7 +158,7 @@ int main(int argc, char *argv[])
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -425,6 +420,7 @@ int main(int argc, char *argv[])
 		xl = out_name + strlen(out_name);
 	xl[0] = '\000';			/* Remove extension */
 
+
 	if (fwacomp && spec == 0)
 		error ("FWA compensation only works when viewer and/or illuminant selected");
 
@@ -598,6 +594,7 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < npat; i++)
 		stpat[i] = &tpat[i];
+
 
 	/* Read in the CGATs fields */
 	{
@@ -1370,6 +1367,8 @@ DE2RGB(double *out, double in) {
 		out[2] = bl * range[i].b + (1.0 - bl) * range[i+1].b;
 	}
 }
+
+
 
 
 

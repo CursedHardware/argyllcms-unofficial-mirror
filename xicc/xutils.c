@@ -26,9 +26,6 @@
 #ifdef __sun
 #include <unistd.h>
 #endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "icc.h"

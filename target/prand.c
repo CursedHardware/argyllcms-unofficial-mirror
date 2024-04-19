@@ -23,9 +23,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include "aconfig.h"
 #include "numlib.h"
 #include "sort.h"
@@ -234,11 +231,6 @@ void *od				/* context for Perceptual function */
 
 	if ((s = (prand *)calloc(sizeof(prand), 1)) == NULL)
 		error ("prand: malloc failed");
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	s->di = di;
 

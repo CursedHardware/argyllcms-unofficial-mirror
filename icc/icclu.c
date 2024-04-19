@@ -89,13 +89,13 @@ main(int argc, char *argv[]) {
 #define inn ini.nch
 #define outn outi.nch
 
-
 	/* Lookup parameters */
 	icmLookupFunc     func   = icmFwd;				/* Default */
 	icRenderingIntent intent = icmDefaultIntent;	/* Default */
 	icColorSpaceSignature pcsor = icmSigDefaultData;	/* Default */
 	icmLookupOrder    order  = icmLuOrdNorm;		/* Default */
 	
+
 	if (argc < 2)
 		usage();
 
@@ -260,6 +260,7 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(prof_name,argv[fa]);
 
@@ -286,6 +287,7 @@ main(int argc, char *argv[]) {
 		icco->header->dump(icco->header, op, 1);
 		op->del(op);
 	}
+
 
 	/* Compute a TAC */
 	if (verb > 1) {
@@ -526,3 +528,5 @@ warning(char *fmt, ...)
 	va_end(args);
 	fprintf(stderr, "\n");
 }
+
+

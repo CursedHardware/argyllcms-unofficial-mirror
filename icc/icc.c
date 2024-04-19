@@ -46,7 +46,7 @@
 #undef DEBUG_SETLUT_CLIP	/* [Und] Show clipped values when setting LUT */
 #undef DEBUG_LULUT			/* [Und] Show each value being looked up from lut contents */
 #undef DEBUG_LLULUT			/* [Und] Debug individual lookup steps (not fully implemented) */
-#define ENABLE_DEDUP		/* [def] Enable de-duplication of tag elements */
+#define ENABLE_DEDUP		/* [def] Enable automatic de-duplication of tag elements */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -413,7 +413,7 @@ unsigned int offset
 	unsigned char *np;
 
 	np = p->start + offset;
-	if (np < p->start || np >= p->end)
+	if (np < p->start || np > p->end)
 		return 1;
 	p->cur = np;
 	return 0;
@@ -1102,7 +1102,7 @@ static const char *icmTagSig2str_imp(icTagSignature sig, int alt) {
 		case icSigOutputResponseTag:
 			return "Output Device Response";
 		case icSigPerceptualRenderingIntentGamutTag:
-			return "Colorimetric Rendering Intent Gamut";
+			return "Perceptual Rendering Intent Gamut";
 		case icSigPreview0Tag:
 			return "Preview0";
 		case icSigPreview1Tag:
@@ -4906,11 +4906,11 @@ static void icmSn_Unicode(
 
 		if (!nonul && (*puc8desc == NULL || *puc8count == 0)) 
 			*puc16count = 0;
-		else
+		else 
 			*puc16count = icmUTF8toUTF16Sn(&utferr, b, *puc8desc, *puc8count, nonul) / (nonul ? 1 : 2);
 
 		if (utferr != icmUTF_ok) {
-			icm_err(b->icp, 1,"%s write: utf-8 to utf-16 translate returned error '%s'",id,icmUTFerr2str(utferr));
+			icm_err(b->icp, 1,"%s %s: utf-8 to utf-16 translate returned error '%s'",id,b->op == icmSnSize ? "size" : "write", icmUTFerr2str(utferr));
 			return;
 		}
 
@@ -9892,7 +9892,12 @@ static unsigned int icc_get_size(icc *p) {
 	for (i = 0; i < p->count; i++) {
 		if (p->data[i].objp->touched == 0) {	/* Not seen this previously */
 			p->data[i].offset = size;			/* Profile relative target */
-			size = sat_add(size, (p->data[i].size = p->data[i].objp->get_size(p->data[i].objp)));
+			p->data[i].size = p->data[i].objp->get_size(p->data[i].objp);
+			if (p->e.c != ICM_ERR_OK) {
+				icc_rem_temp_tags(p);
+				return 0;
+			}
+			size = sat_add(size, p->data[i].size);
 			nsize = sat_align(p->align, size);
 			p->data[i].pad = nsize - size;
 			size = nsize;

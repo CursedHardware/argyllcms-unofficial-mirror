@@ -95,6 +95,7 @@ main(int argc, char *argv[]) {
 	int found = -1;
 	int rv;
 
+
 	if (argc < 3)
 		usage("Too few arguments");
 
@@ -153,6 +154,7 @@ main(int argc, char *argv[]) {
 
 	if (fa >= argc || argv[fa][0] == '-') usage("Missing input profile filename");
 	strncpy(in_name,argv[fa++],MAXNAMEL); in_name[MAXNAMEL] = '\000';
+
 
 	if (apply || remove) {
 		if (fa >= argc || argv[fa][0] == '-') usage("Missing output profile name");
@@ -219,6 +221,7 @@ main(int argc, char *argv[]) {
 		if (icco->header->deviceClass == icSigInputClass && cal->devclass != icSigInputClass) {
 			warning("Non-input calibration being applied to an input profile");
 		}
+
 
 		if (check) {
 			DBG(("Checking...\n"));
@@ -697,4 +700,6 @@ main(int argc, char *argv[]) {
 		return 1;
 	return 0;
 }
+
+
 

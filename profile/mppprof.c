@@ -53,9 +53,6 @@
 #include <math.h>
 #include <sys/types.h>
 #include <time.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "cgats.h"
@@ -86,8 +83,7 @@ usage(void) {
 static int make_output_mpp(int verb, int quality, int verify, char *inname, char *outname,
 int dolab, double ilimit, int ospec, int omix, profxinf *xpi);
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int fa,nfa,mfa;						/* current argument we're looking at */
 	int verb = 0;
 	int iquality = 1;					/* Forward quality, default medium */
@@ -100,10 +96,7 @@ int main(int argc, char *argv[])
 	static char outname[200] = { 0 };		/* Output cgats file base name */
 	profxinf xpi;						/* Extra profile information */
 
-#if defined(__IBMC__) && defined(_M_IX86)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
+
 	error_program = argv[0];
 	check_if_not_interactive();
 	memset((void *)&xpi, 0, sizeof(profxinf));	/* Init extra profile info to defaults */
@@ -113,7 +106,7 @@ int main(int argc, char *argv[])
 
 	/* Process the arguments */
 	mfa = 1;						/* Expect out filename */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -209,12 +202,14 @@ int main(int argc, char *argv[])
 			break;
 	}
 
+
 	/* Get the file name argument */
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(inname,argv[fa]);
 	strcat(inname,".ti3");
 	strcpy(outname,argv[fa]);
 	strcat(outname,".mpp");
+
 
 	if (make_output_mpp(verb, iquality, verify, inname, outname,
 	                dolab, limit, ospec, omix, &xpi) != 0) {
@@ -933,6 +928,8 @@ make_output_mpp(
 
 	return 0;
 }
+
+
 
 
 

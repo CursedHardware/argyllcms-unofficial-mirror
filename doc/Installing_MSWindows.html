@@ -97,7 +97,9 @@
     Argyll tools (<a href="dispwin.html">dispwin</a>) to control display
     calibration, that you will have to disable any other display
     calibration loader programs.<br>
-    <br>
+    <h3><u><font color="#cc0000"><a name="BadSoftware"></a>Other
+          software that may interfere with display calibration loading
+          and USB instrument access:</font></u></h3>
     There are other programs that will interfere with calibration
     loading, such as igfxpers.exe that gets installed with <b>nVidia
       "Optimus"</b> technology.<br>
@@ -111,9 +113,17 @@
     Note that the igfxpph module may exist in several locations and you
     have to disable all of them. Reboot after changing settings.<br>
     <br>
-    Another program that is reported to interfere with USB instrument
-    access is <b>Gigabyte RGBFusion</b>. You may have to disable or
-    uninstall this to access your instrument. <br>
+    It has also been reported that some RGB LED driver services will
+    interfere with USB instrument access. A known culprit is the <b>Logitech
+
+      LampArray Service</b> which may be have been installed with
+    Logitech software or by default in <b>MSWindows 11</b>. Other <b>RGB
+
+      LED drivers</b> and services such as <b>Gigabyte RGBFusion</b>
+    have also been reported as interfering with USB instrument access.
+    You may need to identify all such services and disable or uninstall
+    them.<br>
+    <br>
     Also reported to interfere with access to instruments, is <b>TeamSpeak3.</b>
     You may need to disable or upgrade to TeamSpeak5 to avoid issues.<br>
     Some services are reported to interfere with access to instruments,
@@ -121,11 +131,12 @@
     or uninstall this service for instruments to be recognized.<br>
     <br>
     <hr style="width: 100%; height: 2px;">
-    <h3><u><font color="#009900">Serial Instruments:</font></u><br>
+    <h3><u><font color="#009900"><a name="Serial"></a>Serial
+          Instruments:</font></u><br>
     </h3>
     If you are using a serial connected instrument, then there is
     nothing special to do to enable this.<br>
-    <h3><font color="#ff6600"><u>USB Instruments:</u></font></h3>
+    <h3><font color="#ff6600"><u><a name="USB"></a>USB Instruments:</u></font></h3>
     If you are using a USB connected instrument, then suitable <span
       style="font-weight: bold;">USB system drivers</span> may need to
     be installed.<br>
@@ -156,6 +167,9 @@
 
 
 
+
+
+
       Virtual COM Port Drivers</a> (VCP), if they are not already on
     your system. You may have to update to the latest FTDI driver to
     work with the FTDI FT231XS chip that the <b>JETI</b> specbos <b>1511,
@@ -171,14 +185,19 @@
 
 
 
+
+
+
       1501</b> use.<br>
+    <font size="+1"><u><br>
+      </u></font><br>
     <br>
-    For all operating system versions you can install the ArgyllCMS
-    libusb0.sys driver by navigating to your ArgyllCMS installation usb
-    directory, and running <b>ArgyllCMS_install_USB.exe</b>. This will
-    trigger a UAC prompt which you will have to agree to to proceed. You
-    may have to re-plug an instrument for the new driver to be picked
-    up.<br>
+    <a name="libusb"></a>For all operating system versions you can
+    install the ArgyllCMS libusb0.sys driver by navigating to your
+    ArgyllCMS installation usb directory, and running <b>ArgyllCMS_install_USB.exe</b>.
+    This will trigger a UAC prompt which you will have to agree to to
+    proceed. You may have to re-plug an instrument for the new driver to
+    be picked up.<br>
     <br>
     To uninstall the ArgyllCMS libusb0.sys driver, navigate to your
     ArgyllCMS installation usb directory, and run <b>ArgyllCMS_uninstall_USB.exe</b>.
@@ -204,7 +223,8 @@
     a different physical USB port for each installation, as this
     reportedly avoids the need to manually switch drivers.<br>
     <b><br>
-    </b> Jump to your operating system version for the details:<br>
+    </b> Jump to your operating system version for the details of how to
+    switch drivers:<br>
     <br>
     <a href="#WIN8">Windows 8, 8.1, 10 &amp; 11</a><br>
     <a href="#WINV7">Windows 7</a><br>

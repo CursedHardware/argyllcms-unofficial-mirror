@@ -10955,7 +10955,7 @@ int i1pro_switch_thread(void *pp) {
 	/* Try indefinitely, in case instrument is put to sleep */
 	for (;;) {
 		rv = i1pro_waitfor_switch_th(p, SW_THREAD_TIMEOUT);
-		a1logd(p->log,8,"Switch handler triggered with rv %d, th_term %d\n",rv,m->th_term);
+		a1logd(p->log,9,"Switch handler triggered with rv %d, th_term %d\n",rv,m->th_term);
 		if (m->th_term) {
 			m->th_termed = 1;
 			break;

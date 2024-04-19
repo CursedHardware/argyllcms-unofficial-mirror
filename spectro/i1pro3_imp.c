@@ -4912,7 +4912,7 @@ int i1pro3_event_thread(void *pp) {
 		i1pro3_eve ecode;
 
 		rv = i1pro3_waitfor_event_th(p, &ecode, SW_THREAD_TIMEOUT);
-		a1logd(p->log,8,"Event handler triggered with rv %d, th_term %d\n",rv,m->th_term);
+		a1logd(p->log,9,"Event handler triggered with rv %d, th_term %d\n",rv,m->th_term);
 		if (m->th_term) {
 			m->th_termed = 1;
 			break;

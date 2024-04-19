@@ -225,11 +225,12 @@ main(int argc, char *argv[]) {
 	double avgcount = 0.0;
 #endif /* DO_CHECK */
 
+
 	if (argc < 2)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -277,6 +278,7 @@ main(int argc, char *argv[]) {
 
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strcpy(out_name,argv[fa++]);
+
 
 	/* - - - - - - - - - - - - - - - - */
 	/* Open up the profile for reading */
@@ -418,6 +420,7 @@ main(int argc, char *argv[]) {
 
 	inp[0] = (unsigned char *)inbuf;
 	outp[0] = (unsigned char *)outbuf;
+
 
 	if (!slow) {		/* Fast */
 		for (y = 0; y < height; y++) {
@@ -573,4 +576,6 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 

@@ -121,109 +121,163 @@
 /* ============================================================= */
 #ifdef NT
 
-/* wait for and then return the next character from the keyboard */
-/* (If not_interactive set, wait for next stdin character but discard cr or lf) */
-int next_con_char(void) {
-	int c;
-
-	if (not_interactive) {
-		HANDLE stdinh;
-  		char buf[10], rv = 0;
-		DWORD bread;
-
-		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
-			return 0;
-		}
-	
-		/* Try and read any end of line characters */
-		for (;;) {
-			buf[0] = 0;
-			if (ReadFile(stdinh, buf, 3, &bread, NULL)
-			 && bread >= 1) {
-				rv = buf[0];
-				break;
-			}
-		}
-
-		return rv;
-	}
-
-	c = _getch();
-	return c;
-}
-
-/* If there is one, return the next character from the keyboard, else return 0 */
+/* Get the next console character. Return 0 if none is available. */
+/* Wait for one if wait is nz */
 /* (If not_interactive set, return next stdin character if available, but discard cr or lf) */
-int poll_con_char(void) {
+static int con_char(int wait) {
+
+//fprintf(stderr,"~1 con_char not_interactive %d wait %d\n",not_interactive,wait);
 
 	if (not_interactive) {		/* Can't assume that it's the console */
-
-		/* This approach is very flakey from the console, but seems */
-		/* to work reliably when operated progromatically. */
 		HANDLE stdinh;
 		char buf[10] = { 0 };
 		DWORD bread;
-		int rv = 0;
+		int i, rv = 0;
 
 		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
 			return 0;		
 		}
-		for (;;) {
-			if (WaitForSingleObject(stdinh, 0) == WAIT_OBJECT_0) {
-				buf[0] = buf[1] = buf[2] = 0;
-				if (ReadFile(stdinh, buf, 3, &bread, NULL)) {
-//					fprintf(stderr,"Read %d chars 0x%x 0x%x 0x%x\n",bread,buf[0],buf[1], buf[2]);
+
+		if (stdin_type == FILE_TYPE_CHAR) {
+//fprintf(stderr,"~1 wait %d console:\n",wait);
+
+			if (wait || _kbhit() != 0) {
+				for (bread = 0; bread < 10;)  {
+					int c = _getch();
+					buf[bread++] = c;
+//fprintf(stderr,"~1  read 0x%x\n" ,c);
+					if (c == '\n' || c == '\r' || c == 0x3) {
+						break;
+					}
+				}
+//fprintf(stderr,"~1  read %d: ",bread);
+//for (i = 0; i < bread; i++)
+//fprintf(stderr," 0x%x",buf[i]);
+//fprintf(stderr,"\n");
+				if (bread > 0) {
 					rv = buf[0];
-					break;
 				}
 			}
-			rv = 0;
-			break;
+
+		/* We assume pipe has been set to NOWAIT mode. */
+		} else if (stdin_type == FILE_TYPE_PIPE) {
+			int i, bib;
+//fprintf(stderr,"~1  top of pipe\n");
+
+			for (bib = 0; bib < 10;) {
+//fprintf(stderr,"~1  got %d in buf\n",bib);
+				if ((!ReadFile(stdinh, buf + bib, 10 - bib, &bread, NULL) || bread == 0)
+				 && !wait) {
+//fprintf(stderr,"~1  no chars waiting\n");
+					break;
+				}
+				bib += bread;
+
+				for (i = 0; i < bib; i++) {
+					if (buf[i] == '\n' || buf[i] == '\r' || buf[i] == 0x3) {
+//fprintf(stderr,"~1  found lf at ix %d\n",i);
+						break;
+					}
+				}
+				if (i < bib) {
+//fprintf(stderr,"~1  found lf\n");
+					break;		/* Found '\n' */
+				}
+				Sleep(100);		/* Wait for a line ending in '\n' */
+			}
+
+//if (bread > 0) {
+//fprintf(stderr,"~1  read %d: ",bread);
+//for (i = 0; i < bread; i++)
+//fprintf(stderr," 0x%x",buf[i]);
+//fprintf(stderr,"\n//");
+//}
+			rv = buf[0];
+
+		/* Assume a file. This will have very limited functionality. */
+		/* We assume that we can't poll for console input, but will */
+		/* read from the file on blocking calls. */
+		} else {
+			if (wait) {		/* Only attempt a read if this is blocking */
+				if (ReadFile(stdinh, buf, 10, &bread, NULL) && bread > 0)
+					rv = buf[0];
+			}
 		}
 
+//fprintf(stderr,"~1 returning 0x%x\n",rv);
 		return rv;
 	}
 
-	/* Assume it's the console */
-	if (_kbhit() != 0) {
-		int c = next_con_char();
+	/* Assume it's the interactive console */
+	if (wait || _kbhit() != 0) {
+		int c = _getch();
 		return c;
 	}
 	return 0; 
 }
 
-/* Suck all characters from the keyboard */
-/* (If not_interactive set, discard all pending characters of stdin) */
+/* wait for and then return the next character from the keyboard */
+/* (If not_interactive set, wait for next stdin character but discard cr or lf) */
+int next_con_char(void) {
+	return con_char(1);
+}
+
+/* If there is one, return the next character from the keyboard, else return 0 */
+/* (If not_interactive set, return next stdin character if available, but discard cr or lf) */
+int poll_con_char(void) {
+	return con_char(0); 
+}
+
+/* If interactive, suck all characters from the keyboard */
 void empty_con_chars(void) {
 
-	if (not_interactive) {
-		HANDLE stdinh;
-		char buf[100] = { 0 }, c;
-		DWORD bread;
-
-		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE)
-			return;
-		for (;;) {
-			/* Wait for 1msec */
-
-			/* Do dummy read, as stdin seems to be signalled on startup */
-			if (WaitForSingleObject(stdinh, 1) == WAIT_OBJECT_0)
-				ReadFile(stdinh, buf, 0, &bread, NULL);
-
-			if (WaitForSingleObject(stdinh, 1) == WAIT_OBJECT_0) {
-				ReadFile(stdinh, buf, 100, &bread, NULL);
-			} else {
-				break;
-			}
-		}
+	if (not_interactive)		/* Don't suck all the characters from stdin */
 		return;
-	}
 
 	Sleep(50);					/* _kbhit seems to have a bug */
 	while (_kbhit()) {
 		if (next_con_char() == 0x3)	/* ^C Safety */
 			break;
 	}
+}
+
+/* Do an fgets from stdin, taking account of possible interference from */
+/* non-interactive mode. */
+char *con_fgets(char *buf, int size) {
+
+	if (not_interactive) {
+		char *rv = NULL;
+		HANDLE stdinh;
+		int i, bib;
+//fprintf(stderr,"~1  top of pipe\n");
+
+		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE) {
+			return NULL;		
+		}
+
+		for (bib = 0; bib < size;) {
+			DWORD bread;
+
+			if (ReadFile(stdinh, buf + bib, size - bib, &bread, NULL) && bread > 0) {
+				bib += bread;
+
+				for (i = 0; i < bib; i++) {
+					if (buf[i] == '\n' || buf[i] == '\r') {
+						break;
+					}
+				}
+				if (i < bib) {
+					buf[i] = '\000';
+					break;		/* Found '\n' */
+				}
+			}
+			Sleep(100);		/* Wait for a line ending in '\n' */
+	
+		}
+		return buf;
+	}
+
+	return fgets(buf, size, stdin);
 }
 
 /* Sleep for the given number of seconds */
@@ -566,6 +620,50 @@ int system_processors() {
 
 #endif /* NT */
 
+/* Do a string copy while replacing all '\' characters with '/' */
+void copynorm_dirsep(char *d, char *s) { 
+#ifdef NT
+	for (;;) {
+		*d = *s;
+		if (*s == '\000')
+			break;
+		if (*d == '\\')
+			*d = '/';
+		s++;
+		d++;
+	}
+#endif
+}
+
+/* Allocate and create a path to the given filename that is */
+/* in the same directory as the given file. */
+/* Returns normalized separator '/' path. */
+/* Free after use */
+/* Return NULL on malloc error */
+char *path_to_file_in_same_dir(char *inpath, char *infile) {
+	size_t alen = 0;
+	char *rv = NULL, *cp;
+
+	/* Be very conservative */
+	alen = strlen(inpath) + strlen(infile) + 1;
+
+	if ((rv = malloc(alen)) == NULL) {
+		return NULL;
+	}
+
+	copynorm_dirsep(rv, inpath);
+	
+	/* Locate the base filename in path */
+	if ((cp = strrchr(rv, '/')) == NULL) {
+		strcpy(rv, infile);
+	} else {
+		cp++;
+		strcpy(cp, infile);
+	}
+
+	return rv;
+}
+
 
 /* ============================================================= */
 /*                          UNIX/OS X                            */
@@ -660,7 +758,17 @@ int poll_con_char(void) {
 
 /* Discard all pending characters from stdin */
 void empty_con_chars(void) {
+
+	if (not_interactive)		/* Don't suck all the characters from stdin */
+		return;
+
 	tcflush(STDIN_FILENO, TCIFLUSH);
+}
+
+/* Do an fgets from stdin, taking account of possible interference from */
+/* non-Interactive mode. */
+char *con_fgets(char *s, int size) {
+	return fgets(s, size, stdin);
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - */

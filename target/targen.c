@@ -140,6 +140,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
+#include <stdarg.h>
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -157,8 +158,6 @@
 #include "simdlat.h"
 #include "prand.h"
 #include "ui.h"
-
-#include <stdarg.h>
 
 #define min2(a,b) ((a) < (b) ? (a) : (b))
 #define min3(a,b,c)  (min2((a), min2((b),(c))))
@@ -988,6 +987,7 @@ int main(int argc, char *argv[]) {
 	int fxlist_a = 0;		/* Fixed point list allocation */
 	int fxno = 0;			/* The number of fixed points */
 
+
 #ifdef NUMSUP_H
 	error_program = "targen";
 #endif
@@ -998,7 +998,7 @@ int main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 1;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -1299,6 +1299,7 @@ int main(int argc, char *argv[]) {
 	strncpy(wlname,argv[fa],MAXNAMEL-5); wlname[MAXNAMEL-5] = '\000';
 	strcat(wlname,"l");
 
+
 	/* Set default colorant combination as CMYK */
 	if (xmask == 0)
 		xmask = ICX_CMYK;
@@ -1519,6 +1520,7 @@ int main(int argc, char *argv[]) {
 			if ((fxlist = (fxpos *)malloc(sizeof(fxpos) * fxlist_a)) == NULL)
 			error ("Failed to malloc fxlist");
 	}
+
 
 	/* White color patches */
 	if (esteps > 0)	{
@@ -2988,4 +2990,6 @@ static double disprespt(cgats *pp, int p1, int p2) {
 
 	return xdelay;
 }
+
+
 

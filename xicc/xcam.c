@@ -22,6 +22,7 @@
 #include "cam02.h"
 
 static void icx_cam_free(icxcam *s);
+static int icx_set_view_vc(icxcam *s, icxViewCond *vc);
 static int icx_set_view(icxcam *s, ViewingCondition Ev, double Wxyz[3],
                         double La, double Yb, double Lv, double Yf, double Yg, double Gxyz[3],
 						int hk, double hkscale, double mtaf, double Wxyz2[3]);
@@ -62,12 +63,13 @@ icxcam *new_icxcam(icxCAM which) {
 	}
 	
 	/* Initialise methods */
-	s->del        = icx_cam_free;
-	s->set_view   = icx_set_view;
-	s->XYZ_to_cam = icx_XYZ_to_cam;
-	s->cam_to_XYZ = icx_cam_to_XYZ;
-	s->settrace   = settrace;
-	s->dump       = icx_cam_dump;
+	s->del         = icx_cam_free;
+	s->set_view_vc = icx_set_view_vc;
+	s->set_view    = icx_set_view;
+	s->XYZ_to_cam  = icx_XYZ_to_cam;
+	s->cam_to_XYZ  = icx_cam_to_XYZ;
+	s->settrace    = settrace;
+	s->dump        = icx_cam_dump;
 
 	/* We set the default CAM here */
 	if (which == cam_default)
@@ -117,6 +119,17 @@ static void icx_cam_free(icxcam *s) {
 		}
 		free(s);
 	}
+}
+
+static int icx_set_view_vc(
+icxcam *s,
+icxViewCond *vc
+) {
+	return s->set_view(s,
+		vc->Ev, vc->Wxyz, vc->La, vc->Yb, vc->Lv,
+		vc->Yf, vc->Yg, vc->Gxyz,
+		vc->hk, vc->hkscale,
+		vc->mtaf, vc->Wxyz2);
 }
 
 static int icx_set_view(

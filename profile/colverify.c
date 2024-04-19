@@ -31,9 +31,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
@@ -164,6 +161,7 @@ int main(int argc, char *argv[])
 
 	char out_name[MAXNAMEL+4+1]; /* VRML/X3D name */
 	vrml *wrl = NULL;
+
 
 	int i, j, n;
 
@@ -439,6 +437,7 @@ int main(int argc, char *argv[])
 
 	if (fa >= argc || argv[fa][0] == '-') usage();
 	strncpy(cg[1].name,argv[fa],MAXNAMEL); cg[1].name[MAXNAMEL] = '\000';
+
 
 	/* Create VRML/X3D base name */
 	{
@@ -1463,5 +1462,7 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+
 
 

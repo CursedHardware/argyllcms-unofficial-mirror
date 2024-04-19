@@ -21,9 +21,6 @@
 #ifdef __sun
 #include <unistd.h>
 #endif
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "numlib.h"
 #include "icc.h"		/* definitions for this library */
 #include "bt1886.h"		/* definitions for this library */

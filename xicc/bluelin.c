@@ -14,7 +14,7 @@
  */
 
 /*
- * Test/development code for the cicam02 blue linearization hack.
+ * Code for the cicam02 blue linearization hack.
  *
  * Inspired by "Color gamut mapping in a hue-linearized CIELAB color space"
  * by Gustav Braun and Mark Fairchild.

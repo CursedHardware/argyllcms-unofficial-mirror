@@ -156,9 +156,6 @@ static void mputenv(char *ss) {
 }
 #endif
 
-/* Allocate a copy of the string, and normalize the */
-/* path separator to '/' */
-
 /* Append a string. Free in. Return NULL on error. */
 static char *append(char *in, char *app) {
 	char *rv;

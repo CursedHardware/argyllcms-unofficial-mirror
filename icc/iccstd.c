@@ -93,6 +93,9 @@ size_t size
 		icmAllocStd_free(pp, ptr);
 		return ZMARKER;
 	}
+	if (ptr == ZMARKER)
+		ptr = NULL;
+
 	if (ptr == NULL)			/* Some realloc's barf on reallocing NULL */
 		return malloc(size);
 	return realloc(ptr, size);

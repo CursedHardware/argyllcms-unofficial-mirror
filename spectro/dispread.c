@@ -32,7 +32,7 @@
 #undef DEBUG_OFFSET	/* Keep test window out of the way */
 
 /* Invoke with -dfake for testing with a fake device */
-/* Will use fake.icm/.icc if present */
+/* Will use fake.icm/.icc if present, or hard coded device otherwise */
 
 #define COMPORT 1		/* Default com port 1..4 */
 
@@ -303,6 +303,7 @@ int main(int argc, char *argv[]) {
 	int nocm = 0;						/* Will be set to nz if can't set color management */
 	int errc;							/* Return value from new_disprd() */
 	int rv;
+
 
 	set_exe_path(argv[0]);				/* Set global exe_path and error_program */
 	check_if_not_interactive();
@@ -655,6 +656,7 @@ int main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	/* No explicit display has been set */
 	if (!fake 
 #ifdef NT
@@ -748,6 +750,7 @@ int main(int argc, char *argv[]) {
 			error("docalibration failed with return value %d\n",rv);
 		}
 	}
+
 
 	/* Get the file name argument */
 	if (fa >= argc || argv[fa][0] == '-') usage(0,"Filname parameter not found");
@@ -977,7 +980,7 @@ int main(int argc, char *argv[]) {
 		ccs->del(ccs);
 
 	/* Test the display with all of the test points */
-	if ((rv = dr->read(dr, cols, npat + xpat, 1, npat + xpat, 1, 0, instNoClamp)) != 0) {
+	if ((rv = dr->read(dr, cols, npat + xpat, 1, npat + xpat, 1, 0, instNoClamp, 0)) != 0) {
 		dr->del(dr);
 		error("dispd->read returned error code %d\n",rv);
 	}
@@ -1179,5 +1182,7 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 
 

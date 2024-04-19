@@ -26,9 +26,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <math.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"

@@ -35,6 +35,7 @@
 #include <conio.h>
 #endif
 
+
 void
 usage(int level) {
 	int i;
@@ -87,6 +88,7 @@ int main(int argc, char *argv[])
 	double sca[MAX_CHAN];		/* Output scale */
 	double gam[MAX_CHAN];		/* Gamma applied */
 
+
 	for (j = 0; j < MAX_CHAN; j++)
 		off[j] = 0.0, sca[j] = gam[j] = 1.0;
 
@@ -95,7 +97,7 @@ int main(int argc, char *argv[])
 		usage(0);
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')		/* Look for any flags */
 			{
@@ -256,6 +258,7 @@ int main(int argc, char *argv[])
 			break;
 	}
 
+
 	/* Get the file name argument */
 	if (fa >= argc || argv[fa][0] == '-') usage(0);
 	strcpy(outname,argv[fa]);
@@ -288,6 +291,7 @@ int main(int argc, char *argv[])
 		for (j = 0; j < devchan; j++)
 			printf("off[%d] = %f, sca[%d] = %f, gam[%d] = %f\n",j,off[j],j,sca[j],j, gam[j]);
 	}
+
 
 	/* Write out the resulting calibration file */
 	{
@@ -357,5 +361,7 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
+
+
 
 

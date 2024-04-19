@@ -111,7 +111,7 @@ typedef enum {
 #define ICOM_MAX_LOC_LEN 10
 
 struct _ipatch {
-	char loc[ICOM_MAX_LOC_LEN];	/* patch location */
+	char loc[ICOM_MAX_LOC_LEN];	/* patch location description string */
 
 	inst_meas_type mtype;		/* Measurement type */
 	inst_meas_cond mcond;		/* Reflective measurement conditions */

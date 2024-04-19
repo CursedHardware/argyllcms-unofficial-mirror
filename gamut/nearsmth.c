@@ -56,6 +56,7 @@
 #include "icc.h"
 #include "numlib.h"
 #include "rspl.h"
+#include "cgats.h"
 #include "gamut.h"
 #include "nearsmth.h"
 #include "vrml.h"
@@ -619,6 +620,9 @@ double d_bp[3]		/* Override destination target black point (may be NULL) */
 	
 	s->donaxis = 1;		/* Assume real neutral axis info */
 	s->docusp = 1;		/* Assume real cusp info */
+
+//# pragma message("################ docusp disabled #########################")
+//s->docusp = 0;
 
 	s->isJab = sc_gam->isJab;
 

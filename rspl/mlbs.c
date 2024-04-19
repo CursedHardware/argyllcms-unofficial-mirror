@@ -39,9 +39,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <math.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "numlib.h"
 #include "mlbs.h"
 

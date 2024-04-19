@@ -31,6 +31,7 @@ struct _profxinf {
 	char *modelDesc;		/* Model text description, NULL for none */
 	char *profDesc;			/* Text profile description, NULL for default */
 	char *copyright;		/* Copyrigh text, NULL for default */
+	char *chartarget;		/* CharTaret text, NULL for none */
 }; typedef struct _profxinf profxinf;
 
 #endif /* SALONEINSTLIB */

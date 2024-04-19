@@ -1,5 +1,5 @@
 
-Notes on changes needed for V4.2
+Notes on changes needed for V4.2 (OLD - outdated by icclib V3.0)
 
 --------------------------------------------
 Spec name/version/file version relationship.

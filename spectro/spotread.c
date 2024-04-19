@@ -21,6 +21,8 @@
 
 /* TTBD
  *
+ *	Add a "w" command to set & then display L*a*b* relative to that white.
+ *
  *  Add option to automatically read continuously, until stopped. (A bit like -O)
  *
  *	Make -V average the spectrum too (if present), and allow it to
@@ -53,6 +55,8 @@
 # include "conv.h"
 # include "plot.h"
 # include "ui.h"
+# include "i1pro.h"
+# include "i1pro_imp.h"
 #else /* SALONEINSTLIB */
 # include "sa_config.h"
 # include "numsup.h"
@@ -66,12 +70,11 @@
 #include "ccmx.h"
 #include "instappsup.h"
 # include "spyd2.h"
-#include "i1pro.h"
-#include "i1pro_imp.h"
 
 #if defined (NT)
 #include <conio.h>
 #endif
+
 
 #undef DO_TM3015_PLOT	/* Diagnostic */
 
@@ -372,7 +375,7 @@ static void XYZ2Yxy(double *out, double *in) {
 /* Replacement for gets */
 char *getns(char *buf, int len) {
 	int i;
-	if (fgets(buf, len, stdin) == NULL)
+	if (con_fgets(buf, len) == NULL)
 		return NULL;
 
 	for (i = 0; i < len; i++) {
@@ -390,9 +393,9 @@ char *getns(char *buf, int len) {
 static int ierror(inst *it, inst_code ic) {
 	int ch;
 	empty_con_chars();
-	printf("Got '%s' (%s) error.\nHit Esc or Q to give up, any other key to retry:",
-	       it->inst_interp_error(it, ic), it->interp_error(it, ic));
-	fflush(stdout);
+	printf("Got '%s' (%s) error.\nHit Esc or Q to give up, any other key to retry:%s",
+	       it->inst_interp_error(it, ic), it->interp_error(it, ic), fl_end);
+	do_fflush();
 	ch = next_con_char();
 	printf("\n");
 	if (ch == 0x03 || ch == 0x1b || ch == 'q' || ch == 'Q')	/* Escape, ^C or Q */
@@ -477,10 +480,10 @@ usage(char *diag, ...) {
 	fprintf(stderr," -t                   Use transmission measurement mode\n");
 	fprintf(stderr," -e                   Use emissive measurement mode (absolute results)\n");
 	fprintf(stderr," -eb                  Use display white brightness relative measurement mode\n");
-	fprintf(stderr," -ew                  Use display white point relative chromatically adjusted mode\n");
+	fprintf(stderr," -ew                  Use display white point relative brightness and chromatically adjusted mode\n");
 	fprintf(stderr," -p                   Use telephoto measurement mode (absolute results)\n");
 	fprintf(stderr," -pb                  Use projector white brightness relative measurement mode\n");
-	fprintf(stderr," -pw                  Use projector white point relative chromatically adjusted mode\n");
+	fprintf(stderr," -pw                  Use projector white point relative brightness and chromatically adjusted mode\n");
 	fprintf(stderr," -a                   Use ambient measurement mode (absolute results)\n");
 	fprintf(stderr," -f                   Use ambient flash measurement mode (absolute results)\n");
 	fprintf(stderr," -rw                  Use reflection white point relative chromatically adjusted mode\n");
@@ -544,7 +547,9 @@ usage(char *diag, ...) {
 	fprintf(stderr," -Y r|n               Override refresh, non-refresh display mode\n");
 	fprintf(stderr," -Y R:rate            Override measured refresh rate with rate Hz\n");
 	fprintf(stderr," -Y A                 Use non-adaptive integration time mode (if available).\n");
+#ifndef SALONEINSTLIB
 	fprintf(stderr," -Y l|L               Test for i1Pro Lamp Drift (l), and remediate it (L)\n");
+#endif
 	fprintf(stderr," -Y a                 Use Averaging mode (if available) aa, aaa for more.\n");
 	fprintf(stderr," -Y y                 Show even serial instrument display calibration types in usage (slow!)\n");                 
 //	fprintf(stderr," -Y U                 Test i1pro2 UV measurement mode\n");
@@ -579,7 +584,9 @@ int main(int argc, char *argv[]) {
 	int tele = 0;					/* 1 = Use telephoto emissive sub-mode. */
 	int ambient = 0;				/* 1 = Use ambient emissive mode, 2 = ambient flash mode */
 	int highres = 0;				/* Use high res mode if available */
+#ifndef SALONEINSTLIB
 	int lampdrift = 0;				/* i1Pro Lamp Drift test (1) & fix (2) */
+#endif
 	int uvmode = 0;					/* ~~~ i1pro2 test mode ~~~ */
 	xcalstd calstd = xcalstd_none;	/* X-Rite calibration standard */
 	int refrmode = -1;				/* -1 = default, 0 = non-refresh mode, 1 = refresh mode */
@@ -626,8 +633,8 @@ int main(int argc, char *argv[]) {
 	icxIllumeType illum = icxIT_D50;	/* Spectral defaults */
 	xspect cust_illum;				/* Custom illumination spectrum */
 	int labwpillum = 0;				/* nz to use illum WP for L*a*b* conversion */
-	icmXYZNumber labwp = { icmD50_100.X, icmD50_100.Y, icmD50_100.Z };	/* Lab conversion wp */
 	char labwpname[100] = "D50";	/* Name of Lab conversion wp */
+	icmXYZNumber labwp = { icmD50_100.X, icmD50_100.Y, icmD50_100.Z };	/* Default Lab conv. wp */
 	icxObserverType obType = icxOT_default;		/* Default is 1931_2 */
 	xspect custObserver[3];			/* If obType = icxOT_custom */
 	xspect sp;						/* Last spectrum read (fwa adjusted) */
@@ -636,7 +643,7 @@ int main(int argc, char *argv[]) {
 	xsp2cie *sp2cief[26];			/* FWA corrected conversions */
 	double wXYZ[3] = { -10.0, 0, 0 };/* White XYZ for display white relative */
 	double chmat[3][3];				/* Chromatic adapation matrix for white point relative */
-	double XYZ[3] = { 0.0, 0.0, 0.0 };		/* Last XYZ scaled 0..100 or absolute */
+	double XYZ[3] = { 0.0, 0.0, 0.0 };	/* Last XYZ scaled 0..100 or absolute */
 	double Lab[3] = { -10.0, 0, 0};	/* Last Lab */
 	double rXYZ[3] = { 0.0, -10.0, 0};	/* Reference XYZ */
 	double rLab[3] = { -10.0, 0, 0};	/* Reference Lab */
@@ -655,6 +662,7 @@ int main(int argc, char *argv[]) {
 	int ix;							/* Reading index number */
 	int loghead = 0;				/* NZ if log file heading has been printed */
 
+
 	set_exe_path(argv[0]);			/* Set global exe_path and error_program */
 	check_if_not_interactive();
 
@@ -666,7 +674,7 @@ int main(int argc, char *argv[]) {
 
 	/* Process the arguments */
 	mfa = 0;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -1090,11 +1098,13 @@ int main(int argc, char *argv[]) {
 						strncpy(specsens,&na[2],MAXNAMEL-1); specsens[MAXNAMEL-1] = '\000';
 #endif	/* !SALONEINSTLIB */
 
+#ifndef SALONEINSTLIB
 				/* i1Pro lamp drift test & fix */
 				} else if (na[0] == 'l') {
 					lampdrift = 1;
 				} else if (na[0] == 'L') {
 					lampdrift = 2;
+#endif
 
 				/* Show even serial instrument display calibration types */
 				} else if (na[0] == 'y') {
@@ -1225,6 +1235,8 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 	
+
+#ifndef SALONEINSTLIB
 	/* Check i1Pro lamp drift, and remediate if it is too large */
 	/* (Hmm. If cooltime is too long, drift appears to be worse
 	    after remediation. It's not clear why, but it returns
@@ -1369,6 +1381,7 @@ remediate:;
 		
 		goto done;
 	}
+#endif
 
 	/* Configure the instrument mode */
 	{
@@ -2052,8 +2065,8 @@ remediate:;
 			printf("Hit 'r' to set reference\n");
 #endif /* SALONEINSTLIB */
 			printf("Hit ESC or Q to exit, N to not read saved reading,\n");
-			printf("any other key to use reading: ");
-			fflush(stdout);
+			printf("any other key to use reading: %s",fl_end);
+			do_fflush();
 			
 			/* Read the sample or get a command */
 			rv = it->read_sample(it, "SPOT", &val, refstats ? instNoClamp : instClamp);
@@ -2189,10 +2202,10 @@ remediate:;
 					printf("'t' to toggle laser target\n");
 			}
 			if (uswitch)
-				printf("Hit ESC or Q to exit, instrument switch or any other key to take a reading: ");
+				printf("Hit ESC or Q to exit, instrument switch or any other key to take a reading: %s",fl_end);
 			else
-				printf("Hit ESC or Q to exit, any other key to take a reading: ");
-			fflush(stdout);
+				printf("Hit ESC or Q to exit, any other key to take a reading: %s",fl_end);
+			do_fflush();
 
 			if ((cap2 & inst2_xy_locate) && (cap2 & inst2_xy_position)) {
 				/* Wait for the user to hit a key */
@@ -2287,7 +2300,7 @@ remediate:;
 		/* Deal with a user abort */
 		if ((rv & inst_mask) == inst_user_abort && (ch & DUIH_ABORT)) {
 			printf("\n\nSpot read stopped at user request!\n");
-			printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+			printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 			ch = next_con_char();
 			if (ch == 0x1b || ch == 0x03 || ch == 'q' || ch == 'Q') {
 				printf("\n");
@@ -2316,7 +2329,7 @@ remediate:;
 		} else if ((rv & inst_mask) == inst_misread) {
 			empty_con_chars();
 			printf("\n\nSpot read failed due to misread (%s)\n",it->interp_error(it, rv));
-			printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+			printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 			ch = next_con_char();
 			printf("\n");
 			if (ch == 0x1b || ch == 0x03 || ch == 'q' || ch == 'Q') {
@@ -2328,7 +2341,7 @@ remediate:;
 		} else if ((rv & inst_mask) == inst_coms_fail) {
 			empty_con_chars();
 			printf("\n\nSpot read failed due to communication problem.\n");
-			printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+			printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 			ch = next_con_char();
 			if (ch == 0x1b || ch == 0x03 || ch == 'q' || ch == 'Q') {
 				printf("\n");
@@ -2414,7 +2427,7 @@ remediate:;
 			continue;
 		}
 		if (ch == 'R' || ch == 'r') {	/* Make last reading the reference */
-			if (Lab[0] >= -9.0) {
+			if (XYZ[0] >= -9.0) {
 				rXYZ[0] = XYZ[0];
 				rXYZ[1] = XYZ[1];
 				rXYZ[2] = XYZ[2];
@@ -2450,7 +2463,7 @@ remediate:;
 
 				empty_con_chars();
 
-				printf("\nEnter filename (ie. xxxx.sp): "); fflush(stdout);
+				printf("\nEnter filename (ie. xxxx.sp): %s",fl_end); do_fflush();
 				if (getns(buf, 500) != NULL && strlen(buf) > 0) {
 					if(write_xspect(buf, val.mtype, val.mcond, &sp))
 						printf("\nWriting file '%s' failed\n",buf);
@@ -2874,7 +2887,7 @@ remediate:;
 			icmXYZ21976UCS(Yuv, XYZ);
 
 #else /* SALONEINSTLIB */
-			/* Compute D50 Lab from XYZ */
+			/* Compute Lab from XYZ */
 			XYZ2Lab(Lab, XYZ);
 
 			/* Compute Yxy from XYZ */
@@ -3186,6 +3199,8 @@ done:;
 
 	return 0;
 }
+
+
 
 
 

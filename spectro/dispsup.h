@@ -177,7 +177,21 @@ struct _disprd {
 		int tpat,		/* Total patch index for "verb", 0 if not used */
 		int acr,		/* If nz, do automatic final carriage return */
 		int tc,			/* If nz, termination key */
-		instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+		instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+		int noinc       /* Ignored */
+	);
+
+	/* Underlying implementation - usually disprd_read_imp, */
+	/* but can be fake_read if drift compensation enabled. */ 
+	int (*read_imp)(struct _disprd *p,
+		col *cols,		/* Array of patch colors to be tested */
+		int npat, 		/* Number of patches to be tested */
+		int spat,		/* Start patch index for "verb", 0 if not used */
+		int tpat,		/* Total patch index for "verb", 0 if not used */
+		int acr,		/* If nz, do automatic final carriage return */
+		int tc,			/* If nz, termination key */
+		instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+		int noinc       /* If nz, don't increment the count */
 	);
 
 	/* Return the display type information */

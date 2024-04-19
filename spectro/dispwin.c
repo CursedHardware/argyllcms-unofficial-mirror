@@ -280,34 +280,17 @@ static BOOL CALLBACK MonitorEnumProc(
 
 /* Dynamically linked function support */
 
-#if !defined(NTDDI_VERSION) || NTDDI_VERSION < 0x06000000
-# define DECLARE_WCS_SCOPE
-#endif
-
-#if defined(WINAPI_FAMILY_PARTITION)
-# if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
-#  define DECLARE_WCS_SCOPE
-# endif
-#endif
-
-/* Native MingW64 headers if _WIN32_ WINNT < 0x600 ... */
-#if defined(__MINGW64__) && !defined(WcsOpenColorProfile)
-# define DECLARE_WCS_SCOPE
-#endif
-
-#ifdef DECLARE_WCS_SCOPE
-
+/* This is copied from MSWindows SDK icm.h */
+/* Relying on that definition is too hard... */
 typedef enum {
-	WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE,
-	WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER
-} WCS_PROFILE_MANAGEMENT_SCOPE;
-
-#endif  /* DECLARE_WCS_SCOPE */
+	A_WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE,
+	A_WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER
+} A_WCS_PROFILE_MANAGEMENT_SCOPE;
 
 BOOL (WINAPI* pEnumDisplayDevices)(PVOID,DWORD,PVOID,DWORD) = NULL;
 
-BOOL (WINAPI* pWcsAssociateColorProfileWithDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
-BOOL (WINAPI* pWcsDisassociateColorProfileFromDevice)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
+BOOL (WINAPI* pWcsAssociateColorProfileWithDevice)(A_WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
+BOOL (WINAPI* pWcsDisassociateColorProfileFromDevice)(A_WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR) = NULL;
 
 /* See if we can get the wanted function calls */
 /* return nz if OK */
@@ -324,8 +307,8 @@ static int setup_dyn_calls() {
 
 		/* Vista calls */
 #if (!defined(NTDDI_LONGHORN) || NTDDI_VERSION < NTDDI_LONGHORN)
-		pWcsAssociateColorProfileWithDevice = (BOOL (WINAPI*)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsAssociateColorProfileWithDevice");
-		pWcsDisassociateColorProfileFromDevice = (BOOL (WINAPI*)(WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsDisassociateColorProfileFromDevice");
+		pWcsAssociateColorProfileWithDevice = (BOOL (WINAPI*)(A_WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsAssociateColorProfileWithDevice");
+		pWcsDisassociateColorProfileFromDevice = (BOOL (WINAPI*)(A_WCS_PROFILE_MANAGEMENT_SCOPE,PCWSTR,PCWSTR)) GetProcAddress(LoadLibrary("mscms"), "WcsDisassociateColorProfileFromDevice");
 		/* These are checked individually */
 #else
 		pWcsAssociateColorProfileWithDevice = WcsAssociateColorProfileWithDevice;
@@ -2110,7 +2093,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 				return 1;
 			}
 	
-			wo->tagType = icSigVideoCardGammaType;
+			wo->tagType = icVideoCardGammaTable;
 			wo->u.table.channels = 3;			/* rgb */
 			wo->u.table.entryCount = r->nent;	/* number of calibration entries */
 			wo->u.table.entrySize = 2;			/* 16 bits */
@@ -2124,7 +2107,7 @@ static int dispwin_set_ramdac(dispwin *p, ramdac *r, int persist) {
 						vv = 0.0;
 					else if (vv > 1.0)
 						vv = 1.0;
-					((unsigned short*)wo->u.table.data)[r->nent * j + i] = (int)(vv * 65535.0 + 0.5);
+					wo->u.table.data[j][i] = vv;
 				}
 			}
 		}
@@ -2704,7 +2687,7 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 		char *basename;
 		char colpath[MAX_PATH];
 		unsigned long colpathlen = MAX_PATH;
-		WCS_PROFILE_MANAGEMENT_SCOPE wcssc;
+		A_WCS_PROFILE_MANAGEMENT_SCOPE wcssc;
 		unsigned short *wpath, *wbname, *wmonid;
 
 		if (GetColorDirectory(NULL, colpath, &colpathlen) == 0) {
@@ -2733,9 +2716,9 @@ int dispwin_install_profile(dispwin *p, char *fname, ramdac *r, p_scope scope) {
 
 		/* Setup in case we're on Vista */
 		if (scope == p_scope_user)
-			wcssc = WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER;
+			wcssc = A_WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER;
 		else 
-			wcssc = WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE;
+			wcssc = A_WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE;
 
 		if ((wpath = char2wchar(fullpath)) == NULL) { 
 			debugr2((errout,"char2wchar failed\n"));
@@ -3076,7 +3059,7 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 		char *basename;
 		char colpath[MAX_PATH];
 		unsigned long colpathlen = MAX_PATH;
-		WCS_PROFILE_MANAGEMENT_SCOPE wcssc;
+		A_WCS_PROFILE_MANAGEMENT_SCOPE wcssc;
 		unsigned short *wbname, *wmonid;
 
 		if (GetColorDirectory(NULL, colpath, &colpathlen) == 0) {
@@ -3105,9 +3088,9 @@ int dispwin_uninstall_profile(dispwin *p, char *fname, p_scope scope) {
 
 		/* Setup in case we're on Vista */
 		if (scope == p_scope_user)
-			wcssc = WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER;
+			wcssc = A_WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER;
 		else 
-			wcssc = WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE;
+			wcssc = A_WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE;
 
 		if ((wbname = char2wchar(basename)) == NULL) { 
 			debugr2((errout,"char2wchar failed\n"));
@@ -6565,12 +6548,13 @@ main(int argc, char *argv[]) {
 //	ramdac *r = NULL;
 	int is_ok_icc = 0;			/* The profile is OK */
 
+
 	error_program = "Dispwin";
 	check_if_not_interactive();
 
 	/* Process the arguments */
 	mfa = 0;        /* Minimum final arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
@@ -6804,6 +6788,7 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	/* No explicit display has been set */
 	if (disp == NULL
 #ifdef NT
@@ -6932,6 +6917,7 @@ main(int argc, char *argv[]) {
 	if ((native & 1) != 0 && noramdac) {
 		warning("Unable to access to VideoLUTs so can't be sure colors are native");
 	} 
+
 
 	/* Save the current Video LUT to the calfile */
 	if (sname[0] != '\000') {
@@ -8152,4 +8138,6 @@ end;
 // CFRelease(r);
 
 #endif
+
+
 

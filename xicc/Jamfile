@@ -8,11 +8,11 @@ PREF_LINKFLAGS	+= $(LINKDEBUGFLAG) ;	# Link debugging flags
 Libraries = libxicc libxcolorants libxutils ;
 Executables = fakeCMY iccgamut mpplu revfix tiffgamut xicclu extracticc extractttag specplot ;
 Headers = xicc.h ;
-Samples = License.txt ;
+ExeDoc = License.txt ;
 
 #Install
 InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
-InstallFile $(DESTDIR)$(PREFIX)/bin : $(Samples) ;
+InstallFile $(DESTDIR)$(PREFIX)/bin : $(ExeDoc) ;
 #InstallFile $(DESTDIR)$(PREFIX)/h : $(Headers) ;
 #InstallLib  $(DESTDIR)$(PREFIX)/lib : $(Libraries) ;
 
@@ -26,8 +26,8 @@ HDRS = ../h ../icc ../rspl ../cgats ../numlib ../gamut ../spectro ../profile
        ../plot ../render $(TIFFINC) $(JPEGINC) $(LibWinH) ;
 
 # XICC library
-Library libxicc :  xicc.c xspect.c xcolorants.c xutils.c iccjpeg.c xdevlin.c
-        xcam.c cam97s3.c cam02.c mpp.c ccmx.c ccss.c xfit.c xdgb.c moncurve.c xcal.c
+Library libxicc :  xicc.c xspect.c xcolorants.c xutils.c iccjpeg.c
+        xcam.c cam97s3.c cam02.c mpp.c ccmx.c ccss.c xfit.c moncurve.c xcal.c
 		bt1886.c tm3015.c ;
 
 # colorant library. Use instead of libxicc

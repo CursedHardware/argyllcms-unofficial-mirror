@@ -20,7 +20,7 @@ InstallBin  $(DESTDIR)$(PREFIX)/bin : $(Executables) ;
 
 DEFINES += RENDER_TIFF RENDER_PNG ;
 
-HDRS = ../h ../numlib $(TIFFINC) $(PNGINC) ;
+HDRS = ../h ../icc ../numlib $(TIFFINC) $(PNGINC) ;
 
 if [ GLOB [ NormPaths . ] : vimage.c ]  {
 	EXTRASRC = vimage.c ;

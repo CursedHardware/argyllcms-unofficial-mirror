@@ -381,6 +381,7 @@ JAMBASEDATE = 2008.03.26 ;
 
 if $(NT)
 {
+# GWG
 	WIN_MT_AVAIL = true ;
 	if ! [ GLOB $(PATH) : mt.exe ] {
     	Echo "mt is NOT available!" ;
@@ -3463,14 +3464,15 @@ rule MainFromObjects
 	}
 
 	# On MSWin10 we may want to use UTF-8 for text
-	if $(WIN_MT_AVAIL) && $(WIN_UTF8) = true {
+	if $(WIN_MT_AVAIL) = true && $(WIN_UTF8) = true {
 		WIN_UTF8_MANIFEST $(_t) ;
+		SET_WIN_UTF8 = true ;
 	}
 
 	# On MSWin we may want to trigger UAC
-	if $(WIN_MT_AVAIL) && [ geton $(_t) : WIN_UAC ] = true {
+	if $(WIN_MT_AVAIL) = true && [ geton $(_t) : WIN_UAC ] = true {
 		WIN_UAC_COMBINE on $(_t) = "outputresource" ;
-		if $(WIN_UTF8) {
+		if $(SET_WIN_UTF8) {
 			WIN_UAC_COMBINE on $(_t) = "updateresource" ;
 		}
 		WIN_UAC_MANIFEST $(_t) ;

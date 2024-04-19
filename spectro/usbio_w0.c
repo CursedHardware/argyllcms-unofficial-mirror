@@ -823,7 +823,7 @@ static int icoms_usb_control_msg_w0(
 /* Cancel i/o operation in another thread. */
 /* Only Vista has CancelIoEx that can cancel a single operation, */
 /* so we cancel the io to the end point, which will */
-/* acheive what we want. */
+/* achieve what we want. */
 int icoms_usb_cancel_io_w0(
 	icoms *p,
 	usb_cancelt *cancelt

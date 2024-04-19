@@ -121,8 +121,7 @@ static void domodel(synthmodel *p, double *out, double *in) {
 	}
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	int i, j, rv = 0;
 	int fa,nfa;							/* current argument we're looking at */
 	int verb = 0;		/* Verbose flag */
@@ -167,6 +166,7 @@ int main(int argc, char *argv[])
 	char *xyzfname[3] = { "XYZ_X", "XYZ_Y", "XYZ_Z" };
 	char *labfname[3] = { "LAB_L", "LAB_A", "LAB_B" };
 
+
 	error_program = "Synthread";
 	if (argc < 1)
 		usage("Too few arguments");
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 	md.omax[2] = 1.0;
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-') {	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -318,6 +318,7 @@ int main(int argc, char *argv[])
 	strcat(inname,".ti1");
 	strcpy(outname,argv[fa]);
 	strcat(outname,".ti3");
+
 
 	/* Convert colorants to Lab, and scale white point */
 	if (md.dolab) {
@@ -470,6 +471,7 @@ printf("~1 Scaled primary %f %f %f\n", val[0], val[1], val[2]);
 
 	if ((nmask = icx_char2inkmask(icg->t[0].kdata[fi])) == 0)
 		error ("Input file keyword COLOR_REP has unknown value");
+
 
 	{
 		int i, j, ii;
@@ -695,5 +697,7 @@ printf("~1 Scaled primary %f %f %f\n", val[0], val[1], val[2]);
 
 	return 0;
 }
+
+
 
 

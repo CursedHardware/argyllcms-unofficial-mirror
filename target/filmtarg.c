@@ -35,9 +35,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -220,11 +217,6 @@ char *argv[];
 	char *atm = asctime(tsp); /* Ascii time */
 	char buf[100];	/* general sprintf buffer */
 	int rstart = 0;	/* Random sequence start value */
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	if (argc <= 1)
 		usage();

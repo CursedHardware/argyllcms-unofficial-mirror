@@ -1,5 +1,4 @@
 
-
 /* 
  * Argyll Color Management System
  * Common display patch reading support.
@@ -75,14 +74,16 @@
 # define FAKE_UNPREDIC			/* Initialise random unpredictably */
 # define FAKE_BITS 9			/* Number of bits of significance of fake device */
 #endif
-
+#undef FAKE_WDRIFT 			/* Drift the white point by increment every measurement */
+								/* - useful over about 200 measurements */
 
 #if defined(DEBUG)
-
-#define DBG(xxx) fprintf xxx ;
-#define dbgo stderr
+# pragma message("######### DEBUG enabled !!!!! ########")
+# define DRIFT_IPERIOD	10
+# define DBG(xxx) fprintf xxx ;
+# define dbgo stderr
 #else
-#define DBG(xxx) 
+# define DBG(xxx) 
 #endif	/* DEBUG */
 
 /* -------------------------------------------------------- */
@@ -467,9 +468,9 @@ static int disprd_read_imp(
 	int spat,		/* Start patch index for "verb", 0 if not used */
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
-	int noinc,		/* If nz, don't increment the count */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* If nz, don't increment the count */
 ) {
 	int j, rv;
 	int patch;
@@ -663,7 +664,7 @@ static int disprd_read_imp(
 					} else if (keyc & DUIH_ABORT) {
 						empty_con_chars();
 						printf("\nSample read stopped at user request!\n");
-						printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+						printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 						if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 							printf("\n");
 							return 1;
@@ -685,7 +686,7 @@ static int disprd_read_imp(
 					}
 
 					printf("Place instrument back on test window.\n");
-					printf("Hit Esc or Q to give up, any other key to continue:"); fflush(stdout);
+					printf("Hit Esc or Q to give up, any other key to continue:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						return 1;
@@ -698,7 +699,7 @@ static int disprd_read_imp(
 					empty_con_chars();
 					printf("\n\nSpot read failed due to the sensor being in the wrong position\n");
 					printf("(%s)\n",p->it->interp_error(p->it, rv));
-					printf("Correct position then hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+					printf("Correct position then hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						return 1;
@@ -710,7 +711,7 @@ static int disprd_read_imp(
 				} else if ((rv & inst_mask) == inst_misread) {
 					empty_con_chars();
 					printf("\nSample read failed due to misread\n");
-					printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						return 1;
@@ -722,7 +723,7 @@ static int disprd_read_imp(
 				} else if ((rv & inst_mask) == inst_coms_fail) {
 					empty_con_chars();
 					printf("\nSample read failed due to communication problem.\n");
-					printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						return 1;
@@ -799,7 +800,8 @@ static int disprd_read_drift(
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
 	int rv, i, j, e;
 	double fper, foff;
@@ -821,7 +823,7 @@ static int disprd_read_drift(
 		dno = 2;
 	}
 
-	/* Make sure these jave been initialised */
+	/* Make sure these have been initialised */
 	p->last_bw[0].r = 
 	p->last_bw[0].g = 
 	p->last_bw[0].b = 0.0; 
@@ -846,12 +848,13 @@ static int disprd_read_drift(
 		a1logd(p->log,2, "Reading a beginning set of %d b/w drift compensation patches\n",dno);
 
 		/* Read the black and/or white drift patch */
-		if ((rv = disprd_read_imp(p, &p->last_bw[boff], dno, spat, tpat, 0, 1, tc, 0)) != 0) {
+		if ((rv = p->read_imp(p, &p->last_bw[boff], dno, spat, tpat, 0, 1, tc, 0)) != 0) {
 			return rv;
 		}
 		p->last_bw_v = 1;
 
 		/* If there is no reference b&w, set them from this first b&w */
+		/* (These will be used as the black drift targets) */
 		if (p->ref_bw_v == 0) {
 			p->ref_bw[0] = p->last_bw[0];
 			p->ref_bw[1] = p->last_bw[1];
@@ -862,7 +865,7 @@ static int disprd_read_drift(
 	/* If there are enough patches to bracket with drift readings */ 
 	if (npat > DRIFT_EPERIOD) {
 		int ndrift = 2;			/* Number of drift records */
-		dsamples *dss;
+		dsamples *dss;			/* Drift samples */
 
 		/* Figure out the number of drift samples we need */
 		ndrift += (npat-1)/DRIFT_IPERIOD;
@@ -907,13 +910,13 @@ static int disprd_read_drift(
 				/* Read the black and/or white drift patchs before next batch */
 				DBG((dbgo,"Reading another set of %d b/w drift compensation patches\n",dno))
 				a1logd(p->log,2, "Reading another set of %d b/w drift compensation patches\n",dno);
-				if ((rv = disprd_read_imp(p, &dss[i].dcols[boff], dno, spat+dss[i].off, tpat, 0, 1, tc, 0)) != 0) {
+				if ((rv = p->read_imp(p, &dss[i].dcols[boff], dno, spat+dss[i].off, tpat, 0, 1, tc, 0)) != 0) {
 					free(dss);
 					return rv;
 				}
 			}
 			/* Read this batch of patches */
-			if ((rv = disprd_read_imp(p, &cols[dss[i].off], dss[i].count,spat+dss[i].off,tpat,0,0,tc, 0)) != 0) {
+			if ((rv = p->read_imp(p, &cols[dss[i].off], dss[i].count,spat+dss[i].off,tpat,0,0,tc, 0)) != 0) {
 				free(dss);
 				return rv;
 			}
@@ -921,16 +924,17 @@ static int disprd_read_drift(
 		/* Read the black and/or white drift patchs after last batch */
 		DBG((dbgo,"Reading an end set of %d b/w drift compensation patches\n",dno))
 		a1logd(p->log,2, "Reading an end set of %d b/w drift compensation patches\n",dno);
-		if ((rv = disprd_read_imp(p, &dss[i].dcols[boff], dno, spat+dss[i].off-1, tpat, 0, 1, tc, 0)) != 0) {
+		if ((rv = p->read_imp(p, &dss[i].dcols[boff], dno, spat+dss[i].off-1, tpat, 0, 1, tc, 0)) != 0) {
 			free(dss);
 			return rv;
 		}
-		/* Remember the last for next time */
+
+		/* Remember the last for next series */
 		p->last_bw[0] = dss[i].dcols[0];
 		p->last_bw[1] = dss[i].dcols[1];
 		p->last_bw_v = 1;
 
-		/* Set the white drift target to be the last one for batch */
+		/* Set the white drift target to be the last one of the series */
 		p->targ_w = p->last_bw[1];
 		p->targ_w_v = 1;
 
@@ -944,7 +948,7 @@ static int disprd_read_drift(
 
 			for (j = 0; j < dss[i].count; j++) {
 				int k = dss[i].off + j;
-				double we;		/* Interpolation weight of eairlier value */
+				double we;		/* Interpolation weight of earlier value */
 				col bb, ww;		/* Interpolated black and white */
 #ifdef DEBUG
 				double uXYZ[3];
@@ -983,7 +987,7 @@ static int disprd_read_drift(
 					if (cols[k].sp.spec_n > 0) {
 						for (e = 0; e < cols[k].sp.spec_n; e++) {
 							ww.sp.spec[e] =        we  * dss[i].dcols[1].sp.spec[e]
-							          + (1.0 - we) * dss[i+1].dcols[1].sp.spec[e];
+							              + (1.0 - we) * dss[i+1].dcols[1].sp.spec[e];
 						}
 					}
 				}
@@ -1017,6 +1021,7 @@ static int disprd_read_drift(
 						}
 					}
 				}
+
 				/* Compensate the reading for any white drift to target white */
 				if (p->wdrift) {
 					if (cols[k].XYZ_v) {
@@ -1041,7 +1046,7 @@ static int disprd_read_drift(
 
 		DBG((dbgo,"doing small number of readings\n"))
 		/* Read the small number of patches */
-		if ((rv = disprd_read_imp(p, cols,npat,spat,tpat,acr,0,tc,0)) != 0)
+		if ((rv = p->read_imp(p, cols,npat,spat,tpat,acr,0,tc,0)) != 0)
 			return rv;
 
 		if (p->targ_w_v == 0) {
@@ -1187,15 +1192,16 @@ static int disprd_read(
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
 	int rv, i;
 
 	if (p->bdrift || p->wdrift) {
-		if ((rv = disprd_read_drift(p, cols,npat,spat,tpat,acr,tc,clamp)) != 0)
+		if ((rv = disprd_read_drift(p, cols,npat,spat,tpat,acr,tc,clamp, 0)) != 0)
 			return rv;
 	} else {
-		if ((rv = disprd_read_imp(p, cols,npat,spat,tpat,acr,0,tc,clamp)) != 0)
+		if ((rv = disprd_read_imp(p, cols,npat,spat,tpat,acr,tc,clamp, 0)) != 0)
 			return rv;
 	}
 
@@ -1307,10 +1313,10 @@ int disprd_ambient(
 
 		printf("\nPlace the instrument so as to measure ambient upwards, beside the display,\n");
 		if (uswitch)
-			printf("Hit ESC or Q to exit, instrument switch or any other key to take a reading: ");
+			printf("Hit ESC or Q to exit, instrument switch or any other key to take a reading: %s",fl_end);
 		else
-			printf("Hit ESC or Q to exit, any other key to take a reading: ");
-		fflush(stdout);
+			printf("Hit ESC or Q to exit, any other key to take a reading: %s",fl_end);
+		do_fflush();
 
 		if ((rv = p->it->read_sample(p->it, "AMBIENT", &val, 1)) != inst_ok
 		     && (rv & inst_mask) != inst_user_trig) {
@@ -1329,7 +1335,7 @@ int disprd_ambient(
 				} else if (keyc & DUIH_ABORT) {
 					empty_con_chars();
 					printf("\nMeasure stopped at user request!\n");
-					printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+					printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 					if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 						printf("\n");
 						return 1;
@@ -1356,7 +1362,7 @@ int disprd_ambient(
 				empty_con_chars();
 				printf("\n\nSpot read failed due to the sensor being in the wrong position\n");
 				printf("(%s)\n",p->it->interp_error(p->it, rv));
-				printf("Correct position then hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Correct position then hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1368,7 +1374,7 @@ int disprd_ambient(
 			} else if ((rv & inst_mask) == inst_misread) {
 				empty_con_chars();
 				printf("\nMeasurement failed due to misread\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1380,7 +1386,7 @@ int disprd_ambient(
 			} else if ((rv & inst_mask) == inst_coms_fail) {
 				empty_con_chars();
 				printf("\nMeasurement read failed due to communication problem.\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1429,7 +1435,6 @@ int disprd_ambient(
 		return rv;
 
 	printf("\nPlace the instrument back on the test window\n");
-	fflush(stdout);
 
 	return 0;
 }
@@ -1446,8 +1451,11 @@ static int disprd_fake_read(
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
+	static int drift = 0;	/* Drift white offset multiplier */
+	static unsigned int msec = 0;
 	double white[3];		/* White point */
 	double red[3];			/* Red colorant */
 	double green[3];		/* Green colorant */
@@ -1496,6 +1504,13 @@ static int disprd_fake_read(
 	ooff[2] = 0.09;
 #endif
 
+#ifdef FAKE_WDRIFT 
+	white[0] += (double)drift * -0.005;
+	white[1] += (double)drift * 0.02;
+	white[2] += (double)drift * 0.01;
+	drift++;
+#endif
+
 	if (icmRGBXYZprim2matrix(red, green, blue, white, mat))
 		error("Fake read unexpectedly got singular matrix\n");
 
@@ -1540,7 +1555,7 @@ static int disprd_fake_read(
 			} else if (keyc & DUIH_ABORT) {
 				empty_con_chars();
 				printf("\nSample read stopped at user request!\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1641,6 +1656,9 @@ static int disprd_fake_read(
 		cols[patch].sp.spec_n = 0;
 		cols[patch].mtype = inst_mrt_emission;
 		cols[patch].mcond = inst_mrc_none;
+
+		cols[patch].serno = p->serno++;
+		cols[patch].msec = msec++; 
 	}
 	if (acr && spat != 0 && tpat != 0 && (spat+patch-1) == tpat)
 		a1logv(p->log, 1, "\n");
@@ -1658,7 +1676,8 @@ static int disprd_fake_read_lu(
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
 	int patch, j;
 	int ttpat = tpat;
@@ -1702,7 +1721,7 @@ static int disprd_fake_read_lu(
 			} else if (keyc & DUIH_ABORT) {
 				empty_con_chars();
 				printf("\nSample read stopped at user request!\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1773,7 +1792,8 @@ static int disprd_fake_read_co(disprd *p,
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
 	int patch, j;
 	int ttpat = tpat;
@@ -1814,7 +1834,7 @@ static int disprd_fake_read_co(disprd *p,
 			} else if (keyc & DUIH_ABORT) {
 				empty_con_chars();
 				printf("\nSample read stopped at user request!\n");
-				printf("Hit Esc or Q to give up, any other key to retry:"); fflush(stdout);
+				printf("Hit Esc or Q to give up, any other key to retry:%s",fl_end); do_fflush();
 				if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 					printf("\n");
 					return 1;
@@ -1907,7 +1927,8 @@ static int disprd_fake_read_manual(disprd *p,
 	int tpat,		/* Total patch index for "verb", 0 if not used */
 	int acr,		/* If nz, do automatic final carriage return */
 	int tc,			/* If nz, termination key */
-	instClamping clamp	/* NZ if clamp XYZ/Lab to be +ve */
+	instClamping clamp,	/* NZ if clamp XYZ/Lab to be +ve */
+	int noinc		/* Ignored */
 ) {
 	int patch, i, j;
 	int ttpat = tpat;
@@ -1984,11 +2005,11 @@ static int disprd_fake_read_manual(disprd *p,
 		       p->xtern == 1 ? "L*a*b*" : "XYZ");
 		printf("  'f' to move forward\n");
 		printf("  'b' to move back\n");
-		printf("  'd' when done, 'q' to abort : ");
-		fflush(stdout);
+		printf("  'd' when done, 'q' to abort : %s",fl_end);
+		do_fflush();
 
 		/* Read in the next line from stdin. */
-		if (fgets(buf, 200, stdin) == NULL) {
+		if (con_fgets(buf, 200) == NULL) {
 			printf("Error - unrecognised input\n");
 			continue;
 		}
@@ -2080,8 +2101,8 @@ static int disprd_fake_read_manual(disprd *p,
 
 			/* Not all patches have been read */
 			empty_con_chars();
-			printf("\nDone ? - At least one unread patch (%d), Are you sure [y/n]: ", spat+i);
-			fflush(stdout);
+			printf("\nDone ? - At least one unread patch (%d), Are you sure [y/n]: %s", spat+i, fl_end);
+			do_fflush();
 			if ((ch = next_con_char()) == 0x1b) {
 				printf("\n");
 				return 1;
@@ -2093,7 +2114,7 @@ static int disprd_fake_read_manual(disprd *p,
 
 		} else if (ch == 'q' || ch == 'Q' || ch == 0x1b) {
 			empty_con_chars();
-			printf("\nAbort ? - Are you sure ? [y/n]:"); fflush(stdout);
+			printf("\nAbort ? - Are you sure ? [y/n]:%s",fl_end); do_fflush();
 			if ((ch = next_con_char()) == 'y' || ch == 'Y') {
 				printf("\n");
 				return 1;
@@ -2465,7 +2486,7 @@ icxObserverType obType,	/* Use alternate observer if spectral or CCSS and != icx
 xspect custObserver[3],	/* Optional custom observer */
 int bdrift,			/* Flag, nz for black drift compensation */
 int wdrift,			/* Flag, nz for white drift compensation */
-char *fake_name,	/* Name of profile to use as a fake device */
+char *fake_name,	/* If not NULL, use ICC profile for fake device response */
 a1log *log      	/* Verb, debug & error log */
 ) {
 	disprd *p = NULL;
@@ -2546,6 +2567,9 @@ a1log *log      	/* Verb, debug & error log */
 		p->ncal = 0;
 	}
 
+	/* Default is to use real instrument read implementation */
+	p->read_imp = disprd_read_imp; 
+
 	/* If non-real instrument */
 	if (ipath == &icomFakeDevice) {
 		icmErr err = { 0, { '\000'} };
@@ -2573,17 +2597,36 @@ a1log *log      	/* Verb, debug & error log */
 			}
 		}
 
-		if (p->fake_lu != NULL) {
-			a1logv(p->log, 1, "Using profile '%s' rather than real device\n",p->fake_name);
-			p->read = disprd_fake_read_lu;
-		} else if (p->mcallout != NULL) {
-			a1logv(p->log, 1, "Using shell callout '%s' rather than real device\n",p->mcallout);
-			p->read = disprd_fake_read_co;
-		} else if (p->xtern != 0) {
-			a1logv(p->log, 1, "Using manual input rather than real device\n");
-			p->read = disprd_fake_read_manual;
-		} else
-			p->read = disprd_fake_read;
+		/* Call drift comp. with fake read implementation */
+		if (p->bdrift || p->wdrift) {
+			p->read = disprd_read_drift;
+
+			if (p->fake_lu != NULL) {
+				a1logv(p->log, 1, "Using profile '%s' rather than real device\n",p->fake_name);
+				p->read_imp = disprd_fake_read_lu;
+			} else if (p->mcallout != NULL) {
+				a1logv(p->log, 1, "Using shell callout '%s' rather than real device\n",p->mcallout);
+				p->read_imp = disprd_fake_read_co;
+			} else if (p->xtern != 0) {
+				a1logv(p->log, 1, "Using manual input rather than real device\n");
+				p->read_imp = disprd_fake_read_manual;
+			} else
+				p->read_imp = disprd_fake_read;
+
+		/* Call fake read implementation */
+		} else {
+			if (p->fake_lu != NULL) {
+				a1logv(p->log, 1, "Using profile '%s' rather than real device\n",p->fake_name);
+				p->read = disprd_fake_read_lu;
+			} else if (p->mcallout != NULL) {
+				a1logv(p->log, 1, "Using shell callout '%s' rather than real device\n",p->mcallout);
+				p->read = disprd_fake_read_co;
+			} else if (p->xtern != 0) {
+				a1logv(p->log, 1, "Using manual input rather than real device\n");
+				p->read = disprd_fake_read_manual;
+			} else
+				p->read = disprd_fake_read;
+		}
 
 		if (disp == NULL) {
 			a1logd(log,1,"new_disprd returning fake device\n");
@@ -2796,7 +2839,7 @@ a1log *log      	/* Verb, debug & error log */
 		empty_con_chars();
 
 		printf("Place instrument on test window.\n");
-		printf("Hit Esc or Q to give up, any other key to continue:"); fflush(stdout);
+		printf("Hit Esc or Q to give up, any other key to continue:%s",fl_end); do_fflush();
 		if ((ch = next_con_char()) == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 			printf("\n");
 			a1logd(log,1,"new_disprd failed because user aborted when placing device\n");

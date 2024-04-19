@@ -22,9 +22,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <math.h>
-#if defined(__IBMC__) && defined(_M_IX86)
-#include <float.h>
-#endif
 #include "aconfig.h"
 #include "numlib.h"
 #include "plot.h"
@@ -113,11 +110,6 @@ int main(void) {
 	double params[MAX_PARM];	/* Harmonic parameters */
 
 	error_program = "Curve1";
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	for (n = 0; n < TRIALS; n++) {
 		double lrand;		/* Amount of level randomness */

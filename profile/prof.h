@@ -46,6 +46,7 @@ void make_output_icc(
 	int nocied,				/* nz to supress inclusion of .ti3 data in profile */
 	int noptop,				/* nz to use colorimetic source gamut to make perceptual table */ 
 	int nostos,				/* nz to use colorimetic source gamut to make perceptual table */
+	int igammap,			/* Apply inverse gamut mapping to perc and sat A2B tables */
 	int gamdiag,			/* Make gamut mapping diagnostic wrl plots */
 	int verify,				/* nz to print verification */
 	int clipprims,			/* Clip white, black and primaries */

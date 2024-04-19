@@ -42,6 +42,7 @@
 #include "jpeglib.h"
 #include "iccjpeg.h"
 #include "icc.h"
+#include "cgats.h"
 #include "gamut.h"
 #include "xicc.h"
 #include "sort.h"
@@ -403,13 +404,14 @@ main(int argc, char *argv[]) {
 
 	double apcsmin[3], apcsmax[3];		/* Actual PCS range */
 
+
 	error_program = argv[0];
 
 	if (argc < 2)
 		usage();
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -832,8 +834,7 @@ main(int argc, char *argv[]) {
 		if ((cam = new_icxcam(cam_default)) == NULL)
 			error("new_icxcam failed");
 
-		cam->set_view(cam, vc.Ev, vc.Wxyz, vc.La, vc.Yb, vc.Lv, vc.Yf, vc.Yg, vc.Gxyz,
-		              XICC_USE_HK, vc.hkscale, vc.mtaf, vc.Wxyz2);
+		cam->set_view_vc(cam, &vc);
 	}
 
 	/* Establish the PCS range if we are filtering */

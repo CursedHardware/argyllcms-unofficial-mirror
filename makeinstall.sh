@@ -6,4 +6,4 @@ if [ X$OS != "XWindows_NT" ] ; then
 	# Fixup issues with the .zip format
 	chmod +x *.sh
 fi
-jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-2} install
+jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-1} install

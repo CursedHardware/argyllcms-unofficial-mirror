@@ -9,4 +9,4 @@ fi
 # Make sure that some environment variable are visible to Jam:
 export OSTYPE MACHTYPE HOSTTYPE
 
-jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-2}
+jam -q -fJambase -j${NUMBER_OF_PROCESSORS:-1}

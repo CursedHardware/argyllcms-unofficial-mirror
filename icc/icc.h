@@ -653,7 +653,7 @@ icmFile *new_icmFileMem_a(icmErr *e, void *base, size_t length, icmAlloc *al);
 /* and delete buffer when icmFile is deleted. */
 icmFile *new_icmFileMem_ad(icmErr *e, void *base, size_t length, icmAlloc *al);
 
-/* This is avalailable if SEPARATE_STD is not defined: */
+/* This is available if SEPARATE_STD is not defined: */
 
 /* Create a memory image file access class */
 icmFile *new_icmFileMem(icmErr *e, void *base, size_t length);

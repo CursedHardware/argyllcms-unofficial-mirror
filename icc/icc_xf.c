@@ -1826,12 +1826,19 @@ static int create_fmt(
 	icc *icp = p->icp;
 	icmPe *pe;
 
-//printf("\nEntry: srcsp = %s srca = %d, dstsp = %s dsta = %d\n",icmColorSpaceSig2str(srcsp), srca, icmColorSpaceSig2str(dstsp), dsta);
+#ifdef DEBUG_GET_LU
+	printf("\ncreate_fmt Entry: srcsp = %s srca = %d, dstsp = %s dsta = %d\n",icmColorSpaceSig2str(srcsp), srca, icmColorSpaceSig2str(dstsp), dsta);
+#endif
 
 	for (;;) {
-//		printf(" srcsp = %s srca = %d, dstsp = %s dsta = %d\n",icmColorSpaceSig2str(srcsp), srca, icmColorSpaceSig2str(dstsp), dsta);
+#ifdef DEBUG_GET_LU
+		printf(" srcsp = %s srca = %d, dstsp = %s dsta = %d\n",icmColorSpaceSig2str(srcsp), srca, icmColorSpaceSig2str(dstsp), dsta);
+#endif
 
 		if (srcsp == dstsp && srca == dsta) {
+#ifdef DEBUG_GET_LU
+			printf(" No conversion needed - all done\n");
+#endif
 			p->init(p);
 			return ICM_ERR_OK;
 		}
@@ -1849,9 +1856,12 @@ static int create_fmt(
 				return icp->e.c;
 			if (srcsp != tofrom)		/* Ooops. Shouldn't happen though... */
 				return icm_err(p->icp, ICM_ERR_PE_FMT_UNH_DEV, "create_fmt: can't deal with src"
-				     " '%s' & dst '%s'", icmColorSpaceSig2str(srcsp), icmColorSpaceSig2str(dstsp));
+				     " '%s' abs %d & dst '%s' abs %d", icmColorSpaceSig2str(srcsp), srca,
+				                                       icmColorSpaceSig2str(dstsp), dsta);
 			srcsp = dstsp;
-//			printf(" Added non-PCS full to norm\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added non-PCS full to norm\n");
+#endif
 			continue;
 		}
 
@@ -1867,26 +1877,33 @@ static int create_fmt(
 			} else if (icp->e.c != ICM_ERR_OK)
 				return icp->e.c;
 			srcsp = tofrom;
-//			printf(" Added non-PCS norm to full\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added non-PCS norm to full\n");
+#endif
 			continue;
 		}
 
 		/* If we're not dealing with a PCS conversion now, it's an error */
 		if (!(icmCSSig2type(srcsp) & CSSigType_gPCS)
 		 || !(icmCSSig2type(dstsp) & CSSigType_gPCS)) {
-			return icm_err(p->icp, ICM_ERR_PE_FMT_UNH_DEV, "create_fmt: can't deal with src '%s' "
-			             "& dst '%s'", icmColorSpaceSig2str(srcsp), icmColorSpaceSig2str(dstsp));
+			return icm_err(p->icp, ICM_ERR_PE_FMT_UNH_DEV, "create_fmt: can't deal with src"
+			    " '%s' abs %d & dst '%s' abs %d", icmColorSpaceSig2str(srcsp), srca,
+			                                      icmColorSpaceSig2str(dstsp), dsta);
 		}
 
 		/* If there needs to be an intent change */
 		if (srca != dsta) {
 			if (srcsp != icSigXYZData) {
 				/* Recurse: Create a conversion from the source to XYZ */
-//				printf(" Recursing\n");
+#ifdef DEBUG_GET_LU
+				printf(" Recursing\n");
+#endif
 				if (create_fmt(p, lu, icSigXYZData, 0, srcsp, 0))
 					return icp->e.c;
 				srcsp = icSigXYZData;
-//				printf(" Returned\n");
+#ifdef DEBUG_GET_LU
+				printf(" Returned\n");
+#endif
 			}
 			/* Add XYZ intent change */
 			if ((pe = new_icmPeAbs2Rel(icp, lu, dsta)) == NULL)
@@ -1896,7 +1913,9 @@ static int create_fmt(
 			pe->del(pe);		/* Container has taken a reference */
 			/* Continue from where we are now */
 			dsta = srca;
-//			printf(" Added intent change\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added intent change\n");
+#endif
 			continue;
 		}
 		/* Intent is now correct. */
@@ -1911,7 +1930,9 @@ static int create_fmt(
 			} else if (icp->e.c != ICM_ERR_OK)
 				return icp->e.c;
 			srcsp = tofrom;
-//			printf(" Added PCS norm to full\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added PCS norm to full\n");
+#endif
 			continue;
 		}
 		/* Source is now full range. */
@@ -1924,7 +1945,9 @@ static int create_fmt(
 				return icp->e.c;
 			pe->del(pe);		/* Contain has taken a reference */
 			srcsp = icSigLabData;
-//			printf(" Added XYZ to Lab\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added XYZ to Lab\n");
+#endif
 			continue;
 		}
 
@@ -1936,7 +1959,9 @@ static int create_fmt(
 				return icp->e.c;
 			pe->del(pe);		/* Contain has taken a reference */
 			srcsp = icSigXYZData;
-//			printf(" Added Lab to XYZ\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added Lab to XYZ\n");
+#endif
 			continue;
 		}
 		/* src is now full range same PCS type as destination */
@@ -1951,7 +1976,9 @@ static int create_fmt(
 			} else if (icp->e.c != ICM_ERR_OK)
 				return icp->e.c;
 			srcsp = dstsp;
-//			printf(" Added PCS full to norm\n");
+#ifdef DEBUG_GET_LU
+			printf(" Added PCS full to norm\n");
+#endif
 			continue;
 		}
 		/* Shouldn't get here ? */
@@ -2593,14 +2620,14 @@ static icmLu4Base *icc_get_lu4obj (
 							sch[ix++].out = tdev;
 							break;
 		    			case icmAbsolutePerceptual:		/* Special icclib intent */
-							e_outa = 1;					/* (fall though) */
+							e_ina = 1;					/* (fall though) */
 		    			case icPerceptual:
 							sch[ix].sig = icSigBToA0Tag;
 							sch[ix].in = tpcs;
 							sch[ix++].out = tdev;
 							break;
 		    			case icmAbsoluteSaturation:		/* Special icclib intent */
-							e_outa = 1;					/* (fall though) */
+							e_ina = 1;					/* (fall though) */
 		    			case icSaturation:
 							sch[ix].sig = icSigBToA2Tag;
 							sch[ix].in = tpcs;
@@ -2723,14 +2750,14 @@ static icmLu4Base *icc_get_lu4obj (
 							sch[ix++].out = tdev;
 							break;
 		    			case icmAbsolutePerceptual:		/* Special icclib intent */
-							e_outa = 1;					/* (fall though) */
+							e_ina = 1;					/* (fall though) */
 		    			case icPerceptual:
 							sch[ix].sig = icSigBToA0Tag;
 							sch[ix].in = tpcs;
 							sch[ix++].out = tdev;
 							break;
 		    			case icmAbsoluteSaturation:		/* Special icclib intent */
-							e_outa = 1;					/* (fall though) */
+							e_ina = 1;					/* (fall though) */
 		    			case icSaturation:
 							sch[ix].sig = icSigBToA2Tag;
 							sch[ix].in = tpcs;
@@ -2789,7 +2816,7 @@ static icmLu4Base *icc_get_lu4obj (
 						}
 						if (warn) { 
 							/* (icmQuirkWarning noset doesn't care about icp->op direction) */
-							icmQuirkWarning(icp, ICM_ERR_GAMUT_INTENT, 1, "icc_get_luobj: Intent (0x%x)is unexpected for Gamut table",intent);
+							icmQuirkWarning(icp, ICM_ERR_GAMUT_INTENT, 1, "icc_get_luobj: Intent (0x%x) is unexpected for Gamut table",intent);
 						}
 					}
 

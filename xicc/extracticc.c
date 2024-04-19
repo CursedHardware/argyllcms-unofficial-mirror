@@ -81,13 +81,14 @@ main(int argc, char *argv[]) {
 	icmErr err = { 0, { '\000'} };
 	int rv = 0;
 	
+
 	error_program = argv[0];
 
 	if (argc < 3)
 		usage("Too few parameters");
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -117,11 +118,13 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
     if (fa >= argc || argv[fa][0] == '-') usage("Missing input TIFF file");
     strncpy(in_name,argv[fa++],MAXNAMEL); in_name[MAXNAMEL] = '\000';
 
     if (fa >= argc || argv[fa][0] == '-') usage("Missing output ICC profile");
     strncpy(out_name,argv[fa++],MAXNAMEL); out_name[MAXNAMEL] = '\000';
+
 
 	/* - - - - - - - - - - - - - - - */
 	/* Open up input tiff file ready for reading */
@@ -218,3 +221,5 @@ main(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+

@@ -226,7 +226,7 @@ static int do_spec(
 
 void usage(void) {
 	fprintf(stderr,"Plot spectrum and calculate CCT and VCT\n");
-	fprintf(stderr,"Author: Graeme W. Gill\n");
+	fprintf(stderr,"Author: Graeme W. Gill, licensed under the AGPL Version 3\n");
 	fprintf(stderr,"usage: specplot [infile.sp]\n");
 	fprintf(stderr," -v               verbose\n");
 	fprintf(stderr," -c               combine multiple files into one plot\n");
@@ -241,11 +241,7 @@ void usage(void) {
 	exit(1);
 }
 
-int
-main(
-	int argc,
-	char *argv[]
-) {
+int main(int argc, char *argv[]) {
 	int fa, nfa;			/* argument we're looking at */
 	int k;
 	int verb = 0;
@@ -261,10 +257,11 @@ main(
 	double uvmin = -1.0, uvmax = 1.0;
 	char buf[MAXGRAPHS][200];
 
+
 	error_program = argv[0];
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -348,6 +345,7 @@ main(
 		else
 			break;
 	}
+
 
 	if (fa < argc && argv[fa][0] != '-') {	/* Got file arguments */
 		int nsp = 0;		/* Current number in sp[] */
@@ -497,6 +495,8 @@ main(
 	}
 	return 0;
 }
+
+
 
 
 

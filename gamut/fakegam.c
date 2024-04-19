@@ -26,6 +26,7 @@
 #include "copyright.h"
 #include "aconfig.h"
 #include "numlib.h"
+#include "cgats.h"
 #include "gamut.h"
 
 int get_value(double val[3]);

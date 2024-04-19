@@ -251,7 +251,7 @@ inkmask icx_ink2primary_ink(inkmask mask) {
 
 
 /* Given an ink combination mask and a single ink mask, */
-/* return the index number for that ink. */
+/* return the index number within the set for that ink. */
 /* Return -1 if mask1 not in mask */
 int icx_ink2index(inkmask mask, inkmask mask1) {
 	int i, count = 0;

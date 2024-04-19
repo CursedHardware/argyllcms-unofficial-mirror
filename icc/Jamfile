@@ -42,10 +42,24 @@ if [ GLOB [ NormPaths . ] : petest.c ] {
 	MainsFromSources petest.c ;
 }
 
+if [ GLOB [ NormPaths . ] : prorun.c ] {
+	NDepends install : prorun ;
+	MainsFromSources prorun.c ;
+}
+
+if [ GLOB [ NormPaths . ] : protest.c ] {
+	NDepends install : protest ;
+	MainsFromSources protest.c ;
+}
+
 # This is an example program for making a matrix display profile
 MainsFromSources mkDispProf.c ;
 
 #MainsFromSources t.c ;
+
+if [ GLOB [ NormPaths . ] : mkPRMGsrc.c ] {
+	MainsFromSources mkPRMGsrc.c ;
+}
 
 if $(BUILD_JUNK) {
 

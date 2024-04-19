@@ -64,6 +64,10 @@ int poll_con_char(void);
 /* (If not_interactive, does nothing) */
 void empty_con_chars(void);
 
+/* Do an fgets from stdin, taking account of possible interference from */
+/* non-Interactive mode. */
+char *con_fgets(char *s, int size);
+
 /* Activate the system beeper after a delay */
 /* (Note frequency and duration may not be honoured on all systems) */
 void msec_beep(int delay, int freq, int msec);
@@ -229,6 +233,16 @@ void delete_file(char *fname);
 /* Given the path to a file, ensure that all the parent directories */
 /* are created. return nz on error */
 int create_parent_directories(char *path);
+
+/* Do a string copy while replacing all '\' characters with '/' */
+static void copynorm_dirsep(char *d, char *s);
+
+/* Allocate and create a path to the given filename that is */
+/* in the same directory as the given file. */
+/* Returns normalized separator '/' path. */
+/* Free after use */
+/* Return NULL on malloc error */
+char *path_to_file_in_same_dir(char *inpath, char *infile);
 
 /* - - - - - - - - - - - - - - - - - - -- */
 

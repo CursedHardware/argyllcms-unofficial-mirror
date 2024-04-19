@@ -38,6 +38,7 @@
 #include "numlib.h"
 #include "tiffio.h"
 #include "icc.h"
+#include "cgats.h"
 #include "gamut.h"
 #include "xicc.h"
 #include "vrml.h"

@@ -305,6 +305,7 @@ main(int argc, char *argv[]) {
 	double merr = 0.0, aerr = 0.0;		/* Stats on color change */
 	int i, j, e, n, rv = 0;
 
+
 	error_program = argv[0];
 	check_if_not_interactive();
 
@@ -313,7 +314,7 @@ main(int argc, char *argv[]) {
 
 
 	/* Process the arguments */
-	for(fa = 1;fa < argc;fa++) {
+	for (fa = 1;fa < argc;fa++) {
 		nfa = fa;					/* skip to nfa if next argument is used */
 		if (argv[fa][0] == '-')	{	/* Look for any flags */
 			char *na = NULL;		/* next argument after flag, null if none */
@@ -525,6 +526,7 @@ main(int argc, char *argv[]) {
 	/* Output abstract profile name */
 	if (fa >= argc || argv[fa][0] == '-') usage("Expected outabs file argument");
 	strncpy(wr_name,argv[fa++],MAXNAMEL); wr_name[MAXNAMEL] = '\000';
+
 
 	/* ======================= */
 	/* Open up each CIE file in turn, target then measured, */
@@ -749,6 +751,7 @@ main(int argc, char *argv[]) {
 		}	/* End of reading in CGATs file */
 		cgf->del(cgf);		/* Clean up */
 	}
+
 
 	/* Check that the number of test patches matches */
 	if (cg[0].npat != cg[1].npat)
@@ -1322,4 +1325,6 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
 

@@ -190,7 +190,7 @@ struct _munkiimp {
 	int fwrev;					/* int - Firmware revision number, from getfirm() */
 								/* Typically 0120 = V1.32 (Build 1303) */
 								/* i1Studio 0200 = V2.00 (Build 1310) */
-	unsigned char chipid[8];	/* HW serial number */
+	unsigned char chipid[8];	/* Sensor HW serial number */
 	char vstring[37];			/* Asciiz version string */
 	int tickdur;				/* Tick duration (usec, converted to intclkp) */
 	int minintcount;			/* Minimum integration tick count */
@@ -341,6 +341,7 @@ void del_munkiimp(munki *p);
 #define MUNKI_HW_ME_ODDREAD			    0x23		/* Read measurement bytes was not mult 274 */
 #define MUNKI_HW_CALIBVERSION		    0x24		/* calibration version is unknown */
 #define MUNKI_HW_CALIBMATCH		        0x25		/* calibration doesn't match device */
+#define MUNKI_HW_NOSENSOR		        0x26		/* Sensor isn't connected */
 
 /* Sample read operation errors */
 #define MUNKI_RD_DARKREADINCONS		    0x30		/* Dark calibration reading inconsistent */

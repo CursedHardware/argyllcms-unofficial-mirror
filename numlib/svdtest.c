@@ -16,9 +16,6 @@
 #include <stdarg.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 
 #include "numlib.h"
 
@@ -32,11 +29,6 @@ int main(void) {
 	double **a2;	/* A[0..M-1][0..N-1] check on a */
 	double **t;		/* A[0..M-1][0..N-1] temp */
 	int m,n;
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	printf("Test SVD\n");
 

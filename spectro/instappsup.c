@@ -197,7 +197,6 @@ inst_code inst_handle_calibrate(
 			}
 			if (usermes)
 				printf("Calibration complete\n");
-			fflush(stdout);
 			a1logd(p->log,1,"inst_handle_calibrate done 0x%x\n",ev);
 			return ev;
 		}
@@ -230,7 +229,6 @@ inst_code inst_handle_calibrate(
 			printf("\n");
 			if (ch == 0x1b || ch == 0x3 || ch == 'q' || ch == 'Q') {
 				a1logd(p->log,1,"inst_handle_calibrate user aborted 0x%x\n",inst_user_abort);
-				fflush(stdout);
 				return inst_user_abort;
 			}
 
@@ -391,12 +389,13 @@ inst_code inst_handle_calibrate(
 					return inst_internal_error;
 			}
 			if (calc & inst_calc_optional_flag)
-				printf(" or hit Esc or Q to abort, or S to skip: "); 
+				printf(" or hit Esc or Q to abort, or S to skip: %s",fl_end); 
 			else
-				printf(" or hit Esc or Q to abort: "); 
-			fflush(stdout);
+				printf(" or hit Esc or Q to abort: %s",fl_end); 
+			do_fflush();
 
 			usermes = 1;
+
 
 			/* If we should wait for user to say we're in the right condition, */
 			/* and this isn't a calibration that requires clicking the instrument */
@@ -406,6 +405,7 @@ inst_code inst_handle_calibrate(
 				empty_con_chars();
 				ch = next_con_char();
 				printf("\n");
+
 				/* If optional calib. and user wants to skip it */
 				/* Loop back to calibrate() with inst_calc_optional_flag still set */
 				if ((calc & inst_calc_optional_flag) != 0 && (ch == 's' || ch == 'S')) {

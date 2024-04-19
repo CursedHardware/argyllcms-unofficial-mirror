@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #include "numlib.h"
 #include "icc.h"
+#include "cgats.h"
 #include "gamut.h"
 #include "vrml.h"
 

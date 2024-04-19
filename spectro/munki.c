@@ -442,6 +442,8 @@ munki_interp_error(inst *pp, munki_code ec) {
 			return "Instrument calibration version is unknown";
 		case MUNKI_HW_CALIBMATCH:
 			return "Calibration doesn't match device";
+		case MUNKI_HW_NOSENSOR:
+			return "Sensor seems to be disconnected";
 
 		case MUNKI_RD_DARKREADINCONS:
 			return "Dark calibration reading is inconsistent";
@@ -592,6 +594,7 @@ munki_interp_code(munki *p, munki_code ec) {
 		case MUNKI_HW_ME_ODDREAD:
 		case MUNKI_HW_CALIBVERSION:
 		case MUNKI_HW_CALIBMATCH:
+		case MUNKI_HW_NOSENSOR:
 			return inst_hardware_fail | ec;
 
 		case MUNKI_RD_DARKREADINCONS:

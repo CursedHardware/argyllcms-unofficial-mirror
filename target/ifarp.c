@@ -58,9 +58,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #ifdef DEBUG
 # include "plot.h"
 # include "ui.h"
@@ -328,11 +325,6 @@ void *od				/* context for Perceptual function */
 
 	if ((s = (ifarp *)calloc(sizeof(ifarp), 1)) == NULL)
 		error ("ifarp: ifarp malloc failed");
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	s->reset = ifarp_reset;
 	s->read  = ifarp_read;

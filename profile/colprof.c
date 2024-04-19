@@ -79,7 +79,7 @@
   Flags used:
 
          ABCDEFGHIJKLMNOPQRSTUVWXYZ
-  upper  ....    ..... .. ... .   .
+  upper  ....   ...... .. ... .   .
   lower  .... .. . .. .........    
 
 */
@@ -112,8 +112,6 @@ void usage(char *diag, ...) {
 	fprintf(stderr," -np             Don't create input (Device) grid position curves\n");
 	fprintf(stderr," -no             Don't create output (PCS) shaper curves\n");
 	fprintf(stderr," -nc             Don't put the input .ti3 data in the profile\n");
-//	fprintf(stderr," -nP             Don't use the source perceptual table for perceptual gamut\n");
-//	fprintf(stderr," -nS             Don't use the source saturation table for saturation gamut\n");
 	fprintf(stderr," -k zhxr         Black Ink generation target: z = zero K,\n");
 	fprintf(stderr,"                 h = 0.5 K, x = max K, r = ramp K (def.)\n");
 	fprintf(stderr," -k p stle stpo enpo enle shape\n");
@@ -152,6 +150,7 @@ void usage(char *diag, ...) {
 	fprintf(stderr,"                   and saturation B2A table, or expansion percentage\n");
 	fprintf(stderr," -nP             Use colormetric source gamut to make output profile perceptual table\n");
 	fprintf(stderr," -nS             Use colormetric source gamut to make output profile saturation table\n");
+	fprintf(stderr," -nI             Apply inverse gammut mapping to perceptual and saturation AtoB tables\n");
 	fprintf(stderr," -g src.gam      Use source image gamut as well for output profile gamut mapping\n");
 	fprintf(stderr," -p absprof,...  Incorporate abstract profile(s) into output tables\n");
 	fprintf(stderr," -t intent       Override gamut mapping intent for output profile perceptual table:\n");
@@ -176,6 +175,7 @@ void usage(char *diag, ...) {
 		fprintf(stderr,"             %s\n",vc.desc);
 	}
 	fprintf(stderr," -P              Create gamut gammap_p.wrl and gammap_s.wrl diagostics\n");
+	fprintf(stderr," -H charTarget   Override the default CharTargetTag string\n");
 	fprintf(stderr," -O outputfile   Override the default output filename.\n");
 	fprintf(stderr," inoutfile       Base name for input.ti3/output%s file\n",ICC_FILE_EXT);
 	exit(1);
@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
 	int nocied = 0;				/* No .ti3 CIE data in profile */
 	int noptop = 0;				/* Use colormetric source gamut to make perceptual table */
 	int nostos = 0;				/* Use colormetric source gamut to make saturation table */
+	int igammap = 0;			/* Apply inverse gamut mapping to perc and sat A2B tables */
 	int gamdiag = 0;			/* Make gamut mapping diagnostic wrl plots */
 	int autowpsc = 0;			/* 1 = Auto scale the WP to prevent clipping above WP patch */
 								/* 2 = Force absolute colorimetric */
@@ -239,11 +240,12 @@ int main(int argc, char *argv[]) {
 	char outname[MAXNAMEL+1] = "";	/* Output cgats file base name */
 	cgats *icg;					/* input cgats structure */
 	int dti, ti;				/* Device type index, Temporary CGATs index */
-	prof_atype ptype = prof_default;	/* Default for each type of device */
+	prof_atype ptype = prof_default;	/* Default for each type of device = cLUT */
 	int mtxtoo = 0;				/* 1 if matrix tags should be created for Display XYZ cLUT */
 								/* 2 if debug matrix tags should be created for Display XYZ cLUT */
 	icxTransformCreateType icctype = icxTCT_V2V2;	/* ICC profile version to create */
 	profxinf xpi;		/* Extra profile information */
+
 
 #ifdef DO_TIME			/* Time the operation */
 	stime = clock();
@@ -336,6 +338,13 @@ int main(int argc, char *argv[]) {
 				if (na == NULL) usage("Expect argument to copyright flag -C");
 				fa = nfa;
 				xpi.copyright = na;
+			}
+
+			/* CharTarget string */
+			else if (argv[fa][1] == 'H') {
+				if (na == NULL) usage("Expect argument to CharTarget flag -H");
+				fa = nfa;
+				xpi.chartarget = na;
 			}
 
 			/* Attribute bits */
@@ -472,6 +481,8 @@ int main(int argc, char *argv[]) {
 						noptop = 1;
 					else if (na[0] == 'S')
 						nostos = 1;
+					else if (na[0] == 'I')
+						igammap = 1;
 					else
 						usage("Unknown argument '%c' to flag -n",na[0]);
 				}
@@ -961,6 +972,7 @@ int main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	/* Get the file name argument */
 	if (fa >= argc || argv[fa][0] == '-') usage("Missing input .ti3 and output ICC basename");
 	strncpy(baname,argv[fa++],MAXNAMEL-4); baname[MAXNAMEL-4] = '\000';
@@ -1004,6 +1016,7 @@ int main(int argc, char *argv[]) {
 
 	/* Should warning input viewing condition set and ipname[0] == '\000' */
 
+
 	if (oquality == -1) {		/* B2A tables will be used */
 		oquality = iquality;
 	}
@@ -1024,6 +1037,7 @@ int main(int argc, char *argv[]) {
 	/* Read the device/profile type tag */
 	if ((dti = icg->find_kword(icg, 0, "DEVICE_CLASS")) < 0)
 		error ("Input file doesn't contain keyword DEVICE_CLASS");
+
 
 	/* Issue some errors & warnings for strange combinations for profile type */
 
@@ -1194,7 +1208,7 @@ int main(int argc, char *argv[]) {
 			error ("Input cLUT clipping above WP mode isn't applicable to an output device");
 
 		make_output_icc(ptype, 0, icctype, verb, iquality, oquality,
-		                noisluts, noipluts, nooluts, nocied, noptop, nostos,
+		                noisluts, noipluts, nooluts, nocied, noptop, nostos, igammap,
 		                gamdiag, verify, clipprims, iwpscale,
 		                &ink, inname, outname, icg, 
 		                spec, tillum, &cust_tillum, illum, &cust_illum, obType, custObserver,
@@ -1246,7 +1260,7 @@ int main(int argc, char *argv[]) {
 
 		/* If a source gamut is provided for a Display, then a V2.4.0 profile will be created */
 		make_output_icc(ptype, mtxtoo, icctype, verb, iquality, oquality,
-		                noisluts, noipluts, nooluts, nocied, noptop, nostos,
+		                noisluts, noipluts, nooluts, nocied, noptop, nostos, igammap,
 		                gamdiag, verify, clipprims, iwpscale,
 		                NULL, inname, outname, icg,
 		                spec, icxIT_none, NULL, illum, &cust_illum, obType, custObserver,
@@ -1270,13 +1284,5 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
-
-
-
-
-
-
-
 
 

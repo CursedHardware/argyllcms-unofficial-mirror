@@ -42,8 +42,8 @@
 #include "icc.h"
 #include "numlib.h"
 #include "vrml.h"
-#include "gamut.h"
 #include "cgats.h"
+#include "gamut.h"
 #include "sort.h"			/* ../h sort macro */
 #include "counters.h"		/* ../h counter macros */
 #include "xlist.h"			/* ../h expandable list macros */
@@ -162,6 +162,7 @@ static int write_trans_vrml(gamut *s, char *filename, int doaxes, int docusps,
 static int write_vrml(gamut *s, char *filename, int doaxes, int docusps);
 static int write_gam(gamut *s, char *filename);
 static int read_gam(gamut *s, char *filename);
+static int read_gam_fp(gamut *s, cgatsFile *fp, char *filename);
 static double radial(gamut *s, double out[3], double in[3]);
 static double nradial(gamut *s, double out[3], double in[3]);
 static void nearest(gamut *s, double out[3], double in[3]);
@@ -678,6 +679,7 @@ int isRast				/* Flag indicating Raster rather than colorspace, */
 	s->write_trans_vrml = write_trans_vrml;
 	s->write_gam   = write_gam;
 	s->read_gam    = read_gam;
+	s->read_gam_fp = read_gam_fp;
 
 	return s;
 }
@@ -1162,7 +1164,7 @@ static int intersect(gamut *s, gamut *sa, gamut *sb) {
 
 	/* Clear some flags */
 	s->cswbset = 0;
-	s->cswbset = 0;
+	s->gawbset = 0;
 	s->dcuspixs = 0;
 
 	/* If either is a raster gamut, make it a raster gamut */
@@ -1239,7 +1241,7 @@ static int exp_cyl(gamut *s, gamut *sa, double ratio) {
 
 	/* Clear some flags */
 	s->cswbset = 0;
-	s->cswbset = 0;
+	s->gawbset = 0;
 	s->dcuspixs = 0;
 
 	/* Copy white & black points */
@@ -1374,7 +1376,7 @@ static int nexpintersect(gamut *s, gamut *sa, gamut *sb) {
 
 	/* Clear some flags */
 	s->cswbset = 0;
-	s->cswbset = 0;
+	s->gawbset = 0;
 	s->dcuspixs = 0;
 
 	/* Don't filter the points (gives a more accurate result ?) */
@@ -1461,7 +1463,7 @@ void *cntx		/* which returns p2 which is in desired direction from given p1 */
 
 	/* Clear some flags */
 	s->cswbset = 0;
-	s->cswbset = 0;
+	s->gawbset = 0;
 	s->dcuspixs = 0;
 
 	/* Don't filter the points (gives a more accurate result ?) */
@@ -6307,6 +6309,23 @@ static int read_gam(
 gamut *s,
 char *filename
 ) {
+	cgatsFile *fp;
+
+	if ((fp = new_cgatsFileStd_name(filename, "r")) == NULL) {
+		fprintf(stderr,"Unable to open file '%s' for reading",filename);
+		return 1;
+	}
+
+	return read_gam_fp(s, fp, filename);
+}
+
+/* Read from a CGATS .gam file */
+/* Return non-zero on error */
+static int read_gam_fp(
+gamut *s,
+cgatsFile *fp,
+char *filename
+) {
 	int i;
 	cgats *gam;
 	gtri *tp;
@@ -6326,7 +6345,7 @@ char *filename
 
 	gam->add_other(gam, "GAMUT");		/* Setup to cope with a gamut file */
 
-	if (gam->read_name(gam, filename)) {
+	if (gam->read(gam, fp)) {
 		fprintf(stderr,"Input file '%s' error : %s",filename, gam->e.m);
 		return 1;
 	}

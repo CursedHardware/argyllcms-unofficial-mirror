@@ -66,6 +66,7 @@ main(int argc, char *argv[]) {
 	int insert = 0;
 	int rv = 0;
 
+
 	error_program = argv[0];
 
 	if (argc < 3)
@@ -106,6 +107,7 @@ main(int argc, char *argv[]) {
 			break;
 	}
 
+
 	if ((extract && insert)
 	 || (!extract && !insert)) {
 		usage("Conflicting options");
@@ -135,6 +137,7 @@ main(int argc, char *argv[]) {
 
 	if (icco->header->deviceClass != icSigDisplayClass)
 		error("'%s' must be a Display profile",inname);
+
 
 	if (insert) {
 		int c, i, j;
@@ -217,3 +220,5 @@ main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+

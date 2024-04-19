@@ -38,9 +38,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#if defined(__IBMC__)
-#include <float.h>
-#endif
 #if defined(DEBUG) || defined(DUMP_PLOT)
 # include "plot.h"
 # include "ui.h"
@@ -707,11 +704,6 @@ void *od				/* context for Perceptual function */
 
 	if ((s = (simdlat *)calloc(sizeof(simdlat), 1)) == NULL)
 		error ("simdlat: simdlat malloc failed");
-
-#if defined(__IBMC__)
-	_control87(EM_UNDERFLOW, EM_UNDERFLOW);
-	_control87(EM_OVERFLOW, EM_OVERFLOW);
-#endif
 
 	s->reset = simdlat_reset;
 	s->read  = simdlat_read;

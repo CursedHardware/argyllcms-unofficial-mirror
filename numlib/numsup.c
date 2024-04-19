@@ -198,20 +198,70 @@ void set_exe_path(char *argv0) {
 
 /* Check if the "ARGYLL_NOT_INTERACTIVE" environment variable is */
 /* set, and set cr_char to '\n' if it is. */
+/* This should be called _before_ any stdout is used */
 
-int not_interactive = 0;
-char cr_char = '\r';
+int not_interactive = 0;	/* 1 = not_interactive */
+#ifdef NT
+DWORD stdin_type = FILE_TYPE_CHAR;
+#endif
+char cr_char = '\r';		/* For update on one line messages */
+char *fl_end = "";			/* For strings with no \n and a do_fflush() */
 
 void check_if_not_interactive() {
 	char *ev;
 
+#ifdef NEVER
+# ifdef NT
+	// ?? Should we ??
+	// - but shouldn't the UTF-8 code page trigger this anyway ??
+	_setmode(_fileno(stdin), 0x00040000); // _O_U8TEXT
+	_setmode(_fileno(stdout), 0x00040000); // _O_U8TEXT
+	_setmode(_fileno(stdserr), 0x00040000); // _O_U8TEXT
+# endif
+#endif
+
+	fl_end = "";
+
 	if ((ev = getenv("ARGYLL_NOT_INTERACTIVE")) != NULL) {
+#ifdef NT
+		HANDLE stdinh;
+#endif
+
 		not_interactive = 1;
 		cr_char = '\n';
+
+#ifdef NT
+		stdin_type = FILE_TYPE_CHAR;
+
+		/* Set no buffering so that messages arrive in the right sequence */
+		setvbuf(stdout, NULL, _IONBF, 1024);
+
+		/* Since we can't force the pipe to be in OVERLAPPED mode, we have */
+		/* to use NOWAIT mode. */
+		if ((stdinh = GetStdHandle(STD_INPUT_HANDLE)) != INVALID_HANDLE_VALUE) {
+			stdin_type = GetFileType(stdinh);
+			if (stdin_type == FILE_TYPE_PIPE) {
+				DWORD mode = PIPE_READMODE_BYTE | PIPE_NOWAIT;
+				SetNamedPipeHandleState(stdinh, &mode, NULL, NULL);
+			}
+		}
+#else
+		/* Set line buffering so that messages arrive in the right sequence */
+		setvbuf(stdout, NULL, _IOLBF, 1024);
+#endif
+
 	} else {
+#ifdef NT
+		stdin_type = FILE_TYPE_CHAR;
+#endif
 		not_interactive = 0;
 		cr_char = '\r';
 	}
+}
+
+/* Flush out prompts */
+void do_fflush() {
+	fflush(stdout);
 }
 
 /******************************************************************/
@@ -3041,6 +3091,23 @@ void acode_dvector(FILE *fp, char *id, char *pfx, double *v, int nc, int hb) {
 	fprintf(fp, "%s};\n",pfx);
 }
 
+/* Format unsigned char vector as C code to FILE */
+/* id is variable name */
+/* pfx used at start of each line */
+/* hb sets horizontal element limit to wrap */
+/* Assumed indexed from 0 */
+void acode_cvector(FILE *fp, char *id, char *pfx, unsigned char *v, int nc, int hb) {
+	int i;
+	fprintf(fp, "%sunsigned char %s[%d] = { ",pfx,id,nc);
+
+	for (i = 0; i < nc; i++) {
+		fprintf(fp, "%u%s",v[i], i < (nc-1) ? ", " : "");
+		if ((i % hb) == (hb-1))
+			fprintf(fp, "\n%s\t  ",pfx);
+	}
+	fprintf(fp, "%s};\n",pfx);
+}
+
 /* - - - - - - - - - - - - - - - - - - - - - - */
 
 /* Print double matrix to g_log debug */
@@ -3910,6 +3977,19 @@ void write_FLT64_le(ORD8 *p, double d) {
 }
 
 
+/*******************************************/
+/* Some bit functions */
+
+/* Return number of set bits */
+int count_set_bits(unsigned int val) {
+    int c = 0;
+    while (val) {
+        val &= (val - 1);
+        c++;
+    }
+    return c;
+}
+
 /*******************************/
 /* System independent timing */
 
@@ -4191,6 +4271,8 @@ char *debPfv(int di, float *p) {
 #   undef BUFSZ
 }
 
+#undef DEB_MAX_CHAN
+
 /*******************************************/
 /* In case system doesn't have an implementation */
 
@@ -4210,5 +4292,31 @@ double gamma_func(double x) {
 	return rv/x;
 }
 
-#undef DEB_MAX_CHAN
+/*******************************************/
+/* Dev. diagnostic logging to a file. */
+
+#ifdef NT
+# define LOGFILE "C:/Users/Public/log.txt"
+#else
+# define LOGFILE "~/log.txt"
+#endif
+
+FILE *a_diag_fp = NULL;
+
+void a_diag_log(char *fmt, ...) {
+	va_list args;
+
+	if (a_diag_fp == NULL)
+		a_diag_fp = fopen(LOGFILE, "w");
+
+	if (a_diag_fp == NULL)
+		return;
+
+	va_start(args, fmt);
+	vfprintf(a_diag_fp, fmt, args);
+	va_end(args);
+	fflush(a_diag_fp);
+}
+
+/*******************************************/
 

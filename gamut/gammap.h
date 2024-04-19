@@ -27,18 +27,23 @@ struct _gammap {
 	double igrot[3][4];	/* Inverse of above */
 	rspl *grey;			/* Forward L map */
 	rspl *igrey;		/* Inverse L map */
+
 						/* Source to destination gamut map applied */
 						/* to transformed source: */
 	rspl *map;			/* Rotated, L mapped Lab -> Lab gamut map */
 	double imin[3], imax[3];	/* Input range limits of map */
+	double cent[3];		/* Destination gamut center */
 
-	double tv[3];		/* Inversion target value */
+	double tv[3];		/* Powell inversion target value */
 /* Public: */
 
 	/* Methods */
 	void (*del)(struct _gammap *s);			/* Free ourselves */
-	void (*domap)(struct _gammap *s, double *out, double *in);	/* Do the mapping */
-	void (*invdomap1)(struct _gammap *s, double *out, double *in);	/* Do the inverse mapping */
+	void (*domap)(struct _gammap *s, double *out, double *in);		   /* Do the mapping */
+	void (*inv_domap)(struct _gammap *s, double *out, double *in);     /* Do the inverse mapping */
+
+	void (*invdomap1)(struct _gammap *s, double *out, double *in);
+	                                                      /* Do the inverse mapping using powell */
 
 }; typedef struct _gammap gammap;
 
