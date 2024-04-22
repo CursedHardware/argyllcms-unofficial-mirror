@@ -470,16 +470,19 @@ void osx_latencycritical_end();
 /* Numerical recipes vector/matrix support functions */
 /* Note that the index arguments are the inclusive low and high values */
 
-/* Double */
+/* Double Vector */
 double *dvector(int nl,int nh);
 double *dvectorz(int nl,int nh);
 void free_dvector(double *v,int nl,int nh);
 
+
+/* Double Matrix */
 double **dmatrix(int nrl, int nrh, int ncl, int nch);
 double **dmatrixz(int nrl, int nrh, int ncl, int nch);
 void free_dmatrix(double **m, int nrl, int nrh, int ncl, int nch);
 void dmatrix_reset(double **m, int nrl, int nrh, int ncl, int nch);
 
+/* Half Matrix */
 double **dhmatrix(int nrl, int nrh, int ncl, int nch);
 double **dhmatrixz(int nrl, int nrh, int ncl, int nch);
 void free_dhmatrix(double **m, int nrl, int nrh, int ncl, int nch);

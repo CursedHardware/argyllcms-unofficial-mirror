@@ -11,7 +11,7 @@ Version 3.2.0 17th April 2024
    Perceptual and Saturation A2B tables, if they are being created.
    This is not recommended for source profiles, since it
    handicaps true gamut mapping, but may be a workaround
-   to faulty Adobe Lightroom BPC for Perceptual intent in output prodfiles.
+   to faulty Adobe Lightroom BPC for Perceptual intent in output profiles.
 
  * Added error message for ColorMunki spectro sensor
    internal cable being disconnected.
@@ -24,7 +24,7 @@ Version 3.1.2 29th February 2024 (private release)
  * Fixed crash in chartread strip reading when given
    faulty .ti2 file.
 
- * Tweaked i1d3 AIO adaptive integration time
+ * Tweaked i1d3 Rev B AIO adaptive integration time
    to reduce measure time to be more comparable to
    just using Rev A commands.
 

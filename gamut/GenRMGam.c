@@ -13,6 +13,7 @@
 #include "numlib.h"
 #include "icc.h"
 #include "cgats.h"
+#include "xicc.h"
 #include "xcam.h"
 #include "gamut.h"
 

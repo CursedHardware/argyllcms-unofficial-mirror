@@ -453,7 +453,7 @@ if $(NT)
 		}
 
 		# Basic C/C++ tools
-		AR				?= $(TPFX2)ar rusc ;
+		AR				?= $(TPFX2)ar rsc ;
 		AS				?= $(TPFX2)as ;
 		CC				?= $(TPFX1)gcc ;
 		CCFLAGS			?= -DNT -mwin32 -pipe ;			# -fwrapv ??
