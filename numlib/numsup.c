@@ -1222,6 +1222,11 @@ void osx_latencycritical_end() {
 /* Numerical Recipes Vector/Matrix Support functions              */
 /******************************************************************/
 /* Note the z suffix versions return zero'd vectors/matricies */
+/* Note the a suffix versions allocates on the stack using aloca() */
+
+#ifdef NT
+# define alloca _alloca
+#endif
 
 /* Double Vector malloc/free */
 double *dvector(
@@ -1263,6 +1268,22 @@ int nh		/* Highest index */
 		return;
 
 	free((char *) (v+nl));
+}
+
+/* Double Vector on stack */
+double *dvectora(
+int nl,		/* Lowest index */
+int nh		/* Highest index */
+)	{
+	double *v;
+
+	if ((v = (double *) alloca((nh-nl+1) * sizeof(double))) == NULL) {
+		if (ret_null_on_malloc_fail)
+			return NULL;
+		else
+			error("Alloca failure in dvector()");
+	}
+	return v-nl;
 }
 
 /* --------------------- */
@@ -1390,6 +1411,49 @@ int nch		/* Col high index */
 	m[nrl] = m[nrl-1] - ncl;		/* Set first row address, offset to ncl */
 	for(i = nrl+1; i <= nrh; i++)	/* Set subsequent row addresses */
 		m[i] = m[i-1] + cols;
+}
+
+/* 2D Double matrix on stack */
+double **dmatrixa(
+int nrl,	/* Row low index */
+int nrh,	/* Row high index */
+int ncl,	/* Col low index */
+int nch		/* Col high index */
+) {
+	int i;
+	int rows, cols;
+	double **m;
+
+	if (nrh < nrl)	/* Prevent failure for 0 dimension */
+		nrh = nrl;
+	if (nch < ncl)
+		nch = ncl;
+
+	rows = nrh - nrl + 1;
+	cols = nch - ncl + 1;
+
+	/* One extra pointer before colums to hold main allocation address */
+	if ((m = (double **) alloca((rows + 1) * sizeof(double *))) == NULL) {
+		if (ret_null_on_malloc_fail)
+			return NULL;
+		else
+			error("Alloca failure in dmatrix(), pointers");
+	}
+	m -= nrl;	/* Offset to nrl */
+	m += 1;		/* Make nrl-1 pointer to main allocation, in case rows get swaped */
+
+	if ((m[nrl-1] = (double *) alloca(rows * cols * sizeof(double))) == NULL) {
+		if (ret_null_on_malloc_fail)
+			return NULL;
+		else
+			error("Alloca failure in dmatrix(), array");
+	}
+
+	m[nrl] = m[nrl-1] - ncl;		/* Set first row address, offset to ncl */
+	for(i = nrl+1; i <= nrh; i++)	/* Set subsequent row addresses */
+		m[i] = m[i-1] + cols;
+
+	return m;
 }
 
 /* --------------------- */
